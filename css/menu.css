@@ -31,16 +31,26 @@ header p {
 }
 
 /* Konten utama */
-main {
+
+.wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  width: 300px;
+  margin: 0 auto;
+}
+
+.box-snack {
   display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  padding-bottom: 80px;
+  justify-content: left;
+  align-items: left;
 }
 
 /* Card makanan/minuman */
 .food,
-.drink {
+.drink,
+.snack {
   border-radius: 20px;
   background: #fff;
   padding: 18px 30px;
@@ -49,7 +59,8 @@ main {
 }
 
 .food img,
-.drink img {
+.drink img,
+.snack img {
   width: 60px;
   height: auto;
   display: block;
@@ -77,17 +88,17 @@ li a .menu {
 }
 
 main p {
-    font-size: 13px;
-    padding-top: 8px;
+  font-size: 13px;
+  padding-top: 8px;
 }
 
-main a{
-    text-decoration: none;
-    color: black;
+main a {
+  text-decoration: none;
+  color: black;
 }
 
-main a:hover{
-    color: black;
+main a:hover {
+  color: black;
 }
 
 li a .menu:active {
