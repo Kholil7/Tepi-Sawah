@@ -1,0 +1,109 @@
+body {
+  font-family: "Poppins", sans-serif;
+  background: white;
+}
+
+.container {
+  width: 390px;
+  height: 100vh;
+  background: #f0f0f2;
+  overflow-x: hidden;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Header */
+header {
+  padding: 20px;
+}
+
+header h1 {
+  color: #000;
+  font-size: 20px; /* sebelumnya salah: font-family: 20px; */
+  font-weight: 700;
+  line-height: normal;
+  margin: 0;
+}
+
+header p {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Konten utama */
+main {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding-bottom: 80px;
+}
+
+/* Card makanan/minuman */
+.food,
+.drink {
+  border-radius: 20px;
+  background: #fff;
+  padding: 18px 30px;
+  margin: 10px;
+  text-align: center;
+}
+
+.food img,
+.drink img {
+  width: 60px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+ul {
+  display: flex;
+  list-style: none;
+  justify-content: space-around;
+  position: relative;
+  align-items: center;
+}
+
+ul li {
+  padding-top: 20px;
+}
+li a img {
+  width: 40px;
+}
+
+li a .menu {
+  padding-bottom: 4px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.403);
+}
+
+main p {
+    font-size: 13px;
+    padding-top: 8px;
+}
+
+main a{
+    text-decoration: none;
+    color: black;
+}
+
+main a:hover{
+    color: black;
+}
+
+li a .menu:active {
+  background-color: #ff9500;
+  border-radius: 50%;
+}
+
+/* Navbar */
+nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.25);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 10;
+}
