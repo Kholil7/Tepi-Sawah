@@ -1,92 +1,93 @@
- body {
-      font-family: "Poppins", sans-serif;
-      background: #f4f4f4;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
+body {
+  font-family: "Poppins", sans-serif;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
 
-    .container {
-      background: white;
-      padding: 25px;
-      border-radius: 10px;
-      width: 320px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
+.container {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  width: 320px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
 
-    .frame h1 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
+.frame h1 {
+  text-align: center;
+  margin-bottom: 10px;
+}
 
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-    label {
-      font-weight: 500;
-    }
+label {
+  font-weight: 500;
+}
 
-    input[type="text"],
-    input[type="password"] {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-      width: 100%;
-      box-sizing: border-box;
-    }
+input[type="email"],
+input[type="text"],
+input[type="password"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-    .password-container {
-      position: relative;
-      width: 100%;
-    }
+.password-container {
+  position: relative;
+  width: 100%;
+}
 
-    .password-container input {
-      width: 100%;
-      padding-right: 35px; /* ruang untuk ikon */
-    }
+.password-container input {
+  width: 100%;
+  padding-right: 35px; /* ruang untuk ikon */
+}
 
-    .password-container i {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: #666;
-      font-size: 18px;
-    }
+.password-container i {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #666;
+  font-size: 18px;
+}
 
-    button {
-      background: #007BFF;
-      color: white;
-      border: none;
-      padding: 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-    }
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
 
-    button:hover {
-      background: #0056b3;
-    }
+button:hover {
+  background: #0056b3;
+}
 
-    p {
-      text-align: center;
-      font-size: 13px;
-      margin-top: 10px;
-    }
+p {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 10px;
+}
 
-    a {
-      color: #007BFF;
-      text-decoration: none;
-    }
+a {
+  color: #007bff;
+  text-decoration: none;
+}
 
-    a:hover {
-      text-decoration: underline;
-    }
+a:hover {
+  text-decoration: underline;
+}
