@@ -12,7 +12,9 @@
       integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC"
       crossorigin="anonymous"
     />
-    <link rel="stylesheet" href="css/menu.css" />
+
+    <!-- css -->
+    <link rel="stylesheet" href="../css/minuman.css" />
 
     <!-- Google font -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -21,56 +23,39 @@
       href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
       rel="stylesheet"
     />
-    <title>Pesanan</title>
+
+    <!-- font awasome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+    />
+    <title>Menuman</title>
   </head>
   <body>
     <div class="container">
       <header>
-        <h1>Selamat Datang</h1>
-        <p>Mau Pesan Apa Hari Ini?</p>
+        <a href="../menu.html" class="fa-solid fa-arrow-left"></a>
+        <p>Minuman</p>
       </header>
+      <div class="kategori">
+        <button class="btn-hangat">Hangat</button>
+        <button class="btn-dingin">Dingin</button>
+      </div>
       <main>
-        <div class="wrapper">
-          <div class="food">
-            <a href="makanan/makanan.html">
-              <img src="asset/food.png" alt="" />
-              <p>Makanan</p>
-            </a>
+          <div class="menu-minuman">
+              <div class="minuman-hangat">
+                  <div class="wrapper">
+                      <img src="" alt="">
+                      <p>Teh</p>
+                      <p>Rp. 3.000</p>
+                  </div>
+              </div>
+              <div class="minuman-dingin"></div>
           </div>
-          <div class="drink">
-            <a href="makanan/minuman.html">
-              <img src="asset/drink.png" alt="" />
-              <p>Minuman</p>
-            </a>
-          </div>
-          <div class="snack box-snack">
-            <a href="">
-              <img src="asset/snack.png" alt="" />
-              <p>Cemilan</p>
-            </a>
-          </div>
-        </div>
       </main>
-      <nav>
-        <ul>
-          <li>
-            <a href="">
-              <img src="asset/nav/basket.png" alt="" />
-            </a>
-          </li>
-          <li>
-            <a href="">
-                <img class="menu" src="asset/nav/menu.png" alt="" />
-              </a>
-          </li>
-          <li>
-            <a href="">
-              <img src="asset/nav/history.png" alt="" />
-            </a>
-          </li>
-        </ul>
-      </nav>
     </div>
+
+    <!-- Optional JavaScript; choose one of the two! -->
 
     <!-- Option 1: Bootstrap Bundle with Popper -->
     <script

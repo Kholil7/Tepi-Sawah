@@ -1,0 +1,48 @@
+body {
+  font-family: "Poppins", sans-serif;
+  background: white;
+}
+
+.container {
+  width: 390px;
+  height: 100vh;
+  background: #f0f0f2;
+  overflow-x: hidden;
+  margin: 0 auto;
+  position: relative;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  border-bottom: 1px solid black;
+}
+
+header a {
+  color: black;
+  text-decoration: none;
+  text-align: center;
+  padding-top: 20px;
+  padding-bottom: 10px;
+  font-size: 18px;
+}
+
+header p {
+  padding-top: 20px;
+  width: 100vw;
+}
+
+/* kategori */
+.kategori{
+    margin-top: 25px;
+}
+
+.btn-dingin,
+.btn-hangat{
+    border: none;
+    border: 1px solid black;
+    border-radius: 3px;
+    padding: 7px 10px;
+    margin: 0 3px;
+}
