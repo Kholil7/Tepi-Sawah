@@ -12,21 +12,21 @@
   <div class="container">
     <div class="frame">
       <h1>Login</h1>
-      <form action="">
+      <form action="include/loginProses.php" method="POST">
         <label for="">Nama</label>
-        <input type="text" placeholder="Masukkan nama">
+        <input type="text" name="nama" placeholder="Masukkan nama">
 
         <label for="">Email</label>
-        <input type="text" placeholder="Masukkan email">
+        <input type="email" name="email" placeholder="Masukkan email">
 
         <label for="">Password</label>
         <div class="password-container">
-          <input type="password" id="password" placeholder="Masukkan password">
+          <input type="password" name="password" id="password" placeholder="Masukkan password">
           <i id="togglePassword" class="fas fa-eye"></i>
         </div>
 
         <button type="submit">Masuk</button>
-        <p>Jika anda belum memiliki akun silakan <a href="register.php">Daftar.</a></p>
+        <p>Jika anda belum memiliki akun silakan <a href="register.html">Daftar.</a></p>
       </form>
     </div>
   </div>

@@ -42,7 +42,7 @@
 
           <button type="submit">Daftar</button>
           <p>
-            Jika anda sudah memiliki akun silakan <a href="login.php">Masuk.</a>
+            Jika anda sudah memiliki akun silakan <a href="login.html">Masuk.</a>
           </p>
         </form>
       </div>
