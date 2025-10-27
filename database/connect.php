@@ -2,7 +2,7 @@
 $host     = "localhost";
 $user     = "root"; 
 $password = ""; 
-$database = "resto";
+$database = "dbresto_app";
 
 $conn = mysqli_connect($host, $user, $password, $database);
 

@@ -26,7 +26,7 @@
         </div>
 
         <button type="submit">Masuk</button>
-        <p>Jika anda belum memiliki akun silakan <a href="register.html">Daftar.</a></p>
+        <p>Jika anda belum memiliki akun silakan <a href="register.php">Daftar.</a></p>
       </form>
     </div>
   </div>
