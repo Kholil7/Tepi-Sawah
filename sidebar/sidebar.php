@@ -20,6 +20,7 @@ body{
   background:#f8fafc;
   color:#0f172a;
   min-height:100vh;
+  overflow-x:hidden;
 }
 .sidebar{
   position:fixed;
@@ -84,19 +85,6 @@ body{
   padding-left:12px;
 }
 .sidebar.collapsed .menu a span{display:none;}
-.sidebar .logout{
-  border-top:1px solid #f1f5f9;
-  padding:12px;
-}
-.sidebar .logout a{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  color:#111827;
-  text-decoration:none;
-  padding:10px 12px;
-  border-radius:8px;
-}
 
 .header{
   position:fixed;
@@ -146,13 +134,27 @@ body{
 }
 .overlay.visible{display:block;}
 
+@media(min-width:769px) {
+  #mobileToggle{
+    display: none;
+  }
+}
+
+/* Responsif hanya untuk tablet & hp (<= 1024px) */
 @media(max-width:1024px){
   .sidebar{
     transform:translateX(-100%);
+    width:var(--sidebar-w);
   }
-  .sidebar.active{transform:translateX(0);}
-  .header{left:0!important;}
-  .main-content{margin-left:0!important;}
+  .sidebar.active{
+    transform:translateX(0);
+  }
+  .header{
+    left:0!important;
+  }
+  .main-content{
+    margin-left:0!important;
+  }
 }
 </style>
 
@@ -163,21 +165,23 @@ body{
   </div>
   <div class="menu">
     <a href="#" class="active"><i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span></a>
-    <a href="#"><i class="fa-solid fa-chart-line"></i><span>Laporan Penjualan</span></a>
-    <a href="#"><i class="fa-solid fa-cart-shopping"></i><span>Laporan Pembelian</span></a>
+
     <a href="#"><i class="fa-solid fa-utensils"></i><span>Menu</span></a>
+    <a href="#"><i class="fa-solid fa-square-plus"></i><span>Input Menu</span></a>
+    <a href="#"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
     <a href="#"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
     <a href="#"><i class="fa-solid fa-circle-xmark"></i><span>Pembatalan</span></a>
+    <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
+    <a href="#"><i class="fa-solid fa-chart-line"></i><span>Laporan Penjualan</span></a>
+    <a href="#"><i class="fa-solid fa-cart-shopping"></i><span>Laporan Pembelian</span></a>
   </div>
-  <!-- <div class="logout">
-    <a href="../../logout.php"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></a>
-  </div> -->
 </nav>
 
 <div class="overlay" id="overlay"></div>
 
 <header class="header" id="header">
   <div class="left">
+    <i class="fa-solid fa-bars" id="mobileToggle"></i>
     <i class="fa-solid fa-bell" title="Notifikasi"></i>
     <i class="fa-solid fa-right-from-bracket" title="Logout" onclick="location.href='../../logout.php'"></i>
   </div>
@@ -188,29 +192,62 @@ body{
 </header>
 
 <script>
-const sidebar=document.getElementById('sidebar');
-const heroToggle=document.getElementById('heroToggle');
-const overlay=document.getElementById('overlay');
-function isMobile(){return window.innerWidth<=1024;}
-heroToggle.addEventListener('click',()=>{
-  if(isMobile()){
+const sidebar = document.getElementById('sidebar');
+const heroToggle = document.getElementById('heroToggle');
+const mobileToggle = document.getElementById('mobileToggle');
+const overlay = document.getElementById('overlay');
+const title = sidebar.querySelector('.hero .title');
+
+function isMobile() {
+  return window.innerWidth <= 1024;
+}
+
+function toggleSidebar() {
+  if (isMobile()) {
     sidebar.classList.toggle('active');
-    overlay.classList.toggle('visible',sidebar.classList.contains('active'));
-  }else{
+    const isActive = sidebar.classList.contains('active');
+    overlay.classList.toggle('visible', isActive);
+    title.style.display = 'block';
+  } else {
     sidebar.classList.toggle('collapsed');
+    const collapsed = sidebar.classList.contains('collapsed');
+    title.style.display = collapsed ? 'none' : 'block';
+    heroToggle.style.marginLeft = collapsed ? '0' : 'auto';
+    heroToggle.style.marginRight = collapsed ? 'auto' : '0';
   }
-});
-overlay.addEventListener('click',()=>{
+}
+
+heroToggle.addEventListener('click', toggleSidebar);
+if (mobileToggle) mobileToggle.addEventListener('click', toggleSidebar);
+
+overlay.addEventListener('click', () => {
   sidebar.classList.remove('active');
   overlay.classList.remove('visible');
+  if (isMobile()) {
+    title.style.display = 'block';
+  }
 });
-function updateDateTime(){
-  const now=new Date();
-  const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-  const day=days[now.getDay()];
-  const time=now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('datetime').textContent=`${day}, ${time}`;
+
+window.addEventListener('resize', () => {
+  if (!isMobile()) {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('visible');
+    title.style.display = sidebar.classList.contains('collapsed') ? 'none' : 'block';
+  } else {
+    title.style.display = 'block';
+  }
+});
+
+function updateDateTime() {
+  const now = new Date();
+  const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const day = days[now.getDay()];
+  const time = now.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('datetime').textContent = `${day}, ${time}`;
 }
+
 updateDateTime();
-setInterval(updateDateTime,1000);
+setInterval(updateDateTime, 1000);
 </script>
+
+
