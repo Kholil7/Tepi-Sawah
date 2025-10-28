@@ -167,7 +167,7 @@ body{
     <a href="#" class="active"><i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span></a>
 
     <a href="#"><i class="fa-solid fa-utensils"></i><span>Menu</span></a>
-    <a href="#"><i class="fa-solid fa-square-plus"></i><span>Input Menu</span></a>
+    <a href="../inside/tambah_menu.php"><i class="fa-solid fa-square-plus"></i><span>Input Menu</span></a>
     <a href="#"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
     <a href="#"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
     <a href="#"><i class="fa-solid fa-circle-xmark"></i><span>Pembatalan</span></a>
@@ -183,7 +183,7 @@ body{
   <div class="left">
     <i class="fa-solid fa-bars" id="mobileToggle"></i>
     <i class="fa-solid fa-bell" title="Notifikasi"></i>
-    <i class="fa-solid fa-right-from-bracket" title="Logout" onclick="location.href='../../logout.php'"></i>
+    <i class="fa-solid fa-right-from-brac ket" title="Logout" onclick="location.href='../../logout.php'"></i>
   </div>
   <div class="right">
     <div id="datetime"></div>
