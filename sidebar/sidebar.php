@@ -230,5 +230,4 @@ function updateDateTime(){
 }
 updateDateTime();
 setInterval(updateDateTime,1000);
-// end
 </script>
