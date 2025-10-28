@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("ssss", $nama, $email, $hashedPassword, $role);
 
     if ($stmt->execute()) {
-        echo "<script>alert('Registrasi Owner berhasil! Silakan login.'); window.location='../login.html';</script>";
+        echo "<script>alert('Registrasi Owner berhasil! Silakan login.'); window.location='../login.php';</script>";
     } else {
         echo "Terjadi kesalahan: " . $conn->error;
     }

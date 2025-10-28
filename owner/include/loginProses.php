@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_role'] = $user['role'];
 
             if ($user['role'] === 'owner') {
-                header("Location: ../inside/dashboard.html");
+                header("Location: ../inside/dashboard.php");
                 exit;
             } else {
                 echo "<script>alert('Anda tidak memiliki akses sebagai owner.'); window.location='../../index.php';</script>";

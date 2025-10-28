@@ -32,13 +32,13 @@
       <main>
         <div class="wrapper">
           <div class="food">
-            <a href="makanan/makanan.html">
+            <a href="makanan/makanan.php">
               <img src="asset/food.png" alt="" />
               <p>Makanan</p>
             </a>
           </div>
           <div class="drink">
-            <a href="makanan/minuman.html">
+            <a href="makanan/minuman.php">
               <img src="asset/drink.png" alt="" />
               <p>Minuman</p>
             </a>
