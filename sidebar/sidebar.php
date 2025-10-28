@@ -158,13 +158,12 @@ body{
     <button class="hamburger" id="heroToggle"><i class="fa-solid fa-bars"></i></button>
   </div>
   <div class="menu">
-    <a href="#" class="active"><i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span></a>
-
-    <a href="#"><i class="fa-solid fa-utensils"></i><span>Menu</span></a>
-    <a href="#"><i class="fa-solid fa-square-plus"></i><span>Input Menu</span></a>
-    <a href="#"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
-    <a href="#"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
-    <a href="#"><i class="fa-solid fa-circle-xmark"></i><span>Pembatalan</span></a>
+    <a href="dashboard.php" class="<?= str_contains($current, 'dashboard') ? 'active' : '' ?>"><i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span></a>
+    <a href="menu.php" class="<?= str_contains($current, 'menu.php') ? 'active' : '' ?>"><i class="fa-solid fa-utensils"></i><span>Menu</span></a>
+    <a href="input_menu.php" class="<?= str_contains($current, 'input_menu') ? 'active' : '' ?>"><i class="fa-solid fa-square-plus"></i><span>Input Menu</span></a>
+    <a href="pembelian_bahan.php" class="<?= str_contains($current, 'pembelian_bahan') ? 'active' : '' ?>"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
+    <a href="meja.php" class="<?= str_contains($current, 'meja') ? 'active' : '' ?>"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
+    <a href="pembatalan.php" class="<?= str_contains($current, 'pembatalan') ? 'active' : '' ?>"><i class="fa-solid fa-circle-xmark"></i><span>Pembatalan</span></a>
     <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
     <a href="laporan_penjualan.php" class="<?= str_contains($current, 'laporan_penjualan') ? 'active' : '' ?>"><i class="fa-solid fa-chart-line"></i><span>Laporan Penjualan</span></a>
     <a href="laporan_pembelian.php" class="<?= str_contains($current, 'laporan_pembelian') ? 'active' : '' ?>"><i class="fa-solid fa-cart-shopping"></i><span>Laporan Pembelian</span></a>
@@ -177,7 +176,7 @@ body{
   <div class="left">
     <i class="fa-solid fa-bars" id="mobileToggle"></i>
     <i class="fa-solid fa-bell" title="Notifikasi"></i>
-    <i class="fa-solid fa-right-from-brac ket" title="Logout" onclick="location.href='../../logout.php'"></i>
+    <i class="fa-solid fa-right-from-bracket" title="Logout" onclick="location.href='../../logout.php'"></i>
   </div>
   <div class="right">
     <div id="datetime"></div>
