@@ -1,11 +1,41 @@
 <?php
 include '../../sidebar/sidebar.php';
-require '../../database/connect.php';
+require_once '../../database/connect.php';
+require_once '../include/tambah_meja_proses.php';
+
+// Cek koneksi
+if (!$conn) {
+    die("Koneksi database gagal: " . mysqli_connect_error());
+}
+
+// Jika form tambah meja dikirim
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_meja'])) {
+    $nomor_meja = trim($_POST['nomor_meja']);
+    $result = tambahMeja($conn, $nomor_meja);
+    echo "<script>alert('" . $result['msg'] . "'); window.location.href='tambah_meja.php';</script>";
+    exit;
+}
+
+// Jika form edit meja dikirim
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_meja'])) {
+    $id_meja = $_POST['id_meja'];
+    $nomor_meja = trim($_POST['nomor_meja']);
+    $status_meja = $_POST['status_meja'];
+    $result = editMeja($conn, $id_meja, $nomor_meja, $status_meja);
+    echo "<script>alert('" . $result['msg'] . "'); window.location.href='tambah_meja.php';</script>";
+    exit;
+}
+
+// Jika hapus meja dikirim melalui GET
+if (isset($_GET['hapus'])) {
+    $id_meja = $_GET['hapus'];
+    $result = hapusMeja($conn, $id_meja);
+    echo "<script>alert('" . $result['msg'] . "'); window.location.href='tambah_meja.php';</script>";
+    exit;
+}
 
 // Ambil semua data meja
-$result = $conn->query("SELECT id_meja, nomor_meja, kode_unik, status_meja, qrcode_url, last_update 
-                        FROM meja ORDER BY id_meja ASC");
-$meja = $result->fetch_all(MYSQLI_ASSOC);
+$meja = getAllMeja($conn);
 
 // Statistik meja
 $total = count($meja);
@@ -14,7 +44,6 @@ $terisi = count(array_filter($meja, fn($m) => $m['status_meja'] === 'terisi'));
 $menunggu = count(array_filter($meja, fn($m) => $m['status_meja'] === 'menunggu_pembayaran'));
 $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'));
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -53,14 +82,20 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
         <div class="card shadow-sm border rounded p-3 bg-white">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <h6 class="mb-0"><i class="bi bi-grid-3x3-gap me-1"></i> <?= htmlspecialchars($m['nomor_meja']) ?></h6>
-            <span class="status <?= $m['status_meja'] ?>"><?= ucfirst(str_replace('_',' ', $m['status_meja'])) ?></span>
+            <span class="status <?= htmlspecialchars($m['status_meja']) ?>">
+              <?= ucfirst(str_replace('_',' ', $m['status_meja'])) ?>
+            </span>
           </div>
-          <p class="mb-1 small text-muted">Kode: <?= htmlspecialchars($m['kode_unik']) ?></p>
-          <p class="mb-1 small text-muted">QR: <?= htmlspecialchars(basename($m['qrcode_url'])) ?></p>
-          <p class="mb-2 small text-muted">Update: <?= date('d M Y H:i', strtotime($m['last_update'])) ?></p>
-          <div class="d-flex justify-content-between">
-            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#editMejaModal<?= $m['id_meja'] ?>"><i class="bi bi-pencil-square me-1"></i>Edit</button>
-            <a href="proses_meja.php?hapus=<?= $m['id_meja'] ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Yakin ingin menghapus meja ini?')"><i class="bi bi-trash"></i></a>
+
+          <div class="d-flex justify-content-between mt-3">
+            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#editMejaModal<?= $m['id_meja'] ?>">
+              <i class="bi bi-pencil-square me-1"></i>Edit
+            </button>
+            <a href="tambah_meja.php?hapus=<?= $m['id_meja'] ?>" 
+               class="btn btn-outline-danger btn-sm" 
+               onclick="return confirm('Yakin ingin menghapus meja ini?')">
+               <i class="bi bi-trash"></i>
+            </a>
           </div>
         </div>
       </div>
@@ -69,7 +104,7 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
       <div class="modal fade" id="editMejaModal<?= $m['id_meja'] ?>" tabindex="-1">
         <div class="modal-dialog">
           <div class="modal-content">
-            <form method="POST" action="proses_meja.php">
+            <form method="POST" action="">
               <div class="modal-header">
                 <h5 class="modal-title">Edit Meja <?= htmlspecialchars($m['nomor_meja']) ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -107,7 +142,7 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
 <div class="modal fade" id="tambahMejaModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="POST" action="proses_meja.php">
+      <form method="POST" action="">
         <div class="modal-header">
           <h5 class="modal-title">Tambah Meja Baru</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
