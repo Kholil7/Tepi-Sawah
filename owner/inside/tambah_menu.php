@@ -8,7 +8,7 @@ function clean($v){ return trim(htmlspecialchars($v ?? '')); }
 // === TAMBAH MENU ===
 if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
     $nama = clean($_POST['nama_menu']);
-    $kategori = strtolower(clean($_POST['kategori']));
+    $kategori = strtolower(clean($_POST['kategori'])); // enum wajib lowercase
     $harga = floatval($_POST['harga']);
     $status = clean($_POST['status_menu']);
     $gambar = $_FILES['gambar']['name'] ?? '';
@@ -30,7 +30,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
             echo "<script>alert('✅ Menu berhasil ditambahkan!'); window.location='tambah_menu.php';</script>";
             exit;
         } else {
-            echo "<script>alert('❌ Format gambar tidak didukung!');</script>";
+            echo "<script>alert('❌ Format gambar tidak didukung! Hanya jpg, jpeg, png, webp');</script>";
         }
     } else {
         echo "<script>alert('⚠️ Semua field wajib diisi!');</script>";
@@ -140,13 +140,7 @@ main{flex-grow:1;padding:100px 40px 60px;background:#f3f4f6;box-sizing:border-bo
       $menus = $conn->query("SELECT * FROM menu ORDER BY id_menu DESC");
       while($row = $menus->fetch_assoc()):
       ?>
-        <div class="card" 
-          data-id="<?= $row['id_menu'] ?>" 
-          data-nama="<?= htmlspecialchars($row['nama_menu']) ?>" 
-          data-kategori="<?= htmlspecialchars($row['kategori']) ?>" 
-          data-harga="<?= htmlspecialchars($row['harga']) ?>" 
-          data-status="<?= htmlspecialchars($row['status_menu']) ?>" 
-          data-gambar="<?= htmlspecialchars($row['gambar']) ?>">
+        <div class="card" data-nama="<?= htmlspecialchars($row['nama_menu']) ?>" data-kategori="<?= htmlspecialchars($row['kategori']) ?>">
           <img src="../../assets/uploads/<?= htmlspecialchars($row['gambar']) ?>" alt="">
           <h3><?= htmlspecialchars($row['nama_menu']) ?></h3>
           <span class="kategori"><?= ucfirst($row['kategori']) ?></span>
@@ -185,38 +179,11 @@ main{flex-grow:1;padding:100px 40px 60px;background:#f3f4f6;box-sizing:border-bo
   </div>
 </div>
 
-<!-- Modal Edit -->
-<div class="modal" id="editModal">
-  <div class="modal-content">
-    <span class="close-btn" onclick="document.getElementById('editModal').style.display='none'">&times;</span>
-    <h2>Edit Menu</h2>
-    <form method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="action" value="edit">
-      <input type="hidden" name="id_menu" id="edit_id">
-      <label>Nama Menu</label><input name="nama_menu" id="edit_nama" required>
-      <label>Kategori</label>
-      <select name="kategori" id="edit_kategori" required>
-        <option value="makanan">Makanan</option>
-        <option value="minuman">Minuman</option>
-        <option value="cemilan">Cemilan</option>
-      </select>
-      <label>Harga</label><input type="number" name="harga" id="edit_harga" required>
-      <label>Status</label>
-      <select name="status_menu" id="edit_status" required>
-        <option value="aktif">Aktif</option>
-        <option value="nonaktif">Nonaktif</option>
-      </select>
-      <label>Ganti Gambar (Opsional)</label><input type="file" name="gambar" accept="image/*">
-      <div class="actions"><button type="submit" class="save">Perbarui</button></div>
-    </form>
-  </div>
-</div>
-
 <script>
 document.getElementById('openModal').onclick=()=>document.getElementById('addModal').style.display='flex';
 window.onclick=e=>{if(e.target.classList.contains('modal'))e.target.style.display='none';};
 
-// Filter kategori
+// filter kategori
 const tabs=document.querySelectorAll('.tab'),cards=document.querySelectorAll('.card');
 tabs.forEach(tab=>{
   tab.onclick=()=>{
@@ -226,7 +193,7 @@ tabs.forEach(tab=>{
   };
 });
 
-// Search menu
+// pencarian
 document.getElementById('searchMenu').oninput=function(){
   const val=this.value.toLowerCase();
   cards.forEach(c=>{
@@ -234,19 +201,6 @@ document.getElementById('searchMenu').oninput=function(){
     c.style.display=nama.includes(val)?'block':'none';
   });
 };
-
-// === Edit Menu Logic ===
-document.querySelectorAll('.editBtn').forEach(btn=>{
-  btn.onclick=function(){
-    const card=this.closest('.card');
-    document.getElementById('edit_id').value=card.dataset.id;
-    document.getElementById('edit_nama').value=card.dataset.nama;
-    document.getElementById('edit_kategori').value=card.dataset.kategori;
-    document.getElementById('edit_harga').value=card.dataset.harga;
-    document.getElementById('edit_status').value=card.dataset.status;
-    document.getElementById('editModal').style.display='flex';
-  };
-});
 </script>
 </body>
 </html>
