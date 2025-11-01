@@ -1,18 +1,18 @@
 <?php
-// Koneksi database
+
 require '../../database/connect.php';
 
-// Ambil data meja
+
 $query_meja = "SELECT * FROM meja WHERE status_meja = 'kosong' ORDER BY nomor_meja";
 $result_meja = mysqli_query($conn, $query_meja);
 $meja_list = mysqli_fetch_all($result_meja, MYSQLI_ASSOC);
 
-// Ambil data menu (DIKELOMPOKKAN BERDASARKAN KATEGORI)
+
 $query_menu = "SELECT * FROM menu ORDER BY kategori, nama_menu";
 $result_menu = mysqli_query($conn, $query_menu);
 $menu_list = mysqli_fetch_all($result_menu, MYSQLI_ASSOC);
 
-// Kelompokkan menu berdasarkan kategori
+
 $menu_by_category = [
     'makanan' => [],
     'minuman' => [],
@@ -26,7 +26,7 @@ foreach ($menu_list as $menu) {
     }
 }
 
-// Cek apakah ada parameter id_pesanan untuk edit (Modifikasi kecil di sini untuk catatan)
+
 $edit_mode = false;
 $cart_data = [];
 $id_pesanan_edit = null;
@@ -34,7 +34,7 @@ $id_pesanan_edit = null;
 if (isset($_GET['id_pesanan'])) {
     $id_pesanan_edit = mysqli_real_escape_string($conn, $_GET['id_pesanan']);
     
-    // Ambil data detail pesanan
+    
     $query_detail = "SELECT dp.id_pesanan, dp.*, m.nama_menu, m.harga, dp.catatan_item as catatan
                      FROM detail_pesanan dp
                      JOIN menu m ON dp.id_menu = m.id_menu
@@ -55,15 +55,24 @@ if (isset($_GET['id_pesanan'])) {
     }
 }
 
-// Proses form ketika disubmit
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     mysqli_begin_transaction($conn);
     
     try {
-        $id_meja = mysqli_real_escape_string($conn, $_POST['id_meja']);
         
-        // Perbaikan untuk mencegah 'Undefined array key "cart_data"' jika data kosong
-        // dan menghindari json_decode(null) yang deprecated.
+        $jenis_pesanan = mysqli_real_escape_string($conn, $_POST['jenis_pesanan']);
+        $metode_bayar = mysqli_real_escape_string($conn, $_POST['metode_bayar']);
+        
+        
+        $id_meja = null;
+        if ($jenis_pesanan === 'dine_in') {
+            if (empty($_POST['id_meja'])) {
+                throw new Exception("Pilih meja untuk Dine In!");
+            }
+            $id_meja = mysqli_real_escape_string($conn, $_POST['id_meja']);
+        }
+        
         $cart_data_json = $_POST['cart_data'] ?? '[]';
         $cart_items = json_decode($cart_data_json, true);
         
@@ -71,70 +80,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Keranjang kosong!");
         }
         
-        // Asumsi user/kasir ID diambil dari session, default ke 1
+       
         $dibuat_oleh = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1; 
         $diterima_oleh = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
         
-        // --- PERBAIKAN UTAMA: INSERT pesanan ---
-        // Menambahkan kolom 'dibuat_oleh' dan 'jenis_pesanan' yang ada di struktur tabel pesanan
-        // Menghilangkan 'metode_bayar' dari INSERT awal jika pesanan baru dibuat, 
-        // dan pembayaran belum dilakukan (status masih 'menunggu').
-        // Namun, jika Anda ingin menyimpannya sebagai default 'qris' di pesanan (seperti kode lama), itu juga bisa.
-        // Saya asumsikan ini adalah input pesanan, bukan transaksi pembayaran.
-        $query_pesanan = "INSERT INTO pesanan (id_meja, dibuat_oleh, waktu_pesan, jenis_pesanan, status_pesanan, total_harga, diterima_oleh) 
-                          VALUES ('$id_meja', '$dibuat_oleh', NOW(), 'dine_in', 'menunggu', 0, '$diterima_oleh')";
+        
+        if ($jenis_pesanan === 'dine_in') {
+            $query_pesanan = "INSERT INTO pesanan (id_meja, dibuat_oleh, waktu_pesan, jenis_pesanan, status_pesanan, total_harga, diterima_oleh, metode_bayar) 
+                              VALUES ('$id_meja', '$dibuat_oleh', NOW(), '$jenis_pesanan', 'menunggu', 0, '$diterima_oleh', '$metode_bayar')";
+        } else {
+           
+            $query_pesanan = "INSERT INTO pesanan (dibuat_oleh, waktu_pesan, jenis_pesanan, status_pesanan, total_harga, diterima_oleh, metode_bayar) 
+                              VALUES ('$dibuat_oleh', NOW(), '$jenis_pesanan', 'menunggu', 0, '$diterima_oleh', '$metode_bayar')";
+        }
+        
         mysqli_query($conn, $query_pesanan);
         
         $id_pesanan = mysqli_insert_id($conn);
         $total_harga = 0;
         
-        // Insert detail pesanan
+        
         foreach ($cart_items as $item) {
             $id_menu = mysqli_real_escape_string($conn, $item['id_menu']);
             $jumlah = mysqli_real_escape_string($conn, $item['jumlah']);
             $catatan = mysqli_real_escape_string($conn, $item['catatan']);
             
-            // Ambil harga menu
+           
             $query_harga = "SELECT harga FROM menu WHERE id_menu = '$id_menu'";
             $result_harga = mysqli_query($conn, $query_harga);
             $menu = mysqli_fetch_assoc($result_harga);
             
-            $subtotal = $menu['harga'] * $jumlah; // Digunakan hanya untuk perhitungan total_harga
+            $subtotal = $menu['harga'] * $jumlah;
             $total_harga += $subtotal;
             
-            // --- PERBAIKAN UTAMA: INSERT detail_pesanan ---
-            // HANYA menyisipkan kolom yang bukan AUTO_INCREMENT (id_detail) 
-            // dan bukan GENERATED COLUMN (subtotal).
             $query_detail = "INSERT INTO detail_pesanan (id_pesanan, id_menu, jumlah, harga_satuan, status_item, catatan_item) 
                              VALUES ('$id_pesanan', '$id_menu', '$jumlah', '{$menu['harga']}', 'menunggu', '$catatan')";
             mysqli_query($conn, $query_detail);
         }
         
-        // Update total harga pesanan (dengan asumsi 'total_harga' di pesanan tidak Generated Column)
+       
         $query_update = "UPDATE pesanan SET total_harga = '$total_harga' WHERE id_pesanan = '$id_pesanan'";
         mysqli_query($conn, $query_update);
         
-        // Update status meja
-        $query_meja_update = "UPDATE meja SET status_meja = 'terisi' WHERE id_meja = '$id_meja'";
-        mysqli_query($conn, $query_meja_update);
         
-        // Insert ke laporan transaksi (Modifikasi: Tambah kolom metode_bayar ke laporan jika diperlukan, tapi kode aslinya tidak punya)
-        // Saya akan mengikuti kode asli Anda yang menyisipkan ke laporan transaksi
-        $metode_bayar_pesanan = 'qris'; // Mengikuti default dari kode asli Anda
+        if ($jenis_pesanan === 'dine_in' && $id_meja) {
+            $query_meja_update = "UPDATE meja SET status_meja = 'terisi' WHERE id_meja = '$id_meja'";
+            mysqli_query($conn, $query_meja_update);
+        }
+        
+       
         $query_laporan = "INSERT INTO laporan_transaksi (id_pesanan, id_referensi, jenis, nominal, waktu_transaksi) 
                           VALUES ('$id_pesanan', '$id_pesanan', 'penjualan', '$total_harga', NOW())";
-        // Asumsi tabel laporan_transaksi memiliki kolom: id_pesanan, id_referensi, jenis, nominal, waktu_transaksi
         mysqli_query($conn, $query_laporan);
         
         mysqli_commit($conn);
         
-        $success_message = "Pesanan berhasil dibuat! No. Pesanan: " . $id_pesanan;
+        $jenis_text = $jenis_pesanan === 'dine_in' ? 'Dine In' : 'Take Away';
+        $success_message = "Pesanan berhasil dibuat! No. Pesanan: " . $id_pesanan . " | Jenis: " . $jenis_text . " | Metode: " . strtoupper($metode_bayar);
         
     } catch (Exception $e) {
         mysqli_rollback($conn);
-        // Error terkait kolom 'jumlah_dibayar' atau 'kembalian' yang Anda lihat
-        // kemungkinan berasal dari kode yang tidak ditampilkan atau dari *query* lain yang
-        // seharusnya ada di proses pembayaran. Di sini, saya hanya menangani error dari blok ini.
         $error_message = "Error: " . $e->getMessage();
     }
 }
@@ -205,6 +210,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             outline: none;
             border-color: #4A90E2;
             background: white;
+        }
+        
+        .option-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .option-card {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            background: white;
+        }
+        
+        .option-card:hover {
+            border-color: #4A90E2;
+            background: #f0f7ff;
+        }
+        
+        .option-card.selected {
+            border-color: #4A90E2;
+            background: #e3f2fd;
+        }
+        
+        .option-card .icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+        }
+        
+        .option-card .label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .option-card .description {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
         }
         
         .item-section {
@@ -430,6 +479,121 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 30px;
             color: #999;
         }
+        
+        #mejaGroup {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        #mejaGroup.hidden {
+            max-height: 0;
+            opacity: 0;
+            margin-bottom: 0;
+            padding: 0;
+        }
+        
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 0;
+                border-radius: 0;
+                box-shadow: none;
+                width: 100%;
+                max-width: 100%;
+            }
+
+            h2 {
+                font-size: 18px;
+                text-align: center;
+            }
+
+            .subtitle {
+                text-align: center;
+                font-size: 13px;
+                margin-bottom: 15px;
+            }
+
+            .item-input {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .item-input > div {
+                width: 100%;
+            }
+
+            select, input, textarea {
+                font-size: 14px;
+                padding: 10px;
+            }
+
+            .tab-container {
+                overflow-x: auto;
+                display: flex;
+                white-space: nowrap;
+                padding-bottom: 5px;
+            }
+
+            .tab-btn {
+                flex: none;
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+
+            .option-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .option-card {
+                padding: 15px;
+            }
+
+            .btn-add, .btn-submit {
+                padding: 12px;
+                font-size: 14px;
+            }
+
+            .cart-item {
+                flex-direction: column;
+                gap: 8px;
+                padding: 12px;
+                align-items: flex-start;
+            }
+
+            .cart-item-price {
+                margin: 0;
+                font-size: 14px;
+            }
+
+            .btn-remove-cart {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+
+            .summary-total {
+                flex-direction: column;
+                gap: 6px;
+                text-align: right;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tab-btn {
+                font-size: 12px;
+                padding: 8px 10px;
+            }
+
+            .cart-item-price {
+                font-size: 13px;
+            }
+
+            .btn-submit {
+                font-size: 14px;
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -445,16 +609,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="alert alert-error"><?= $error_message ?></div>
         <?php endif; ?>
         
-        <?php if (!empty($_POST) && !isset($_POST['cart_data'])): ?>
-            <div class="alert alert-error">Warning: Keranjang kosong saat disubmit. Harap tambahkan item sebelum Buat Pesanan.</div>
-        <?php endif; ?>
-        
         <form method="POST" id="orderForm">
             <input type="hidden" name="cart_data" id="cartData">
+            <input type="hidden" name="jenis_pesanan" id="jenisPesanan" value="dine_in">
+            <input type="hidden" name="metode_bayar" id="metodeBayar" value="cash">
             
             <div class="form-group">
+                <label>Jenis Pesanan</label>
+                <div class="option-group">
+                    <div class="option-card selected" onclick="selectOrderType('dine_in', this)">
+                        <div class="icon">🍽️</div>
+                        <div class="label">Dine In</div>
+                        <div class="description">Makan di tempat</div>
+                    </div>
+                    <div class="option-card" onclick="selectOrderType('take_away', this)">
+                        <div class="icon">🥡</div>
+                        <div class="label">Take Away</div>
+                        <div class="description">Bawa pulang</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group" id="mejaGroup">
                 <label for="id_meja">Pilih Meja</label>
-                <select name="id_meja" id="id_meja" required>
+                <select name="id_meja" id="id_meja">
                     <option value="">Pilih meja</option>
                     <?php foreach ($meja_list as $meja): ?>
                         <option value="<?= $meja['id_meja'] ?>">
@@ -527,6 +705,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <button type="button" class="btn-add" onclick="addToCart()">+ Tambah Item</button>
             
+            <div class="form-group">
+                <label>Metode Pembayaran</label>
+                <div class="option-group">
+                    <div class="option-card selected" onclick="selectPayment('cash', this)">
+                        <div class="icon">💵</div>
+                        <div class="label">Cash</div>
+                        <div class="description">Bayar tunai</div>
+                    </div>
+                    <div class="option-card" onclick="selectPayment('qris', this)">
+                        <div class="icon">📱</div>
+                        <div class="label">QRIS</div>
+                        <div class="description">Scan QR Code</div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="order-summary">
                 <div class="summary-title">Daftar Pesanan</div>
                 <div id="cartItems">
@@ -543,12 +737,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     
     <script>
-        // Load cart dari PHP jika dalam mode edit
         let cart = <?= !empty($cart_data) ? json_encode($cart_data) : '[]' ?>;
         
-        // Update display jika ada data awal
         if (cart.length > 0) {
             updateCartDisplay();
+        }
+        
+        function selectOrderType(jenis, element) {
+            document.querySelectorAll('.option-group')[0].querySelectorAll('.option-card').forEach(option => {
+                option.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            document.getElementById('jenisPesanan').value = jenis;
+            
+            const mejaGroup = document.getElementById('mejaGroup');
+            const mejaSelect = document.getElementById('id_meja');
+            
+            if (jenis === 'dine_in') {
+                mejaGroup.classList.remove('hidden');
+                mejaSelect.setAttribute('required', 'required');
+            } else {
+                mejaGroup.classList.add('hidden');
+                mejaSelect.removeAttribute('required');
+                mejaSelect.value = '';
+            }
+        }
+        
+        function selectPayment(metode, element) {
+            document.querySelectorAll('.option-group')[1].querySelectorAll('.option-card').forEach(option => {
+                option.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            document.getElementById('metodeBayar').value = metode;
         }
         
         function switchTab(button, kategori) {
@@ -606,7 +826,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             cart.push(item);
             
-            // Reset form
             select.value = '';
             document.getElementById('jumlahInput').value = 1;
             document.getElementById('catatanInput').value = '';
@@ -625,52 +844,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const totalAmount = document.getElementById('totalAmount');
             
             if (cart.length === 0) {
-                cartItems.innerHTML = '<div class="empty-cart">Belum ada pesanan</div>';
-                totalSection.style.display = 'none';
-                return;
-            }
-            
-            let html = '';
-            let total = 0;
-            
-            cart.forEach((item, index) => {
-                // Pastikan harga adalah number, jika dari PHP string, gunakan parseFloat
-                const harga = typeof item.harga === 'string' ? parseFloat(item.harga) : item.harga;
-                const subtotal = harga * item.jumlah;
-                total += subtotal;
-                
-                html += `
-                    <div class="cart-item">
-                        <div class="cart-item-info">
-                            <div class="cart-item-name">${item.nama}</div>
-                            <div class="cart-item-details">
-                                ${item.jumlah} x Rp ${harga.toLocaleString('id-ID')}
-                            </div>
-                            ${item.catatan ? `<div class="cart-item-note">${item.catatan}</div>` : ''}
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="cart-item-price">Rp ${subtotal.toLocaleString('id-ID')}</div>
-                            <button type="button" class="btn-remove-cart" onclick="removeFromCart(${index})">Hapus</button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            cartItems.innerHTML = html;
-            totalAmount.textContent = `Rp ${total.toLocaleString('id-ID')}`;
-            totalSection.style.display = 'flex';
-        }
-        
-        document.getElementById('orderForm').addEventListener('submit', function(e) {
-            if (cart.length === 0) {
-                e.preventDefault();
-                alert('Keranjang masih kosong! Tambahkan minimal 1 item.');
-                return false;
-            }
-            
-            // Masukkan data keranjang ke hidden input sebelum submit
-            document.getElementById('cartData').value = JSON.stringify(cart);
-        });
-    </script>
-</body>
-</html>
+                cartItems.innerHTML = '<div class="empty-cart">
