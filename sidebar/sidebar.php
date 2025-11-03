@@ -163,7 +163,7 @@ body{
     <a href="../inside/f.php" class="<?= str_contains($current, 'ff') ? 'active' : '' ?>"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
     <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
     <a href="../inside/tambah_meja.php" class="<?= str_contains($current, 'tambah_meja') ? 'active' : '' ?>"><i class="fa-solid fa-square-plus"></i><span>Input Meja</span></a>
-    <a href="pembelian_bahan.php" class="<?= str_contains($current, 'pembelian_bahan') ? 'active' : '' ?>"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
+    <a href="../inside/pembelian_bahan.php" class="<?= str_contains($current, 'pembelian_bahan') ? 'active' : '' ?>"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
     <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
     <a href="laporan_penjualan.php" class="<?= str_contains($current, 'laporan_penjualan') ? 'active' : '' ?>"><i class="fa-solid fa-chart-line"></i><span>Laporan</span></a>
   </div>
