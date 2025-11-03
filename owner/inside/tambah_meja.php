@@ -1,43 +1,91 @@
 <?php
 include '../../sidebar/sidebar.php';
 require_once '../../database/connect.php';
-require_once '../include/tambah_meja_proses.php';
+require_once '../../assets/phpqrcode/qrlib.php'; // QRCode tanpa Composer
 
-// Cek koneksi
-if (!$conn) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
+// Fungsi tambah meja dengan QR
+function tambahMeja($conn, $nomor_meja) {
+    $kode_unik = uniqid('MEJA_');
+    $qrcode_dir = '../../assets/qrcode/';
+    $qrcode_path = $qrcode_dir . $kode_unik . '.png';
+    $status = 'kosong';
+
+    // Cek duplikat nomor meja
+    $cek = mysqli_query($conn, "SELECT * FROM meja WHERE nomor_meja = '$nomor_meja'");
+    if (mysqli_num_rows($cek) > 0) {
+        return ['msg' => 'Nomor meja sudah ada!'];
+    }
+
+    // Generate QR Code
+    if (!file_exists($qrcode_dir)) {
+        mkdir($qrcode_dir, 0777, true);
+    }
+
+    $qr_data = "https://example.com/restoran/order.php?meja=" . urlencode($kode_unik);
+    QRcode::png($qr_data, $qrcode_path, QR_ECLEVEL_L, 6, 2);
+
+    // Simpan ke database
+    $insert = mysqli_query($conn, "INSERT INTO meja (nomor_meja, kode_unik, status_meja, qrcode_url, last_update)
+                                   VALUES ('$nomor_meja', '$kode_unik', '$status', '$qrcode_path', NOW())");
+
+    if ($insert) {
+        return ['msg' => 'Meja berhasil ditambahkan beserta QR Code-nya!'];
+    } else {
+        return ['msg' => 'Gagal menambahkan meja: ' . mysqli_error($conn)];
+    }
 }
 
-// Jika form tambah meja dikirim
+// Fungsi edit meja
+function editMeja($conn, $id_meja, $nomor_meja, $status_meja) {
+    $update = mysqli_query($conn, "UPDATE meja 
+                                   SET nomor_meja='$nomor_meja', status_meja='$status_meja', last_update=NOW() 
+                                   WHERE id_meja='$id_meja'");
+    if ($update) return ['msg' => 'Data meja berhasil diperbarui!'];
+    else return ['msg' => 'Gagal memperbarui data: ' . mysqli_error($conn)];
+}
+
+// Fungsi hapus meja
+function hapusMeja($conn, $id_meja) {
+    $hapus = mysqli_query($conn, "DELETE FROM meja WHERE id_meja='$id_meja'");
+    if ($hapus) return ['msg' => 'Meja berhasil dihapus!'];
+    else return ['msg' => 'Gagal menghapus meja: ' . mysqli_error($conn)];
+}
+
+// Ambil semua data meja
+function getAllMeja($conn) {
+    $result = mysqli_query($conn, "SELECT * FROM meja ORDER BY id_meja ASC");
+    $data = [];
+    while ($row = mysqli_fetch_assoc($result)) $data[] = $row;
+    return $data;
+}
+
+// Aksi
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_meja'])) {
     $nomor_meja = trim($_POST['nomor_meja']);
-    $result = tambahMeja($conn, $nomor_meja);
-    echo "<script>alert('" . $result['msg'] . "'); window.location.href='tambah_meja.php';</script>";
+    $res = tambahMeja($conn, $nomor_meja);
+    echo "<script>alert('{$res['msg']}'); window.location.href='tambah_meja.php';</script>";
     exit;
 }
 
-// Jika form edit meja dikirim
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_meja'])) {
     $id_meja = $_POST['id_meja'];
     $nomor_meja = trim($_POST['nomor_meja']);
     $status_meja = $_POST['status_meja'];
-    $result = editMeja($conn, $id_meja, $nomor_meja, $status_meja);
-    echo "<script>alert('" . $result['msg'] . "'); window.location.href='tambah_meja.php';</script>";
+    $res = editMeja($conn, $id_meja, $nomor_meja, $status_meja);
+    echo "<script>alert('{$res['msg']}'); window.location.href='tambah_meja.php';</script>";
     exit;
 }
 
-// Jika hapus meja dikirim melalui GET
 if (isset($_GET['hapus'])) {
     $id_meja = $_GET['hapus'];
-    $result = hapusMeja($conn, $id_meja);
-    echo "<script>alert('" . $result['msg'] . "'); window.location.href='tambah_meja.php';</script>";
+    $res = hapusMeja($conn, $id_meja);
+    echo "<script>alert('{$res['msg']}'); window.location.href='tambah_meja.php';</script>";
     exit;
 }
 
-// Ambil semua data meja
 $meja = getAllMeja($conn);
 
-// Statistik meja
+// Statistik
 $total = count($meja);
 $kosong = count(array_filter($meja, fn($m) => $m['status_meja'] === 'kosong'));
 $terisi = count(array_filter($meja, fn($m) => $m['status_meja'] === 'terisi'));
@@ -86,15 +134,13 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
               <?= ucfirst(str_replace('_',' ', $m['status_meja'])) ?>
             </span>
           </div>
-
+          <img src="<?= htmlspecialchars($m['qrcode_url']) ?>" class="img-fluid rounded mt-2" alt="QR Code">
           <div class="d-flex justify-content-between mt-3">
             <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#editMejaModal<?= $m['id_meja'] ?>">
               <i class="bi bi-pencil-square me-1"></i>Edit
             </button>
-            <a href="tambah_meja.php?hapus=<?= $m['id_meja'] ?>" 
-               class="btn btn-outline-danger btn-sm" 
-               onclick="return confirm('Yakin ingin menghapus meja ini?')">
-               <i class="bi bi-trash"></i>
+            <a href="tambah_meja.php?hapus=<?= $m['id_meja'] ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Yakin ingin menghapus meja ini?')">
+              <i class="bi bi-trash"></i>
             </a>
           </div>
         </div>
@@ -127,7 +173,7 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" name="edit_meja" class="btn btn-primary">Simpan Perubahan</button>
+                <button type="submit" name="edit_meja" class="btn btn-primary">Simpan</button>
               </div>
             </form>
           </div>
@@ -138,7 +184,7 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
   </div>
 </div>
 
-<!-- Modal Tambah Meja -->
+<!-- Modal Tambah -->
 <div class="modal fade" id="tambahMejaModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
