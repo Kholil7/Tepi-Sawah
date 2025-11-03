@@ -1,17 +1,10 @@
 <?php
 // mulai output buffering supaya tidak terjadi "Headers already sent"
 ob_start();
-
-// tampilkan semua error (hanya untuk dev; matikan di production)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// mulai session jika belum
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// koneksi database
+if (session_status() === PHP_SESSION_NONE) session_start();
 require '../../database/connect.php';
 
 function clean($v){ return trim(htmlspecialchars($v ?? '')); }
@@ -37,18 +30,10 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
             $stmt->bind_param("ssdss", $nama, $kategori, $harga, $status, $newName);
             $stmt->execute();
             $stmt->close();
-
-            // redirect aman lewat JavaScript (kamu juga bisa pakai header() karena buffering aktif)
             echo "<script>alert('✅ Menu berhasil ditambahkan!'); window.location='tambah_menu.php';</script>";
-            // flush buffer & exit
-            ob_end_flush();
-            exit;
-        } else {
-            echo "<script>alert('❌ Format gambar tidak didukung!');</script>";
-        }
-    } else {
-        echo "<script>alert('⚠️ Semua field wajib diisi!');</script>";
-    }
+            ob_end_flush(); exit;
+        } else echo "<script>alert('❌ Format gambar tidak didukung!');</script>";
+    } else echo "<script>alert('⚠️ Semua field wajib diisi!');</script>";
 }
 
 // === EDIT MENU ===
@@ -68,12 +53,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
                 $uploadDir = '../../assets/uploads/';
                 $newName = time().'_'.preg_replace('/[^A-Za-z0-9_\-]/', '_', pathinfo($gambar, PATHINFO_FILENAME)).'.'.$ext;
                 move_uploaded_file($_FILES['gambar']['tmp_name'], $uploadDir.$newName);
-
                 $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, status_menu=?, gambar=? WHERE id_menu=?");
                 $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $status, $newName, $id);
-            } else {
-                echo "<script>alert('❌ Format gambar tidak didukung!');</script>";
-            }
+            } else echo "<script>alert('❌ Format gambar tidak didukung!');</script>";
         } else {
             $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, status_menu=? WHERE id_menu=?");
             $stmt->bind_param("ssdsi", $nama, $kategori, $harga, $status, $id);
@@ -82,12 +64,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
             $stmt->execute();
             $stmt->close();
             echo "<script>alert('✅ Menu berhasil diperbarui!'); window.location='tambah_menu.php';</script>";
-            ob_end_flush();
-            exit;
+            ob_end_flush(); exit;
         }
-    } else {
-        echo "<script>alert('⚠️ Field belum lengkap!');</script>";
-    }
+    } else echo "<script>alert('⚠️ Field belum lengkap!');</script>";
 }
 ?>
 <!DOCTYPE html>
@@ -98,16 +77,125 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
 <title>Daftar Menu | Resto Owner</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-/* (masukkan semua CSS yang kamu pakai sebelumnya) */
-body{margin:0;font-family:'Segoe UI',sans-serif;background:#f9fafb;color:#333;display:flex;min-height:100vh;}
-aside{width:250px;flex-shrink:0;border-right:1px solid #e5e7eb;background:#fff;}
-main{flex-grow:1;padding:100px 40px 60px;background:#f3f4f6;box-sizing:border-box; po}
-.content-wrapper{background:#fff;border-radius:20px;padding:30px;box-shadow:0 4px 14px rgba(0,0,0,0.08);}
-.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;background:linear-gradient(90deg,#e0e7ff,#f8fafc);padding:20px 30px;border-radius:14px;box-shadow:inset 0 2px 6px rgba(0,0,0,0.05);}
+
+  
+/* ======== STYLE PERBAIKAN ======== */
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background:#f9fafb;
+  color:#333;
+  display:flex;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+aside{
+  width:250px;
+  background:#fff;
+  border-right:1px solid #e5e7eb;
+  transition:width .3s ease;
+  flex-shrink:0;
+  position:fixed;
+  top:0;
+  left:0;
+  bottom:0;
+  z-index:1000;
+}
+
+/* main otomatis menyesuaikan lebar sidebar */
+main{
+  flex-grow:1;
+  margin-left:250px;
+  transition:margin-left .3s ease;
+  padding:90px 40px 60px;
+  background:#f3f4f6;
+  box-sizing:border-box;
+  min-height:100vh;
+  margin-top: 70px;
+}
+
+/* jika sidebar ditutup (class .collapsed ditambahkan dari sidebar.php) */
+aside.collapsed{width:70px;}
+aside.collapsed + main{margin-left:70px;}
+
+/* konten utama */
+.content-wrapper{
+  background:#fff;
+  border-radius:20px;
+  padding:30px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.08);
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:30px;
+  background:linear-gradient(90deg,#e0e7ff,#f8fafc);
+  padding:20px 30px;
+  border-radius:14px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.05);
+}
+
 .topbar h1{margin:0;font-size:26px;color:#1e3a8a;font-weight:700;}
 .topbar p{margin:4px 0 0;color:#475569;}
-.btn-tambah{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;border:none;padding:10px 22px;border-radius:10px;cursor:pointer;font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 10px rgba(37,99,235,0.3);transition:.25s;}
-.btn-tambah:hover{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);transform:translateY(-2px);}
+
+.btn-tambah{
+  background:linear-gradient(135deg,#2563eb,#1e40af);
+  color:#fff;
+  border:none;
+  padding:10px 22px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:15px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  box-shadow:0 4px 10px rgba(37,99,235,0.3);
+  transition:.25s;
+}
+.btn-tambah:hover{
+  background:linear-gradient(135deg,#1d4ed8,#1e3a8a);
+  transform:translateY(-2px);
+}
+
+/* Atur layout utama */
+body {
+  margin: 0;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px; /* bisa diubah via JS / media query */
+  background-color: #2c3e50;
+  color: white;
+  flex-shrink: 0;
+  transition: width 0.3s ease;
+  z-index: 2;
+}
+
+/* Main otomatis menyesuaikan sisa lebar layar */
+main {
+  flex-grow: 1;             /* otomatis isi sisa ruang */
+  min-width: 0;             /* biar gak overflow */
+  background-color: #f8f9fa;
+  padding: 20px;
+  box-sizing: border-box;
+  transition: all 0.3s ease; /* efek halus saat sidebar berubah */
+}
+
+/* Contoh jika sidebar di-collapse (misalnya lewat JS menambah class) */
+.sidebar.collapsed {
+  width: 70px;
+}
+
+/* Tidak perlu ubah apapun di main — dia otomatis ikut */
+
+
 .tab{background:#f1f5f9;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;color:#475569;font-size:14px;transition:.3s;margin-right:6px;}
 .tab.active{background-color:#2563eb;color:white;box-shadow:0 2px 6px rgba(37,99,235,0.3);}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px;margin-top:20px;}
@@ -140,10 +228,10 @@ input:checked + .slider{background-color:#2563eb;}
 input:checked + .slider:before{transform:translateX(22px);}
 .toggle-container{display:flex;align-items:center;gap:10px;margin-top:6px;}
 .status-badge{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:600;}
+
 </style>
 </head>
 <body>
-<!-- include sidebar (boleh tetap di sini karena buffering mencegah error headers) -->
 <?php include '../../sidebar/sidebar.php'; ?>
 
 <main>
@@ -253,82 +341,36 @@ input:checked + .slider:before{transform:translateX(22px);}
 <script>
 // buka modal tambah
 document.getElementById('openModal').onclick = () => openModal('addModal');
+document.querySelectorAll('.close-btn').forEach(btn => btn.onclick = () => closeModal(btn.closest('.modal').id));
 
-// tombol X di modal
-document.querySelectorAll('.close-btn').forEach(btn => {
-  btn.onclick = () => closeModal(btn.closest('.modal').id);
-});
-
-// toggle add
 document.getElementById('add_status_toggle').addEventListener('change', function(){
   document.getElementById('add_status').value = this.checked ? 'aktif' : 'nonaktif';
 });
 
-// toggle edit
 const statusToggle = document.getElementById('edit_status_toggle');
 const statusHidden = document.getElementById('edit_status');
-statusToggle.addEventListener('change', function() {
-  statusHidden.value = this.checked ? 'aktif' : 'nonaktif';
-});
+statusToggle.addEventListener('change', function(){statusHidden.value = this.checked ? 'aktif' : 'nonaktif';});
 
-// tombol edit per card
 document.querySelectorAll('.editBtn').forEach(btn => {
   btn.onclick = function() {
-    const card = this.closest('.card');
-    document.getElementById('edit_id').value = card.dataset.id;
-    document.getElementById('edit_nama').value = card.dataset.nama;
-    document.getElementById('edit_kategori').value = card.dataset.kategori;
-    document.getElementById('edit_harga').value = card.dataset.harga;
-    const status = card.dataset.status;
-    statusHidden.value = status;
-    statusToggle.checked = (status === 'aktif');
+    const c = this.closest('.card');
+    document.getElementById('edit_id').value = c.dataset.id;
+    document.getElementById('edit_nama').value = c.dataset.nama;
+    document.getElementById('edit_kategori').value = c.dataset.kategori;
+    document.getElementById('edit_harga').value = c.dataset.harga;
+    const s = c.dataset.status;
+    statusHidden.value = s;
+    statusToggle.checked = (s === 'aktif');
     openModal('editModal');
   };
 });
 
-// fungsi buka/tutup modal
-function openModal(id){
-  const modal = document.getElementById(id);
-  modal.style.display = 'flex';
-  setTimeout(()=>modal.classList.add('show'),10);
-}
-function closeModal(id){
-  const modal = document.getElementById(id);
-  modal.classList.remove('show');
-  setTimeout(()=>{
-    modal.style.display='none';
-    const form = modal.querySelector('form');
-    if(form) form.reset();
-  },200);
-}
-window.onclick = e => {
-  if(e.target.classList.contains('modal')) closeModal(e.target.id);
-};
+function openModal(id){const m=document.getElementById(id);m.style.display='flex';setTimeout(()=>m.classList.add('show'),10);}
+function closeModal(id){const m=document.getElementById(id);m.classList.remove('show');setTimeout(()=>{m.style.display='none';const f=m.querySelector('form');if(f)f.reset();},200);}
+window.onclick=e=>{if(e.target.classList.contains('modal'))closeModal(e.target.id);};
 
-// kategori filter & search (sama seperti sebelumnya)
+// filter & search
 const tabs=document.querySelectorAll('.tab');
 const cards=document.querySelectorAll('.card');
-tabs.forEach(tab=>{
-  tab.onclick=()=>{
-    tabs.forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    const filter=tab.dataset.filter;
-    cards.forEach(card=>{
-      const kategori=card.dataset.kategori;
-      card.style.display=(filter==='semua'||kategori===filter)?'block':'none';
-    });
-  };
-});
-document.getElementById('searchMenu').addEventListener('input',function(){
-  const val=this.value.toLowerCase();
-  cards.forEach(card=>{
-    const nama=card.dataset.nama.toLowerCase();
-    card.style.display=nama.includes(val)?'block':'none';
-  });
-});
-</script>
-</body>
-</html>
-<?php
-// pastikan buffer dikirim ke browser
-if (ob_get_level()) ob_end_flush();
+tabs.forEach(t=>{t.onclick=()=>{tabs.forEach(a=>a.classList.remove('active'));t.classList.add('active');const f=t.dataset.filter;cards.forEach(c=>{const k=c.dataset.kategori;c.style.display=(f==='semua'||k===f)?'block':'none';});};});
+document.getElementById('searchMenu').addEventListener('input',function(){const v=this.value.to
