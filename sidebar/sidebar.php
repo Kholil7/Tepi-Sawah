@@ -5,8 +5,6 @@ if (session_status() === PHP_SESSION_NONE) {
 if (!isset($_SESSION['nama'])) {
   $_SESSION['nama'] = "Owner";
 }
-
-// Tangkap nama file aktif (tanpa path)
 $current = basename($_SERVER['PHP_SELF']);
 ?>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -89,7 +87,6 @@ body{
   font-weight:600;
 }
 .sidebar.collapsed .menu a span{display:none;}
-
 .header{
   position:fixed;
   top:0;
@@ -120,7 +117,6 @@ body{
   font-size:14px;
 }
 .header .user{display:flex;align-items:center;gap:6px;}
-
 .main-content{
   margin-top:var(--header-h);
   margin-left:var(--sidebar-w);
@@ -128,7 +124,6 @@ body{
   transition:margin-left .25s ease;
 }
 .sidebar.collapsed ~ .main-content{margin-left:var(--sidebar-w-collapsed);}
-
 .overlay{
   position:fixed;
   inset:0;
@@ -137,19 +132,54 @@ body{
   display:none;
 }
 .overlay.visible{display:block;}
-
-@media(min-width:769px) {
-  #mobileToggle{display: none;}
-}
+@media(min-width:769px){#mobileToggle{display:none;}}
 @media(max-width:1024px){
-  .sidebar{
-    transform:translateX(-100%);
-    width:var(--sidebar-w);
-  }
+  .sidebar{transform:translateX(-100%);width:var(--sidebar-w);}
   .sidebar.active{transform:translateX(0);}
   .header{left:0!important;}
   .main-content{margin-left:0!important;}
 }
+
+/* Popup Logout */
+.logout-popup{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.25);
+  z-index:2000;
+}
+.logout-popup.active{display:flex;}
+.logout-box{
+  background:#fff;
+  padding:24px;
+  border-radius:12px;
+  text-align:center;
+  width:300px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.08);
+}
+.logout-box h3{
+  margin-bottom:16px;
+  font-size:16px;
+  color:#0f172a;
+}
+.logout-buttons{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+}
+.logout-buttons button{
+  padding:8px 18px;
+  border:none;
+  border-radius:6px;
+  font-size:14px;
+  cursor:pointer;
+}
+.logout-yes{background:var(--blue);color:#fff;}
+.logout-no{background:#e2e8f0;color:#0f172a;}
+.logout-no:hover{background:#cbd5e1;}
+.logout-yes:hover{background:#2563eb;}
 </style>
 
 <nav class="sidebar" id="sidebar">
@@ -159,14 +189,13 @@ body{
   </div>
   <div class="menu">
     <a href="dashboard.php" class="<?= str_contains($current, 'dashboard') ? 'active' : '' ?>"><i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span></a>
-    <a href="ff.php" class="<?= str_contains($current, 'ff') ? 'active' : '' ?>"><i class="fa-solid fa-utensils"></i><span>Menu</span></a>
-    <a href="../inside/tambah_menu.php" class="<?= str_contains($current, 'tambah_menu') ? 'active' : '' ?>"><i class="fa-solid fa-square-plus"></i><span>Input Menu</span></a>
-    <a href="pembelian_bahan.php" class="<?= str_contains($current, 'pembelian_bahan') ? 'active' : '' ?>"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
-    <a href="meja.php" class="<?= str_contains($current, 'meja') ? 'active' : '' ?>"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
-    <a href="pembatalan.php" class="<?= str_contains($current, 'pembatalan') ? 'active' : '' ?>"><i class="fa-solid fa-circle-xmark"></i><span>Pembatalan</span></a>
+    <a href="../inside/tambah_menu.php" class="<?= str_contains($current, 'tambah_menu') ? 'active' : '' ?>"><i class="fa-solid fa-square-plus"></i><span>Menu</span></a>
+    <a href="../inside/manajemen_meja.php" class="<?= str_contains($current, 'manajemen_meja') ? 'active' : '' ?>"><i class="fa-solid fa-table-cells"></i><span>Meja</span></a>
     <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
-    <a href="laporan_penjualan.php" class="<?= str_contains($current, 'laporan_penjualan') ? 'active' : '' ?>"><i class="fa-solid fa-chart-line"></i><span>Laporan Penjualan</span></a>
-    <a href="laporan_pembelian.php" class="<?= str_contains($current, 'laporan_pembelian') ? 'active' : '' ?>"><i class="fa-solid fa-cart-shopping"></i><span>Laporan Pembelian</span></a>
+    <a href="../inside/tambah_meja.php" class="<?= str_contains($current, 'tambah_meja') ? 'active' : '' ?>"><i class="fa-solid fa-square-plus"></i><span>Input Meja</span></a>
+    <a href="pembelian_bahan.php" class="<?= str_contains($current, 'pembelian_bahan') ? 'active' : '' ?>"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
+    <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
+    <a href="laporan_penjualan.php" class="<?= str_contains($current, 'laporan_penjualan') ? 'active' : '' ?>"><i class="fa-solid fa-chart-line"></i><span>Laporan</span></a>
   </div>
 </nav>
 
@@ -176,7 +205,7 @@ body{
   <div class="left">
     <i class="fa-solid fa-bars" id="mobileToggle"></i>
     <i class="fa-solid fa-bell" title="Notifikasi"></i>
-    <i class="fa-solid fa-right-from-bracket" title="Logout" onclick="location.href='../../logout.php'"></i>
+    <i class="fa-solid fa-right-from-bracket" title="Logout" id="logoutBtn"></i>
   </div>
   <div class="right">
     <div id="datetime"></div>
@@ -184,12 +213,27 @@ body{
   </div>
 </header>
 
+<!-- Popup Logout -->
+<div class="logout-popup" id="logoutPopup">
+  <div class="logout-box">
+    <h3>Yakin ingin logout?</h3>
+    <div class="logout-buttons">
+      <button class="logout-no" id="cancelLogout">No</button>
+      <button class="logout-yes" id="confirmLogout">Yes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const sidebar=document.getElementById('sidebar');
 const heroToggle=document.getElementById('heroToggle');
 const mobileToggle=document.getElementById('mobileToggle');
 const overlay=document.getElementById('overlay');
 const title=sidebar.querySelector('.hero .title');
+const logoutBtn=document.getElementById('logoutBtn');
+const logoutPopup=document.getElementById('logoutPopup');
+const cancelLogout=document.getElementById('cancelLogout');
+const confirmLogout=document.getElementById('confirmLogout');
 
 function isMobile(){return window.innerWidth<=1024;}
 function toggleSidebar(){
@@ -229,4 +273,10 @@ function updateDateTime(){
 }
 updateDateTime();
 setInterval(updateDateTime,1000);
+
+logoutBtn.addEventListener('click',()=>{logoutPopup.classList.add('active');});
+cancelLogout.addEventListener('click',()=>{logoutPopup.classList.remove('active');});
+confirmLogout.addEventListener('click',()=>{
+  window.location.href='../include/logout.php';
+});
 </script>

@@ -1,0 +1,292 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background-color: #f5f5f5;
+  display: flex;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Konten utama */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width, 250px);
+  transition: margin-left 0.3s ease;
+  padding: 30px;
+  padding-top: 80px;
+  overflow-y: auto;
+}
+
+/* Untuk ketika sidebar minimize */
+body.sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-min-width, 80px);
+}
+
+/* Container */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.page-header p {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Tombol tambah */
+.btn-tambah {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn-tambah:hover {
+  background-color: #2563eb;
+}
+
+.plus-icon {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Kartu summary */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.card-value {
+  font-size: 36px;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.card-value-amount {
+  font-size: 32px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+/* Tabel */
+.table-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.table-container h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 20px;
+}
+
+.purchase-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.purchase-table thead {
+  background-color: #f9fafb;
+}
+
+.purchase-table th,
+.purchase-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #1a1a1a;
+}
+
+.purchase-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Tombol delete */
+.btn-delete {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-delete:hover {
+  background-color: #fee2e2;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Header Modal */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Form */
+form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Tombol aksi form */
+.form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  border: 1px solid #d1d5db;
+  background-color: white;
+  color: #374151;
+}
+
+.btn-cancel:hover {
+  background-color: #f9fafb;
+}
+
+.btn-submit {
+  border: none;
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-submit:hover {
+  background-color: #2563eb;
+}
+
+/* ✅ Responsif untuk HP dan sidebar */
+@media (max-width: 1024px) {
+  .main-content {
+    margin-left: 0 !important;
+    padding: 20px;
+    padding-top: 70px;
+  }
+  .btn-tambah {
+    width: 100%;
+    justify-content: center;
+  }
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+  .purchase-table {
+    min-width: 600px;
+  }
+}
