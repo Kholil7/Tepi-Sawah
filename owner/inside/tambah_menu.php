@@ -211,7 +211,7 @@ input:checked + .slider:before{transform:translateX(22px);}
           <button class="editBtn">Edit</button>
         </div>
       <?php 
-        endwhile;
+        endwhile; 
       else: 
       ?>
         <p>Tidak ada menu. Tambahkan menu pertama!</p>
