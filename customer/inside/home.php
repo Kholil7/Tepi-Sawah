@@ -38,7 +38,7 @@ if (!$meja) {
         </div>
 
         <div class="footer">
-            <p>Riwayat Pesanan</p>
+            <a href=""></a>
         </div>
     </div>
 </body>
