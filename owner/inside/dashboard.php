@@ -109,115 +109,227 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
     <title>Dashboard Restoran</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: 'Poppins', sans-serif;
             background-color: #f7f9fb;
-            margin: 0;
-            padding: 20px;
         }
+        
+        /* Main Content Container - akan menyesuaikan dengan sidebar */
+        .main-content {
+            margin-left: 250px; /* Sesuaikan dengan lebar sidebar terbuka */
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        /* Jika sidebar tertutup */
+        .main-content.sidebar-closed {
+            margin-left: 70px; /* Sesuaikan dengan lebar sidebar tertutup */
+        }
+        
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 15px;
+            max-width: 100%;
         }
+        
         .card {
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             padding: 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .card h4 { margin: 0; color: #555; font-size: 15px; font-weight: 500; }
-        .card h2 { margin: 5px 0; font-size: 28px; color: #1a73e8; }
-        .subtext { color: #777; font-size: 13px; }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        
+        .card h4 { 
+            margin: 0; 
+            color: #555; 
+            font-size: 15px; 
+            font-weight: 500; 
+        }
+        
+        .card h2 { 
+            margin: 5px 0; 
+            font-size: 28px; 
+            color: #1a73e8; 
+        }
+        
+        .subtext { 
+            color: #777; 
+            font-size: 13px; 
+            margin-top: 8px;
+        }
+        
         .main-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 15px;
             margin-top: 25px;
         }
+        
         .chart-container {
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             padding: 20px;
         }
-        .chart-container h3 { margin-bottom: 15px; font-size: 17px; color: #333; }
+        
+        .chart-container h3 { 
+            margin-bottom: 15px; 
+            font-size: 17px; 
+            color: #333; 
+            font-weight: 600;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .main-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+            
+            .main-content.sidebar-closed {
+                margin-left: 0;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .card h2 {
+                font-size: 24px;
+            }
+        }
     </style>
 </head>
 <body>
+    <?php include '../../sidebar/sidebar.php'; ?>
+    
+    <div class="main-content" id="mainContent">
+        <div class="dashboard">
+            <div class="card">
+                <h4>Total Penjualan Hari Ini</h4>
+                <h2>Rp <?= number_format($total_penjualan_hari_ini, 0, ',', '.'); ?></h2>
+                <p class="subtext">Bulan ini: Rp <?= number_format($total_penjualan_bulan_ini, 0, ',', '.'); ?></p>
+            </div>
+            <div class="card">
+                <h4>Total Pembelian Bahan</h4>
+                <h2 style="color:#00b871;">Rp <?= number_format($total_pembelian_hari_ini, 0, ',', '.'); ?></h2>
+                <p class="subtext">Bulan ini: Rp <?= number_format($total_pembelian_bulan_ini, 0, ',', '.'); ?></p>
+            </div>
+            <div class="card">
+                <h4>Status Meja</h4>
+                <h2 style="color:#f39c12;"><?= $status_meja_terisi; ?> / <?= $status_meja_total; ?></h2>
+                <p class="subtext">Terisi • <?= $status_meja_menunggu; ?> menunggu bayar</p>
+            </div>
+            <div class="card">
+                <h4>Menu Terlaris</h4>
+                <h2 style="color:#a259ff;"><?= $menu_terlaris; ?></h2>
+                <p class="subtext"><?= $menu_terlaris_jumlah; ?> porsi hari ini</p>
+            </div>
+        </div>
 
-<div class="dashboard">
-    <div class="card">
-        <h4>Total Penjualan Hari Ini</h4>
-        <h2>Rp <?= number_format($total_penjualan_hari_ini, 0, ',', '.'); ?></h2>
-        <p class="subtext">Bulan ini: Rp <?= number_format($total_penjualan_bulan_ini, 0, ',', '.'); ?></p>
-    </div>
-    <div class="card">
-        <h4>Total Pembelian Bahan</h4>
-        <h2 style="color:#00b871;">Rp <?= number_format($total_pembelian_hari_ini, 0, ',', '.'); ?></h2>
-        <p class="subtext">Bulan ini: Rp <?= number_format($total_pembelian_bulan_ini, 0, ',', '.'); ?></p>
-    </div>
-    <div class="card">
-        <h4>Status Meja</h4>
-        <h2 style="color:#f39c12;"><?= $status_meja_terisi; ?> / <?= $status_meja_total; ?></h2>
-        <p class="subtext">Terisi • <?= $status_meja_menunggu; ?> menunggu bayar</p>
-    </div>
-    <div class="card">
-        <h4>Menu Terlaris</h4>
-        <h2 style="color:#a259ff;"><?= $menu_terlaris; ?></h2>
-        <p class="subtext"><?= $menu_terlaris_jumlah; ?> porsi hari ini</p>
-    </div>
-</div>
+        <div class="main-section">
+            <div class="chart-container">
+                <h3>Penjualan Mingguan</h3>
+                <canvas id="chartPenjualan"></canvas>
+            </div>
 
-<div class="main-section">
-    <div class="chart-container">
-        <h3>Penjualan Mingguan</h3>
-        <canvas id="chartPenjualan"></canvas>
+            <div class="chart-container">
+                <h3>Kategori Menu</h3>
+                <canvas id="chartKategori"></canvas>
+            </div>
+        </div>
     </div>
 
-    <div class="chart-container">
-        <h3>Kategori Menu</h3>
-        <canvas id="chartKategori"></canvas>
-    </div>
-</div>
+    <script>
+        // Pastikan Chart.js sudah dimuat
+        if (typeof Chart !== 'undefined') {
+            // Chart Penjualan
+            const ctxPenjualan = document.getElementById('chartPenjualan').getContext('2d');
+            new Chart(ctxPenjualan, {
+                type: 'bar',
+                data: {
+                    labels: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
+                    datasets: [{
+                        label: 'Penjualan',
+                        data: <?= json_encode($penjualan_mingguan); ?>,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: (v) => 'Rp ' + v.toLocaleString('id-ID') }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
 
-<script>
-const ctxPenjualan = document.getElementById('chartPenjualan').getContext('2d');
-new Chart(ctxPenjualan, {
-    type: 'bar',
-    data: {
-        labels: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
-        datasets: [{
-            label: 'Penjualan',
-            data: <?= json_encode($penjualan_mingguan); ?>,
-            backgroundColor: '#3b82f6',
-            borderRadius: 8
-        }]
-    },
-    options: {
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: { callback: (v) => 'Rp ' + v.toLocaleString('id-ID') }
+            // Chart Kategori
+            const ctxKategori = document.getElementById('chartKategori').getContext('2d');
+            new Chart(ctxKategori, {
+                type: 'pie',
+                data: {
+                    labels: <?= json_encode(array_keys($kategori)); ?>,
+                    datasets: [{
+                        data: <?= json_encode(array_values($kategori)); ?>,
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a259ff']
+                    }]
+                },
+                options: { 
+                    plugins: { legend: { position: 'right' } } 
+                }
+            });
+        } else {
+            console.error('Chart.js tidak dimuat dengan benar');
+        }
+
+        // Deteksi perubahan sidebar
+        function checkSidebarState() {
+            const sidebar = document.querySelector('.sidebar'); // Sesuaikan selector
+            const mainContent = document.getElementById('mainContent');
+            
+            if (sidebar) {
+                // Jika sidebar memiliki class 'closed' atau 'collapsed'
+                if (sidebar.classList.contains('closed') || sidebar.classList.contains('collapsed')) {
+                    mainContent.classList.add('sidebar-closed');
+                } else {
+                    mainContent.classList.remove('sidebar-closed');
+                }
             }
-        },
-        plugins: { legend: { display: false } }
-    }
-});
+        }
 
-const ctxKategori = document.getElementById('chartKategori').getContext('2d');
-new Chart(ctxKategori, {
-    type: 'pie',
-    data: {
-        labels: <?= json_encode(array_keys($kategori)); ?>,
-        datasets: [{
-            data: <?= json_encode(array_values($kategori)); ?>,
-            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a259ff']
-        }]
-    },
-    options: { plugins: { legend: { position: 'right' } } }
-});
-</script>
+        // Cek state sidebar saat load
+        document.addEventListener('DOMContentLoaded', checkSidebarState);
 
+        // Observasi perubahan class pada sidebar
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) {
+            const observer = new MutationObserver(checkSidebarState);
+            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+        }
+    </script>
 </body>
 </html>
