@@ -57,15 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($kembalian < 0) {
             throw new Exception("Jumlah pembayaran kurang!");
         }
-        
-        
+    
         $waktu_bayar = date('Y-m-d H:i:s');
         $query_update = "UPDATE pesanan 
-                        SET status_pesanan = 'sudah_bayar',
+                        SET status_pesanan = 'dibayar',
                             metode_bayar = '$metode',
-                            jumlah_dibayar = '$jumlah_dibayar',
-                            kembalian = '$kembalian',
-                            waktu_pembayaran = '$waktu_bayar'
+                            total_harga = '$total_harga'
                         WHERE id_pesanan = '$id_pesanan'";
         mysqli_query($conn, $query_update);
         
