@@ -648,6 +648,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+     <?php include '../../sidebar/sidebar_kasir.php'; ?>
     <div class="container">
         <div class="left-section">
             <h2>Input Pesanan Baru</h2>
