@@ -36,7 +36,7 @@ if (!$meja) {
         </div>
  
         <div class="footer">
-            <a href=""></a>
+            <a href="riwayat.php?kode=<?= urlencode($kode_unik); ?>" class="btn">riwayat</a>
         </div>
     </div>
 </body>
