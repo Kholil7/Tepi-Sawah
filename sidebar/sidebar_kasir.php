@@ -1,31 +1,16 @@
-<?php
-  // Ambil nama file aktif
-  $current = basename($_SERVER['PHP_SELF']);
-?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sidebar</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Poppins', sans-serif;
-    }
-
-    body {
-      background: #f8f9fb;
-      overflow-x: hidden;
-    }
-
-    /* ===== SIDEBAR ===== */
     .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
       width: 260px;
       background: #fff;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -34,6 +19,7 @@
       height: 100vh;
       transition: all 0.3s ease;
       overflow-y: auto;
+      z-index: 1000;
     }
 
     .sidebar.collapsed {
@@ -78,7 +64,6 @@
       transform: scale(1.2);
     }
 
-    /* ===== MENU ===== */
     .menu {
       display: flex;
       flex-direction: column;
@@ -101,7 +86,6 @@
       background: rgba(255, 159, 0, 0.15);
     }
 
-    /* ===== AKTIF ===== */
     .menu a.active {
       background: #ff9f00;
       color: #fff;
@@ -112,7 +96,6 @@
       color: #fff;
     }
 
-    /* ===== FOOTER ===== */
     .menu-footer {
       margin-top: auto;
       padding: 5px 0 8px;
@@ -143,7 +126,6 @@
       background: rgba(255, 159, 0, 0.15);
     }
 
-    /* ===== SAAT COLLAPSE ===== */
     .sidebar.collapsed .title,
     .sidebar.collapsed span {
       display: none;
@@ -160,6 +142,21 @@
     .sidebar.collapsed .logout-item {
       justify-content: center;
     }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 260px;
+        transform: translateX(-100%);
+      }
+
+      .sidebar.active {
+        transform: translateX(0);
+      }
+
+      .sidebar.collapsed {
+        transform: translateX(-100%);
+      }
+    }
   </style>
 </head>
 <body>
@@ -173,35 +170,35 @@
     </div>
 
     <div class="menu">
-      <a href="index.php" class="<?= str_contains($current, 'index') ? 'active' : '' ?>">
+      <a href="index.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'index') ? 'active' : '' ?>">
         <i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span>
       </a>
 
-      <a href="input_pesanan.php" class="<?= str_contains($current, 'input_pesanan') ? 'active' : '' ?>">
+      <a href="../kasir/inside/InputPesananBaru.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'InputPesananBaru') ? 'active' : '' ?>">
         <i class="fa-solid fa-plus-circle"></i><span>Input Pesanan</span>
       </a>
 
-      <a href="pesanan_aktif.php" class="<?= str_contains($current, 'pesanan_aktif') ? 'active' : '' ?>">
+      <a href="pesanan_aktif.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'pesanan_aktif') ? 'active' : '' ?>">
         <i class="fa-solid fa-list"></i><span>Pesanan Aktif</span>
       </a>
 
-      <a href="meja.php" class="<?= str_contains($current, 'meja') ? 'active' : '' ?>">
+      <a href="meja.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'meja') ? 'active' : '' ?>">
         <i class="fa-solid fa-table-cells"></i><span>Meja</span>
       </a>
 
-      <a href="menu.php" class="<?= str_contains($current, 'menu') ? 'active' : '' ?>">
+      <a href="menu.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'menu') ? 'active' : '' ?>">
         <i class="fa-solid fa-utensils"></i><span>Menu</span>
       </a>
 
-      <a href="pembayaran.php" class="<?= str_contains($current, 'pembayaran') ? 'active' : '' ?>">
+      <a href="pembayaran.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'pembayaran') ? 'active' : '' ?>">
         <i class="fa-solid fa-credit-card"></i><span>Pembayaran</span>
       </a>
 
-      <a href="transaksi_harian.php" class="<?= str_contains($current, 'transaksi_harian') ? 'active' : '' ?>">
+      <a href="transaksi_harian.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'transaksi_harian') ? 'active' : '' ?>">
         <i class="fa-solid fa-chart-line"></i><span>Transaksi Harian</span>
       </a>
 
-      <a href="pembatalan.php" class="<?= str_contains($current, 'pembatalan') ? 'active' : '' ?>">
+      <a href="pembatalan.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'pembatalan') ? 'active' : '' ?>">
         <i class="fa-solid fa-xmark-circle"></i><span>Pembatalan</span>
       </a>
     </div>
@@ -216,15 +213,26 @@
 
 <script>
   const sidebar = document.querySelector('.sidebar');
-  const topbar = document.querySelector('.topbar');
-  const main = document.querySelector('.main-content');
   const toggleBtn = document.querySelector('#toggle-btn');
 
   toggleBtn.addEventListener('click', () => {
     sidebar.classList.toggle('collapsed');
-    topbar.classList.toggle('collapsed');
-    main.classList.toggle('collapsed');
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.classList.toggle('collapsed');
+    }
+    const topbar = document.querySelector('.topbar');
+    if (topbar) {
+      topbar.classList.toggle('collapsed');
+    }
   });
+
+  const menuToggle = document.querySelector('.menu-toggle');
+  if (menuToggle) {
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+    });
+  }
 </script>
 </body>
 </html>
