@@ -190,7 +190,7 @@
         <i class="fa-solid fa-utensils"></i><span>Menu</span>
       </a>
 
-      <a href="pembayaran.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'pembayaran') ? 'active' : '' ?>">
+      <a href="../kasir/inside/pembayaran-pesanan.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'pembayaran-pesanan.php') ? 'active' : '' ?>">
         <i class="fa-solid fa-credit-card"></i><span>Pembayaran</span>
       </a>
 
