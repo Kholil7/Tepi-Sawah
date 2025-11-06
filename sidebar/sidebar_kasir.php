@@ -174,7 +174,7 @@
         <i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span>
       </a>
 
-      <a href="../kasir/inside/InputPesananBaru.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'InputPesananBaru') ? 'active' : '' ?>">
+      <a href="../inside/InputPesananBaru.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'InputPesananBaru') ? 'active' : '' ?>">
         <i class="fa-solid fa-plus-circle"></i><span>Input Pesanan</span>
       </a>
 
