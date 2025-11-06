@@ -2,10 +2,8 @@
 require '../../database/connect.php';
 require '../include/home_f.php';
 
-// ambil kode unik dari URL (misal: ?kode=abc123)
 $kode_unik = $_GET['kode'] ?? '';
 
-// ambil data meja berdasarkan kode unik
 $meja = getMejaByKode($kode_unik, $conn);
 
 if (!$meja) {
@@ -36,9 +34,9 @@ if (!$meja) {
         <div class="aksi">
             <a href="menu.php?kode=<?= urlencode($kode_unik); ?>" class="btn">Lihat Menu</a>
         </div>
-
+ 
         <div class="footer">
-            <p>Riwayat Pesanan</p>
+            <a href="riwayat.php?kode=<?= urlencode($kode_unik); ?>" class="btn">riwayat</a>
         </div>
     </div>
 </body>
