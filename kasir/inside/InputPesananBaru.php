@@ -2,7 +2,6 @@
 session_start();
 require '../../database/connect.php';
 
-
 $query_meja = "SELECT id_meja, nomor_meja, kode_unik, status_meja 
                FROM meja 
                WHERE status_meja = 'kosong' 
@@ -17,7 +16,6 @@ if ($result_meja && mysqli_num_rows($result_meja) > 0) {
         }
     }
 }
-
 
 $query_menu = "SELECT * FROM menu ORDER BY kategori, nama_menu";
 $result_menu = mysqli_query($conn, $query_menu);
@@ -35,7 +33,6 @@ foreach ($menu_list as $menu) {
     }
 }
 
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     mysqli_begin_transaction($conn);
     try {
@@ -45,17 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cart_data_json = $_POST['cart_data'] ?? '[]';
         $cart_items = json_decode($cart_data_json, true);
 
-        
         if (empty($cart_items)) {
             throw new Exception("Keranjang masih kosong!");
         }
 
-        
         if ($jenis_pesanan === 'dine_in' && !$id_meja) {
             throw new Exception("Harap pilih meja untuk Dine In!");
         }
 
-        
         $allowed_methods = ['qris', 'cash'];
         if (!in_array($metode_bayar, $allowed_methods)) {
             throw new Exception("Metode bayar tidak valid!");
@@ -64,7 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dibuat_oleh = $_SESSION['user_id'] ?? 1;
         $diterima_oleh = $_SESSION['user_id'] ?? 1;
 
-        
         if ($jenis_pesanan === 'dine_in') {
             $query_pesanan = "INSERT INTO pesanan (id_meja, dibuat_oleh, waktu_pesan, jenis_pesanan, status_pesanan, total_harga, diterima_oleh, metode_bayar)
                               VALUES ('$id_meja', '$dibuat_oleh', NOW(), '$jenis_pesanan', 'menunggu', 0, '$diterima_oleh', '$metode_bayar')";
@@ -90,10 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                  VALUES ('$id_pesanan', '$id_menu', '$jumlah', '$harga', 'menunggu', '$catatan')");
         }
 
-        
         mysqli_query($conn, "UPDATE pesanan SET total_harga='$total_harga' WHERE id_pesanan='$id_pesanan'");
 
-        
         if ($jenis_pesanan === 'dine_in' && $id_meja) {
             mysqli_query($conn, "UPDATE meja SET status_meja='terisi' WHERE id_meja='$id_meja'");
         }
@@ -118,14 +109,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #f5f5f5; 
-            padding: 20px;
+            background: #f5f5f5;
         }
+        
+        .main-content {
+            margin-left: 300px;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        body.sidebar-collapsed .main-content {
+            margin-left: 70px;
+        }
+        
         .container { 
-            max-width: 1400px; 
+            max-width: 1400px;
             margin: 0 auto; 
             display: flex;
             gap: 20px;
+            background: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            padding: 20px;
         }
         .left-section { flex: 1; }
         .right-section {
@@ -323,6 +329,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             justify-content: center;
             font-size: 11px;
             color: #999;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .menu-card .image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .menu-card .image .no-image-text {
+            position: absolute;
+            color: #999;
+            font-size: 11px;
         }
         
         .menu-card .name {
@@ -632,6 +652,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         @media (max-width: 768px) {
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+            
+            body.sidebar-collapsed .main-content {
+                margin-left: 0;
+            }
+            
             .container {
                 flex-direction: column;
             }
@@ -648,170 +677,191 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
-     <?php include '../../sidebar/sidebar_kasir.php'; ?>
-    <div class="container">
-        <div class="left-section">
-            <h2>Input Pesanan Baru</h2>
-            <p class="subtitle">Kelola pesanan dari pelanggan</p>
-            
-            <?php if (isset($success_message)): ?>
-                <div class="alert alert-success"><?= $success_message; ?></div>
-            <?php elseif (isset($error_message)): ?>
-                <div class="alert alert-danger"><?= $error_message; ?></div>
-            <?php endif; ?>
-            
-            <form method="POST" id="formPesanan">
-                <input type="hidden" name="cart_data" id="cart_data">
-                <input type="hidden" name="jenis_pesanan" id="jenis_pesanan" value="">
-                <input type="hidden" name="metode_bayar" id="metode_bayar" value="">
+    <?php include '../../sidebar/sidebar_kasir.php'; ?>
+    
+    <div class="main-content">
+        <div class="container">
+            <div class="left-section">
+                <h2>Input Pesanan Baru</h2>
+                <p class="subtitle">Kelola pesanan dari pelanggan</p>
                 
-                <div class="section-box">
-                    <div class="section-title">Tipe Pesanan</div>
-                    <div class="order-type-cards">
-                        <div class="type-card" onclick="selectOrderType('dine_in', this)">
-                            <div class="icon">🍽️</div>
-                            <div class="label">Dine-In</div>
-                            <div class="desc">Makan di tempat</div>
-                        </div>
-                        <div class="type-card" onclick="selectOrderType('take_away', this)">
-                            <div class="icon">📦</div>
-                            <div class="label">Take Away</div>
-                            <div class="desc">Bawa pulang</div>
+                <?php if (isset($success_message)): ?>
+                    <div class="alert alert-success"><?= $success_message; ?></div>
+                <?php elseif (isset($error_message)): ?>
+                    <div class="alert alert-danger"><?= $error_message; ?></div>
+                <?php endif; ?>
+                
+                <form method="POST" id="formPesanan">
+                    <input type="hidden" name="cart_data" id="cart_data">
+                    <input type="hidden" name="jenis_pesanan" id="jenis_pesanan" value="">
+                    <input type="hidden" name="metode_bayar" id="metode_bayar" value="">
+                    
+                    <div class="section-box">
+                        <div class="section-title">Tipe Pesanan</div>
+                        <div class="order-type-cards">
+                            <div class="type-card" onclick="selectOrderType('dine_in', this)">
+                                <div class="icon">🍽️</div>
+                                <div class="label">Dine-In</div>
+                                <div class="desc">Makan di tempat</div>
+                            </div>
+                            <div class="type-card" onclick="selectOrderType('take_away', this)">
+                                <div class="icon">📦</div>
+                                <div class="label">Take Away</div>
+                                <div class="desc">Bawa pulang</div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="section-box hidden" id="mejaGroup">
-                    <div class="form-group">
-                        <label>Pilih Meja</label>
-                        <select name="id_meja" id="selectMeja" class="form-control">
-                            <option value="">Pilih nomor meja...</option>
-                            <?php if (!empty($meja_list)): ?>
-                                <?php foreach ($meja_list as $m): ?>
-                                    <option value="<?= htmlspecialchars($m['id_meja']); ?>">
-                                        Meja <?= htmlspecialchars($m['nomor_meja']); ?>
-                                        <?php if (!empty($m['kode_unik'])): ?>
-                                            (<?= htmlspecialchars($m['kode_unik']); ?>)
-                                        <?php endif; ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <option value="" disabled>Tidak ada meja tersedia</option>
+                    
+                    <div class="section-box hidden" id="mejaGroup">
+                        <div class="form-group">
+                            <label>Pilih Meja</label>
+                            <select name="id_meja" id="selectMeja" class="form-control">
+                                <option value="">Pilih nomor meja...</option>
+                                <?php if (!empty($meja_list)): ?>
+                                    <?php foreach ($meja_list as $m): ?>
+                                        <option value="<?= htmlspecialchars($m['id_meja']); ?>">
+                                            Meja <?= htmlspecialchars($m['nomor_meja']); ?>
+                                            <?php if (!empty($m['kode_unik'])): ?>
+                                                (<?= htmlspecialchars($m['kode_unik']); ?>)
+                                            <?php endif; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <option value="" disabled>Tidak ada meja tersedia</option>
+                                <?php endif; ?>
+                            </select>
+                            <?php if (empty($meja_list)): ?>
+                                <small style="color: #f44336; font-size: 12px; margin-top: 5px; display: block;">
+                                    ⚠️ Semua meja sedang terisi
+                                </small>
                             <?php endif; ?>
-                        </select>
-                        <?php if (empty($meja_list)): ?>
-                            <small style="color: #f44336; font-size: 12px; margin-top: 5px; display: block;">
-                                ⚠️ Semua meja sedang terisi
-                            </small>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                
-                <div class="section-box">
-                    <div class="section-title">Pilih Menu</div>
-                    
-                    <div class="search-box">
-                        <input type="text" placeholder="Cari menu..." id="searchMenu">
-                    </div>
-                    
-                    <div class="category-tabs">
-                        <button type="button" class="tab-btn active" onclick="switchCategory(this, 'makanan')">
-                            <span class="icon">🍽️</span> Makanan
-                            <span class="badge"><?= count($menu_by_category['makanan']); ?></span>
-                        </button>
-                        <button type="button" class="tab-btn" onclick="switchCategory(this, 'minuman')">
-                            <span class="icon">🍹</span> Minuman
-                            <span class="badge"><?= count($menu_by_category['minuman']); ?></span>
-                        </button>
-                        <button type="button" class="tab-btn" onclick="switchCategory(this, 'cemilan')">
-                            <span class="icon">🍰</span> Cemilan
-                            <span class="badge"><?= count($menu_by_category['cemilan']); ?></span>
-                        </button>
-                    </div>
-                    
-                    <div class="menu-grid" id="menuContainer">
-                        <?php foreach ($menu_by_category['makanan'] as $menu): ?>
-                            <div class="menu-card" data-kategori="makanan">
-                                <div class="image">No Image</div>
-                                <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
-                                <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
-                                    + Tambah
-                                </button>
-                            </div>
-                        <?php endforeach; ?>
-                        
-                        <?php foreach ($menu_by_category['minuman'] as $menu): ?>
-                            <div class="menu-card" data-kategori="minuman" style="display: none;">
-                                <div class="image">No Image</div>
-                                <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
-                                <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
-                                    + Tambah
-                                </button>
-                            </div>
-                        <?php endforeach; ?>
-                        
-                        <?php foreach ($menu_by_category['cemilan'] as $menu): ?>
-                            <div class="menu-card" data-kategori="cemilan" style="display: none;">
-                                <div class="image">No Image</div>
-                                <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
-                                <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
-                                    + Tambah
-                                </button>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </form>
-        </div>
-        
-        <div class="right-section hidden" id="cartSection">
-            <div class="cart-box">
-                <div class="cart-header">
-                    <div class="title">🛒 Keranjang</div>
-                    <div class="badge" id="cartBadge">0</div>
-                    <div class="clear" onclick="clearCart()" style="display: none;" id="clearBtn">Kosongkan</div>
-                </div>
-                
-                <div class="cart-items" id="cartList">
-                    <div class="cart-empty">Belum ada item.</div>
-                </div>
-                
-                <div class="cart-summary">
-                    <div class="summary-row">
-                        <span>Subtotal</span>
-                        <span id="subtotal">Rp 0</span>
-                    </div>
-                    <div class="summary-row total">
-                        <span>Total</span>
-                        <span class="amount" id="totalHarga">Rp 0</span>
-                    </div>
-                    
-                    <div class="payment-section">
-                        <div class="section-title">Metode Pembayaran</div>
-                        <div class="payment-methods">
-                            <div class="payment-card" onclick="selectPayment('qris', this)">
-                                <div class="icon">📱</div>
-                                <div class="info">
-                                    <div class="name">QRIS</div>
-                                    <div class="desc">Scan QR Code</div>
-                                </div>
-                            </div>
-                            <div class="payment-card" onclick="selectPayment('cash', this)">
-                                <div class="icon">💵</div>
-                                <div class="info">
-                                    <div class="name">Cash</div>
-                                    <div class="desc">Tunai</div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     
-                    <button type="submit" form="formPesanan" class="btn-submit" id="btnSubmit" disabled>
-                        Buat Pesanan
-                    </button>
+                    <div class="section-box">
+                        <div class="section-title">Pilih Menu</div>
+                        
+                        <div class="search-box">
+                            <input type="text" placeholder="Cari menu..." id="searchMenu">
+                        </div>
+                        
+                        <div class="category-tabs">
+                            <button type="button" class="tab-btn active" onclick="switchCategory(this, 'makanan')">
+                                <span class="icon">🍽️</span> Makanan
+                                <span class="badge"><?= count($menu_by_category['makanan']); ?></span>
+                            </button>
+                            <button type="button" class="tab-btn" onclick="switchCategory(this, 'minuman')">
+                                <span class="icon">🍹</span> Minuman
+                                <span class="badge"><?= count($menu_by_category['minuman']); ?></span>
+                            </button>
+                            <button type="button" class="tab-btn" onclick="switchCategory(this, 'cemilan')">
+                                <span class="icon">🍰</span> Cemilan
+                                <span class="badge"><?= count($menu_by_category['cemilan']); ?></span>
+                            </button>
+                        </div>
+                        
+                        <div class="menu-grid" id="menuContainer">
+                            <?php foreach ($menu_by_category['makanan'] as $menu): ?>
+                                <div class="menu-card" data-kategori="makanan">
+                                    <div class="image">
+                                        <?php if (!empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar'])): ?>
+                                            <img src="../../uploads/<?= htmlspecialchars($menu['gambar']); ?>" alt="<?= htmlspecialchars($menu['nama_menu']); ?>">
+                                        <?php else: ?>
+                                            <span class="no-image-text">No Image</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
+                                    <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
+                                    <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
+                                        + Tambah
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                            
+                            <?php foreach ($menu_by_category['minuman'] as $menu): ?>
+                                <div class="menu-card" data-kategori="minuman" style="display: none;">
+                                    <div class="image">
+                                        <?php if (!empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar'])): ?>
+                                            <img src="../../uploads/<?= htmlspecialchars($menu['gambar']); ?>" alt="<?= htmlspecialchars($menu['nama_menu']); ?>">
+                                        <?php else: ?>
+                                            <span class="no-image-text">No Image</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
+                                    <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
+                                    <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
+                                        + Tambah
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                            
+                            <?php foreach ($menu_by_category['cemilan'] as $menu): ?>
+                                <div class="menu-card" data-kategori="cemilan" style="display: none;">
+                                    <div class="image">
+                                        <?php if (!empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar'])): ?>
+                                            <img src="../../uploads/<?= htmlspecialchars($menu['gambar']); ?>" alt="<?= htmlspecialchars($menu['nama_menu']); ?>">
+                                        <?php else: ?>
+                                            <span class="no-image-text">No Image</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
+                                    <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
+                                    <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
+                                        + Tambah
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="right-section hidden" id="cartSection">
+                <div class="cart-box">
+                    <div class="cart-header">
+                        <div class="title">🛒 Keranjang</div>
+                        <div class="badge" id="cartBadge">0</div>
+                        <div class="clear" onclick="clearCart()" style="display: none;" id="clearBtn">Kosongkan</div>
+                    </div>
+                    
+                    <div class="cart-items" id="cartList">
+                        <div class="cart-empty">Belum ada item.</div>
+                    </div>
+                    
+                    <div class="cart-summary">
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span id="subtotal">Rp 0</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total</span>
+                            <span class="amount" id="totalHarga">Rp 0</span>
+                        </div>
+                        
+                        <div class="payment-section">
+                            <div class="section-title">Metode Pembayaran</div>
+                            <div class="payment-methods">
+                                <div class="payment-card" onclick="selectPayment('qris', this)">
+                                    <div class="icon">📱</div>
+                                    <div class="info">
+                                        <div class="name">QRIS</div>
+                                        <div class="desc">Scan QR Code</div>
+                                    </div>
+                                </div>
+                                <div class="payment-card" onclick="selectPayment('cash', this)">
+                                    <div class="icon">💵</div>
+                                    <div class="info">
+                                        <div class="name">Cash</div>
+                                        <div class="desc">Tunai</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" form="formPesanan" class="btn-submit" id="btnSubmit" disabled>
+                            Buat Pesanan
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -819,6 +869,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <script>
         let cart = [];
+        
+        // Deteksi perubahan sidebar
+        function checkSidebarState() {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                if (sidebar.classList.contains('collapsed')) {
+                    document.body.classList.add('sidebar-collapsed');
+                } else {
+                    document.body.classList.remove('sidebar-collapsed');
+                }
+            }
+        }
+        
+        // Jalankan saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSidebarState();
+            
+            // Monitor perubahan class sidebar
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.attributeName === 'class') {
+                        checkSidebarState();
+                    }
+                });
+            });
+            
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                observer.observe(sidebar, { attributes: true });
+            }
+        });
         
         function selectOrderType(jenis, element) {
             document.querySelectorAll('.type-card').forEach(card => card.classList.remove('active'));
@@ -902,7 +983,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 return;
             }
 
-            
             cartSection.classList.remove("hidden");
 
             let total = 0;
@@ -963,7 +1043,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-       
+        // Search menu functionality
         document.getElementById('searchMenu').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
             document.querySelectorAll('.menu-card').forEach(card => {
