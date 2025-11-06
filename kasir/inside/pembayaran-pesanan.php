@@ -77,14 +77,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         mysqli_commit($conn);
         
-        
-        header("Location: " . $_SERVER['PHP_SELF'] . "?success=1");
+        // Redirect ke halaman struk dengan data pembayaran
+        header("Location: " . $_SERVER['PHP_SELF'] . "?print=1&id_pesanan=$id_pesanan&metode=$metode&jumlah_dibayar=$jumlah_dibayar&kembalian=$kembalian");
         exit;
         
     } catch (Exception $e) {
         mysqli_rollback($conn);
         $error_message = "Error: " . $e->getMessage();
     }
+}
+
+// Ambil data untuk print struk
+$print_data = null;
+if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
+    $id_pesanan = mysqli_real_escape_string($conn, $_GET['id_pesanan']);
+    
+    $query_print = "SELECT p.*, m.nomor_meja, m.kode_unik
+                    FROM pesanan p
+                    JOIN meja m ON p.id_meja = m.id_meja
+                    WHERE p.id_pesanan = '$id_pesanan'";
+    $result_print = mysqli_query($conn, $query_print);
+    $print_data = mysqli_fetch_assoc($result_print);
+    
+    $query_detail_print = "SELECT dp.*, m.nama_menu
+                          FROM detail_pesanan dp
+                          JOIN menu m ON dp.id_menu = m.id_menu
+                          WHERE dp.id_pesanan = '$id_pesanan'";
+    $result_detail_print = mysqli_query($conn, $query_detail_print);
+    $detail_print = mysqli_fetch_all($result_detail_print, MYSQLI_ASSOC);
 }
 ?>
 
@@ -215,9 +235,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .method-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 3px; }
         .method-desc { font-size: 13px; color: #666; }
 
+        /* Input Pembayaran */
+        .input-section { margin-bottom: 30px; }
+        .input-group { margin-bottom: 20px; }
+        .input-label { display: block; font-size: 14px; color: #333; margin-bottom: 8px; font-weight: 500; }
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .input-field:focus { outline: none; border-color: #4A90E2; }
+        .input-field:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
+        
+        .change-display {
+            background: #f0f7ff;
+            padding: 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .change-label { font-size: 14px; color: #666; }
+        .change-amount { font-size: 20px; font-weight: 600; color: #4A90E2; }
+
         
         .action-buttons { display: flex; gap: 15px; flex-wrap: wrap; }
-        .btn-confirm, .btn-print {
+        .btn-confirm {
             flex: 1;
             padding: 15px;
             border-radius: 6px;
@@ -228,11 +274,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-items: center;
             justify-content: center;
             gap: 8px;
+            background: #4A90E2;
+            color: white;
+            border: none;
         }
-        .btn-confirm { background: #4A90E2; color: white; border: none; }
         .btn-confirm:hover { background: #357ABD; }
-        .btn-print { background: white; border: 2px solid #e0e0e0; color: #333; }
-        .btn-print:hover { border-color: #4A90E2; }
+        .btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
 
         .empty-state { text-align: center; padding: 80px 20px; color: #999; }
 
@@ -240,6 +287,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+        /* Struk Print */
+        .receipt-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .receipt-container {
+            background: white;
+            width: 350px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .receipt-content {
+            padding: 30px;
+            font-family: 'Courier New', monospace;
+        }
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 15px;
+        }
+        .receipt-header h2 { font-size: 20px; margin-bottom: 5px; }
+        .receipt-header p { font-size: 12px; color: #666; margin: 2px 0; }
+        .receipt-info { margin-bottom: 15px; font-size: 13px; }
+        .receipt-info div { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .receipt-items { border-top: 1px dashed #333; border-bottom: 1px dashed #333; padding: 15px 0; margin-bottom: 15px; }
+        .receipt-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .receipt-total { font-size: 16px; font-weight: bold; margin-bottom: 10px; }
+        .receipt-total, .receipt-paid, .receipt-change { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .receipt-footer { text-align: center; margin-top: 20px; padding-top: 15px; border-top: 2px dashed #333; font-size: 12px; color: #666; }
+        .receipt-buttons {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .receipt-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-print-receipt { background: #4A90E2; color: white; }
+        .btn-print-receipt:hover { background: #357ABD; }
+        .btn-close-receipt { background: #f5f5f5; color: #333; }
+        .btn-close-receipt:hover { background: #e0e0e0; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .receipt-container, .receipt-container * { visibility: visible; }
+            .receipt-container { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 100%;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            .receipt-buttons { display: none; }
+        }
         
         @media (max-width: 992px) {
             .container {
@@ -274,9 +394,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             .total-amount {
                 font-size: 20px;
             }
-            .btn-confirm, .btn-print {
+            .btn-confirm {
                 font-size: 14px;
                 padding: 12px;
+            }
+            .receipt-container {
+                width: 90%;
+                max-width: 350px;
             }
         }
     </style>
@@ -308,12 +432,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         
         <div class="right-panel">
-            <?php if (isset($_GET['success'])): ?>
-                <div class="alert alert-success">
-                    <span>✓</span><span>Pembayaran berhasil diproses!</span>
-                </div>
-            <?php endif; ?>
-
             <?php if (isset($error_message)): ?>
                 <div class="alert alert-error">
                     <span>⚠</span><span><?= $error_message ?></span>
@@ -351,9 +469,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span class="total-amount">Rp <?= number_format($selected_pesanan['total_harga'], 0, ',', '.') ?></span>
                 </div>
                 
-                <form method="POST">
+                <form method="POST" id="paymentForm">
                     <input type="hidden" name="id_pesanan" value="<?= $selected_pesanan['id_pesanan'] ?>">
-                    <input type="hidden" name="jumlah_dibayar" value="<?= $selected_pesanan['total_harga'] ?>">
+                    <input type="hidden" name="jumlah_dibayar" id="jumlahDibayarHidden">
                     
                     <div class="payment-section">
                         <h3>Metode Pembayaran</h3>
@@ -373,9 +491,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <input type="hidden" name="metode" id="metodeInput" value="qris">
                     
+                    <div class="input-section">
+                        <div class="input-group">
+                            <label class="input-label">Total Tagihan</label>
+                            <input type="text" class="input-field" value="Rp <?= number_format($selected_pesanan['total_harga'], 0, ',', '.') ?>" disabled>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label class="input-label">Jumlah Pembayaran</label>
+                            <input type="number" class="input-field" id="jumlahBayar" placeholder="Masukkan jumlah pembayaran" oninput="hitungKembalian()">
+                        </div>
+                        
+                        <div class="change-display">
+                            <span class="change-label">Kembalian</span>
+                            <span class="change-amount" id="kembalianDisplay">Rp 0</span>
+                        </div>
+                    </div>
+                    
                     <div class="action-buttons">
-                        <button type="submit" class="btn-confirm">✓ Konfirmasi Pembayaran</button>
-                        <button type="button" class="btn-print" onclick="cetakStruk()">🖨️ Cetak Struk</button>
+                        <button type="submit" class="btn-confirm" id="btnConfirm" disabled>✓ Konfirmasi Pembayaran</button>
                     </div>
                 </form>
             <?php else: ?>
@@ -387,15 +521,124 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <!-- Receipt Overlay -->
+    <?php if ($print_data): ?>
+    <div class="receipt-overlay" id="receiptOverlay" style="display: flex;">
+        <div class="receipt-container">
+            <div class="receipt-content" id="receiptContent">
+                <div class="receipt-header">
+                    <h2>WARUNG MAKAN</h2>
+                    <p>Jl. Contoh No. 123</p>
+                    <p>Telp: 0812-3456-7890</p>
+                </div>
+                
+                <div class="receipt-info">
+                    <div>
+                        <span>No. Pesanan:</span>
+                        <span><?= $print_data['kode_unik'] ?></span>
+                    </div>
+                    <div>
+                        <span>Meja:</span>
+                        <span><?= $print_data['nomor_meja'] ?></span>
+                    </div>
+                    <div>
+                        <span>Tanggal:</span>
+                        <span><?= date('d/m/Y H:i', strtotime($print_data['waktu_pesan'])) ?></span>
+                    </div>
+                    <div>
+                        <span>Kasir:</span>
+                        <span>Admin</span>
+                    </div>
+                </div>
+                
+                <div class="receipt-items">
+                    <?php foreach ($detail_print as $item): ?>
+                    <div class="receipt-item">
+                        <span><?= $item['nama_menu'] ?> x<?= $item['jumlah'] ?></span>
+                        <span>Rp <?= number_format($item['subtotal'], 0, ',', '.') ?></span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                
+                <div class="receipt-total">
+                    <span>TOTAL:</span>
+                    <span>Rp <?= number_format($print_data['total_harga'], 0, ',', '.') ?></span>
+                </div>
+                
+                <div class="receipt-paid">
+                    <span>Dibayar (<?= strtoupper($_GET['metode']) ?>):</span>
+                    <span>Rp <?= number_format($_GET['jumlah_dibayar'], 0, ',', '.') ?></span>
+                </div>
+                
+                <div class="receipt-change">
+                    <span>Kembalian:</span>
+                    <span>Rp <?= number_format($_GET['kembalian'], 0, ',', '.') ?></span>
+                </div>
+                
+                <div class="receipt-footer">
+                    <p>Terima kasih atas kunjungan Anda!</p>
+                    <p>Selamat menikmati hidangan</p>
+                </div>
+            </div>
+            
+            <div class="receipt-buttons">
+                <button class="btn-print-receipt" onclick="printReceipt()">🖨️ Cetak Struk</button>
+                <button class="btn-close-receipt" onclick="closeReceipt()">Tutup</button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <script>
+        const totalTagihan = <?= $selected_pesanan ? $selected_pesanan['total_harga'] : 0 ?>;
+        
         function selectMethod(method, element) {
             document.querySelectorAll('.method-card').forEach(card => card.classList.remove('selected'));
             element.classList.add('selected');
             document.getElementById('metodeInput').value = method;
+            
+            // Auto set exact amount for QRIS
+            if (method === 'qris') {
+                document.getElementById('jumlahBayar').value = totalTagihan;
+                hitungKembalian();
+            }
         }
-        function cetakStruk() {
-            alert('Fitur cetak struk akan segera tersedia!');
+        
+        function hitungKembalian() {
+            const jumlahBayar = parseFloat(document.getElementById('jumlahBayar').value) || 0;
+            const kembalian = jumlahBayar - totalTagihan;
+            
+            const kembalianDisplay = document.getElementById('kembalianDisplay');
+            const btnConfirm = document.getElementById('btnConfirm');
+            
+            if (kembalian >= 0) {
+                kembalianDisplay.textContent = 'Rp ' + kembalian.toLocaleString('id-ID');
+                kembalianDisplay.style.color = '#4A90E2';
+                btnConfirm.disabled = false;
+                document.getElementById('jumlahDibayarHidden').value = jumlahBayar;
+            } else {
+                kembalianDisplay.textContent = 'Rp ' + Math.abs(kembalian).toLocaleString('id-ID') + ' (Kurang)';
+                kembalianDisplay.style.color = '#dc3545';
+                btnConfirm.disabled = true;
+            }
         }
+        
+        function printReceipt() {
+            window.print();
+        }
+        
+        function closeReceipt() {
+            window.location.href = '<?= $_SERVER['PHP_SELF'] ?>';
+        }
+        
+        // Auto print on load
+        <?php if ($print_data): ?>
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+        <?php endif; ?>
     </script>
 </body>
 </html>
