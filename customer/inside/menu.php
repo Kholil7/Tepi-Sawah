@@ -24,10 +24,8 @@ $kategori       = isset($_GET['kategori']) ? $_GET['kategori'] : 'semua';
 $mejaData = null;
 try {
     if (!empty($param_kode)) {
-        // pakai kode unik
         $mejaData = getMejaByKode($param_kode, $conn);
     } elseif (!empty($param_meja_id)) {
-        // pakai id_meja
         $stmt_meja = $conn->prepare("SELECT * FROM meja WHERE id_meja = ?");
         $stmt_meja->bind_param('i', $param_meja_id);
         $stmt_meja->execute();
@@ -35,13 +33,11 @@ try {
         $mejaData = $result_meja->fetch_assoc();
     }
 } catch (Exception $e) {
-    // kalau error query, log/atur default
     $mejaData = null;
 }
 
 // Tentukan nilai tampilan meja dan juga nilai parameter yang akan dipakai pada link
 if ($mejaData) {
-    // ganti 'nomor_meja' / 'nama_meja' sesuai kolom tabelmu
     $nomor_meja = isset($mejaData['nomor_meja']) ? $mejaData['nomor_meja'] : (isset($mejaData['nama_meja']) ? $mejaData['nama_meja'] : 'Meja');
     $id_meja    = isset($mejaData['id_meja']) ? $mejaData['id_meja'] : null;
     $kode_param = isset($mejaData['kode_unik']) ? $mejaData['kode_unik'] : $param_kode;
@@ -68,14 +64,12 @@ try {
     if (!is_array($menus)) $menus = [];
 } catch (Exception $e) {
     $menus = [];
-    // opsional: echo "Error: " . $e->getMessage();
 }
 
-// Helper: buat link kategori, pakai parameter 'kode' (sesuai home) jika tersedia, fallback ke 'meja'
+// Helper: buat link kategori
 function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
     $params = [];
     if (!empty($kode_param)) {
-        // gunakan nama param 'kode' karena home mengirim ?kode=...
         $params[] = "kode=" . urlencode($kode_param);
     } elseif (!empty($id_meja)) {
         $params[] = "meja=" . intval($id_meja);
@@ -90,712 +84,13 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Menu - Meja <?php echo htmlspecialchars($nomor_meja); ?></title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            padding-bottom: 80px;
-        }
-
-        .main-wrapper {
-            width: 100%;
-        }
-
-        .container {
-            padding: 0;
-        }
-
-        /* Header */
-        .header {
-            background: white;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .back-btn {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #333;
-        }
-
-        .header-title h1 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .header-title p {
-            font-size: 14px;
-            color: #666;
-            margin-top: 2px;
-        }
-
-        /* Tab Navigation */
-        .tab-navigation {
-            display: flex;
-            gap: 8px;
-            padding: 16px;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            background: white;
-        }
-
-        .tab-navigation::-webkit-scrollbar {
-            display: none;
-        }
-
-        .tab-item {
-            padding: 10px 24px;
-            border-radius: 25px;
-            text-decoration: none;
-            background: white;
-            color: #666;
-            font-size: 14px;
-            font-weight: 500;
-            white-space: nowrap;
-            border: 1px solid #e0e0e0;
-            transition: all 0.3s ease;
-        }
-
-        .tab-item:hover {
-            background: #f5f5f5;
-        }
-
-        .tab-item.active {
-            background: #FF6B00;
-            color: white;
-            border-color: #FF6B00;
-        }
-
-        /* Menu Grid */
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-            padding: 16px;
-        }
-
-        .menu-card {
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .menu-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-        }
-
-        .menu-image {
-            position: relative;
-            width: 100%;
-            height: 220px;
-            overflow: hidden;
-            background: #f0f0f0;
-        }
-
-        .menu-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-
-        .menu-card:hover .menu-image img {
-            transform: scale(1.05);
-        }
-
-        .no-image {
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #999;
-            font-size: 14px;
-        }
-
-        .status-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(0, 0, 0, 0.75);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .menu-info {
-            padding: 16px;
-        }
-
-        .menu-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 12px;
-            line-height: 1.4;
-        }
-
-        .menu-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .menu-price {
-            font-size: 16px;
-            font-weight: 600;
-            color: #FF6B00;
-        }
-
-        .add-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #FF6B00;
-            color: white;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(255, 107, 0, 0.3);
-        }
-
-        .add-btn:hover {
-            background: #E55D00;
-            transform: scale(1.1);
-        }
-
-        .add-btn:active {
-            transform: scale(0.95);
-        }
-
-        .add-btn.disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        .add-btn.disabled:hover {
-            transform: none;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-            font-size: 16px;
-        }
-
-        /* Cart Float Button (Mobile) */
-        .cart-float-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: #FF6B00;
-            color: white;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 16px rgba(255, 107, 0, 0.4);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 150;
-            transition: all 0.3s ease;
-        }
-
-        .cart-float-btn.active {
-            display: flex;
-        }
-
-        .cart-float-btn:hover {
-            transform: scale(1.1);
-        }
-
-        .cart-float-badge {
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            background: #E55D00;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            border: 2px solid white;
-        }
-
-        /* Modal Overlay */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 300;
-            padding: 20px;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        /* Checkout Modal */
-        .checkout-modal {
-            background: white;
-            border-radius: 20px;
-            width: 100%;
-            max-width: 500px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        .checkout-header {
-            padding: 24px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            background: white;
-            z-index: 10;
-        }
-
-        .checkout-header h2 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            color: #999;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.2s;
-        }
-
-        .close-modal:hover {
-            background: #f5f5f5;
-            color: #333;
-        }
-
-        .checkout-content {
-            padding: 24px;
-        }
-
-        /* Table Info */
-        .table-info {
-            background: #FFF5EE;
-            border: 1px solid #FFE4CC;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .table-icon {
-            width: 48px;
-            height: 48px;
-            background: #FF6B00;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .table-details h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        .table-details p {
-            font-size: 14px;
-            color: #666;
-        }
-
-        /* Order Items */
-        .order-section {
-            margin-bottom: 24px;
-        }
-
-        .section-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 12px;
-        }
-
-        .order-item {
-            display: flex;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .order-item:last-child {
-            border-bottom: none;
-        }
-
-        .order-item-image {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #f5f5f5;
-            flex-shrink: 0;
-        }
-
-        .order-item-image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .order-item-details {
-            flex: 1;
-        }
-
-        .order-item-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 4px;
-        }
-
-        .order-item-price {
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 8px;
-        }
-
-        .order-item-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .order-item-quantity {
-            font-size: 14px;
-            color: #FF6B00;
-            font-weight: 600;
-        }
-
-        .quantity-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: #f5f5f5;
-            border-radius: 20px;
-            padding: 4px 8px;
-        }
-
-        .quantity-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: none;
-            background: white;
-            color: #FF6B00;
-            font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .quantity-btn:hover {
-            background: #FF6B00;
-            color: white;
-            transform: scale(1.1);
-        }
-
-        .quantity-btn:active {
-            transform: scale(0.95);
-        }
-
-        .quantity-number {
-            min-width: 30px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 14px;
-            color: #333;
-        }
-
-        /* Notes Section */
-        .notes-section {
-            margin-bottom: 24px;
-        }
-
-        .notes-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 80px;
-            transition: border-color 0.2s;
-        }
-
-        .notes-input:focus {
-            outline: none;
-            border-color: #FF6B00;
-        }
-
-        /* Payment Method */
-        .payment-section {
-            margin-bottom: 24px;
-        }
-
-        .payment-options {
-            display: grid;
-            gap: 12px;
-        }
-
-        .payment-option {
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .payment-option:hover {
-            border-color: #FF6B00;
-            background: #FFF5EE;
-        }
-
-        .payment-option.selected {
-            border-color: #FF6B00;
-            background: #FFF5EE;
-        }
-
-        .payment-radio {
-            width: 20px;
-            height: 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 50%;
-            position: relative;
-            transition: all 0.2s;
-        }
-
-        .payment-option.selected .payment-radio {
-            border-color: #FF6B00;
-        }
-
-        .payment-radio::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0);
-            width: 10px;
-            height: 10px;
-            background: #FF6B00;
-            border-radius: 50%;
-            transition: transform 0.2s;
-        }
-
-        .payment-option.selected .payment-radio::after {
-            transform: translate(-50%, -50%) scale(1);
-        }
-
-        .payment-icon {
-            width: 40px;
-            height: 40px;
-            background: white;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .payment-info {
-            flex: 1;
-        }
-
-        .payment-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 2px;
-        }
-
-        .payment-desc {
-            font-size: 12px;
-            color: #666;
-        }
-
-        /* Order Summary */
-        .order-summary {
-            background: #f9f9f9;
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 24px;
-        }
-
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .summary-row:last-child {
-            margin-bottom: 0;
-            padding-top: 8px;
-            border-top: 1px solid #e0e0e0;
-            font-weight: 600;
-            font-size: 16px;
-        }
-
-        .summary-label {
-            color: #666;
-        }
-
-        .summary-value {
-            color: #333;
-            font-weight: 600;
-        }
-
-        .summary-row:last-child .summary-value {
-            color: #FF6B00;
-        }
-
-        /* Submit Button */
-        .submit-order-btn {
-            width: 100%;
-            padding: 16px;
-            border-radius: 12px;
-            background: #FF6B00;
-            color: white;
-            border: none;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(255, 107, 0, 0.3);
-        }
-
-        .submit-order-btn:hover {
-            background: #E55D00;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(255, 107, 0, 0.4);
-        }
-
-        .submit-order-btn:active {
-            transform: translateY(0);
-        }
-
-        .submit-order-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .menu-grid {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-                gap: 12px;
-            }
-
-            .menu-image {
-                height: 160px;
-            }
-
-            .menu-name {
-                font-size: 14px;
-            }
-
-            .menu-price {
-                font-size: 14px;
-            }
-
-            .add-btn {
-                width: 36px;
-                height: 36px;
-                font-size: 20px;
-            }
-
-            .checkout-modal {
-                max-width: 100%;
-                border-radius: 20px 20px 0 0;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="../../css/customer/menu.css">
 </head>
 <body>
     <div class="main-wrapper">
         <div class="container">
             <header class="header">
-                <button class="back-btn" onclick="window.history.back()" aria-label="Kembali">
-                    ←
-                </button>
+                <button class="back-btn" onclick="window.history.back()" aria-label="Kembali">←</button>
                 <div class="header-title">
                     <h1>Menu</h1>
                     <p>Meja <?php echo htmlspecialchars($nomor_meja); ?></p>
@@ -805,13 +100,10 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
             <nav class="tab-navigation" aria-label="Kategori Menu">
                 <a href="<?php echo buildKategoriLink('semua', $id_meja, $kode_param); ?>" 
                    class="tab-item <?php echo $kategori == 'semua' ? 'active' : ''; ?>">Semua</a>
-
                 <a href="<?php echo buildKategoriLink('makanan', $id_meja, $kode_param); ?>" 
                    class="tab-item <?php echo $kategori == 'makanan' ? 'active' : ''; ?>">Makanan</a>
-
                 <a href="<?php echo buildKategoriLink('minuman', $id_meja, $kode_param); ?>" 
                    class="tab-item <?php echo $kategori == 'minuman' ? 'active' : ''; ?>">Minuman</a>
-
                 <a href="<?php echo buildKategoriLink('lainnya', $id_meja, $kode_param); ?>" 
                    class="tab-item <?php echo $kategori == 'lainnya' ? 'active' : ''; ?>">Camilan</a>
             </nav>
@@ -827,17 +119,14 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                                 <?php else: ?>
                                     <div class="no-image">Tidak ada gambar</div>
                                 <?php endif; ?>
-
                                 <?php if (isset($menu['status_menu']) && $menu['status_menu'] == 'nonaktif'): ?>
                                     <div class="status-badge">Tidak Tersedia</div>
                                 <?php endif; ?>
                             </div>
-
                             <div class="menu-info">
                                 <h3 class="menu-name"><?php echo htmlspecialchars($menu['nama_menu']); ?></h3>
                                 <div class="menu-footer">
                                     <span class="menu-price">Rp <?php echo number_format($menu['harga'], 0, ',', '.'); ?></span>
-
                                     <?php if (isset($menu['status_menu']) && $menu['status_menu'] == 'aktif'): ?>
                                         <button class="add-btn" onclick='addToCart(<?php echo json_encode([
                                             "id" => $menu["id_menu"],
@@ -873,9 +162,7 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                     <h2>Detail Pesanan</h2>
                     <button class="close-modal" onclick="closeCheckout()">×</button>
                 </div>
-
                 <div class="checkout-content">
-                    <!-- Table Info -->
                     <div class="table-info">
                         <div class="table-icon">🪑</div>
                         <div class="table-details">
@@ -883,23 +170,14 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                             <p>Pesanan Anda akan diantar ke meja ini</p>
                         </div>
                     </div>
-
-                    <!-- Order Items -->
                     <div class="order-section">
                         <h3 class="section-title">Pesanan Anda</h3>
                         <div id="checkoutItems"></div>
                     </div>
-
-                    <!-- Notes -->
                     <div class="notes-section">
                         <h3 class="section-title">Catatan (Opsional)</h3>
-                        <textarea 
-                            class="notes-input" 
-                            id="orderNotes" 
-                            placeholder="Contoh: Tidak pakai cabai, level pedas sedang, dll..."></textarea>
+                        <textarea class="notes-input" id="orderNotes" placeholder="Contoh: Tidak pakai cabai, level pedas sedang, dll..."></textarea>
                     </div>
-
-                    <!-- Payment Method -->
                     <div class="payment-section">
                         <h3 class="section-title">Metode Pembayaran</h3>
                         <div class="payment-options">
@@ -921,8 +199,6 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                             </div>
                         </div>
                     </div>
-
-                    <!-- Order Summary -->
                     <div class="order-summary">
                         <div class="summary-row">
                             <span class="summary-label">Subtotal</span>
@@ -937,10 +213,150 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                             <span class="summary-value" id="checkoutTotal">Rp 0</span>
                         </div>
                     </div>
-
-                    <!-- Submit Button -->
                     <button class="submit-order-btn" id="submitOrderBtn" onclick="submitOrder()" disabled>
                         Pilih Metode Pembayaran
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Modal (Cash) -->
+        <div class="modal-overlay" id="successModal">
+            <div class="checkout-modal">
+                <div class="checkout-header">
+                    <h2>✅ Pesanan Berhasil!</h2>
+                    <button class="close-modal" onclick="closeSuccessModal()">×</button>
+                </div>
+                <div class="checkout-content">
+                    <div class="success-info">
+                        <div class="success-icon">🎉</div>
+                        <h3>Pesanan Anda Telah Dikonfirmasi</h3>
+                        <p>Silakan tunggu, pesanan Anda sedang diproses</p>
+                    </div>
+                    <div class="order-details">
+                        <h4>Detail Pesanan</h4>
+                        <div class="detail-row">
+                            <span>Nomor Pesanan:</span>
+                            <strong id="successOrderId">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Meja:</span>
+                            <strong id="successTableNumber">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Total Pembayaran:</span>
+                            <strong id="successTotalAmount" style="color: #FF6B00;">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Jumlah Item:</span>
+                            <strong id="successTotalItems">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Metode Pembayaran:</span>
+                            <strong>Cash (Bayar di Kasir)</strong>
+                        </div>
+                    </div>
+                    <div class="success-note">
+                        <p>💡 <strong>Catatan:</strong> Silakan bayar di kasir setelah selesai makan</p>
+                    </div>
+                    <button class="submit-order-btn" onclick="closeSuccessModal()">Tutup</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QRIS Payment Modal -->
+        <div class="modal-overlay" id="qrisModal">
+            <div class="checkout-modal">
+                <div class="checkout-header">
+                    <h2>Pembayaran QRIS</h2>
+                    <button class="close-modal" onclick="cancelQrisPayment()">×</button>
+                </div>
+                <div class="checkout-content">
+                    <div class="qris-container">
+                        <h3>Scan QRIS untuk Membayar</h3>
+                        <div class="qris-image-wrapper">
+                            <img src="../../assets/uploads/qris.png" alt="QRIS Code" class="qris-image">
+                        </div>
+                        
+                        <div class="qris-amount">
+                            <span>Total Pembayaran:</span>
+                            <strong id="qrisTotalAmount">Rp 0</strong>
+                        </div>
+
+                        <div class="upload-section">
+                            <h4>Upload Bukti Pembayaran</h4>
+                            <p class="upload-note">Silakan upload screenshot atau foto bukti transfer Anda</p>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="paymentProof" accept="image/*" onchange="previewPaymentProof(this)">
+                                <label for="paymentProof" class="file-upload-label">
+                                    <span id="fileUploadText">📷 Pilih File Gambar</span>
+                                </label>
+                            </div>
+                            <div id="imagePreview" class="image-preview"></div>
+                        </div>
+
+                        <button class="submit-order-btn" id="uploadProofBtn" onclick="uploadPaymentProof()" disabled>
+                            Upload Bukti Pembayaran
+                        </button>
+
+                        <div class="qris-status" id="qrisStatusSection" style="display: none;">
+                            <div class="status-indicator" id="qrisStatusIndicator">
+                                <div class="loading-spinner"></div>
+                                <p id="qrisStatusText">Menunggu konfirmasi kasir...</p>
+                            </div>
+                        </div>
+
+                        <div class="qris-note">
+                            <p>⏳ Setelah mengupload bukti pembayaran, mohon tunggu kasir mengkonfirmasi pembayaran Anda</p>
+                        </div>
+
+                        <button class="submit-order-btn" id="qrisContinueBtn" onclick="completeQrisPayment()" disabled style="display: none;">
+                            Lanjutkan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QRIS Success Modal -->
+        <div class="modal-overlay" id="qrisSuccessModal">
+            <div class="checkout-modal">
+                <div class="checkout-header">
+                    <h2>✅ Pembayaran Berhasil!</h2>
+                </div>
+                <div class="checkout-content">
+                    <div class="success-info">
+                        <div class="success-icon">💳</div>
+                        <h3>Pembayaran Telah Dikonfirmasi</h3>
+                        <p>Terima kasih! Pesanan Anda sedang diproses</p>
+                    </div>
+                    <div class="order-details">
+                        <h4>Detail Pesanan</h4>
+                        <div class="detail-row">
+                            <span>Nomor Pesanan:</span>
+                            <strong id="qrisSuccessOrderId">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Meja:</span>
+                            <strong id="qrisSuccessTableNumber">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Total Pembayaran:</span>
+                            <strong id="qrisSuccessTotalAmount" style="color: #FF6B00;">-</strong>
+                        </div>
+                        <div class="detail-row">
+                            <span>Status Pembayaran:</span>
+                            <strong style="color: #28a745;">Sudah Dibayar (QRIS)</strong>
+                        </div>
+                    </div>
+                    <div class="receipt-section">
+                        <button class="download-receipt-btn" id="downloadReceiptBtn" onclick="downloadReceipt()">
+                            📄 Download Struk
+                        </button>
+                        <p class="receipt-note">⚠️ <strong>Wajib:</strong> Download dan tunjukkan struk ini ke kasir sebagai bukti pembayaran setelah selesai makan</p>
+                    </div>
+                    <button class="submit-order-btn" id="closeQrisSuccessBtn" onclick="attemptCloseQrisSuccess()" disabled>
+                        Selesai
                     </button>
                 </div>
             </div>
@@ -950,6 +366,10 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
     <script>
         let cart = [];
         let selectedPayment = null;
+        let currentOrderId = null;
+        let checkPaymentInterval = null;
+        let receiptDownloaded = false;
+        let selectedProofFile = null;
         const mejaNumber = '<?php echo htmlspecialchars($nomor_meja); ?>';
 
         function addToCart(menu) {
@@ -962,12 +382,9 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
             updateCartButton();
         }
 
-
-
         function updateCartButton() {
             const cartFloatBtn = document.getElementById('cartFloatBtn');
             const cartFloatBadge = document.getElementById('cartFloatBadge');
-
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
             
             if (totalItems > 0) {
@@ -984,23 +401,16 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                 alert('Keranjang kosong! Silakan pilih menu terlebih dahulu.');
                 return;
             }
-            
-            const modal = document.getElementById('checkoutModal');
-            modal.classList.add('active');
+            document.getElementById('checkoutModal').classList.add('active');
             updateCheckoutModal();
         }
 
         function closeCheckout() {
-            const modal = document.getElementById('checkoutModal');
-            modal.classList.remove('active');
+            document.getElementById('checkoutModal').classList.remove('active');
         }
 
         function updateCheckoutModal() {
             const checkoutItems = document.getElementById('checkoutItems');
-            const checkoutSubtotal = document.getElementById('checkoutSubtotal');
-            const checkoutTotalItems = document.getElementById('checkoutTotalItems');
-            const checkoutTotal = document.getElementById('checkoutTotal');
-
             let totalItems = 0;
             let subtotal = 0;
 
@@ -1008,7 +418,6 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                 totalItems += item.quantity;
                 const itemTotal = item.harga * item.quantity;
                 subtotal += itemTotal;
-                
                 const imagePath = item.gambar ? `../../assets/uploads/${item.gambar}` : '';
                 
                 return `
@@ -1031,10 +440,9 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                     </div>`;
             }).join('');
 
-            checkoutSubtotal.textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
-            checkoutTotalItems.textContent = totalItems + ' item';
-            checkoutTotal.textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
-            
+            document.getElementById('checkoutSubtotal').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
+            document.getElementById('checkoutTotalItems').textContent = totalItems + ' item';
+            document.getElementById('checkoutTotal').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
             updateCartButton();
         }
 
@@ -1052,7 +460,6 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                 if (cart[itemIndex].quantity > 1) {
                     cart[itemIndex].quantity--;
                 } else {
-                    // Konfirmasi sebelum menghapus item
                     if (confirm(`Hapus ${cart[itemIndex].nama} dari keranjang?`)) {
                         cart.splice(itemIndex, 1);
                     }
@@ -1063,22 +470,14 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
 
         function selectPayment(method) {
             selectedPayment = method;
-            
-            // Update visual selection
             document.querySelectorAll('.payment-option').forEach(option => {
                 option.classList.remove('selected');
             });
             document.querySelector(`[data-payment="${method}"]`).classList.add('selected');
             
-            // Update button
             const submitBtn = document.getElementById('submitOrderBtn');
             submitBtn.disabled = false;
-            
-            if (method === 'cash') {
-                submitBtn.textContent = 'Konfirmasi Pesanan - Bayar di Kasir';
-            } else if (method === 'qris') {
-                submitBtn.textContent = 'Lanjut ke Pembayaran QRIS';
-            }
+            submitBtn.textContent = method === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
         }
 
         function submitOrder() {
@@ -1091,12 +490,10 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
             const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
             const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-            // Disable button saat proses
             const submitBtn = document.getElementById('submitOrderBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Memproses pesanan...';
 
-            // Data pesanan
             const orderData = {
                 meja: mejaNumber,
                 id_meja: <?php echo json_encode($id_meja); ?>,
@@ -1108,59 +505,321 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                 total_items: totalItems
             };
 
-            // Debug: log data yang akan dikirim
             console.log('Sending order data:', orderData);
 
-            // Kirim data ke server menggunakan fetch API
             fetch('../include/pesanan_f.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(orderData)
             })
             .then(response => {
                 console.log('Response status:', response.status);
-                return response.json();
+                console.log('Response headers:', response.headers);
+                return response.text();
             })
-            .then(data => {
-                console.log('Response data:', data);
-                if (data.success) {
-                    if (selectedPayment === 'cash') {
-                        alert(`Pesanan berhasil dikonfirmasi!\n\nNomor Pesanan: ${data.order_id}\nMeja: ${mejaNumber}\nTotal: Rp ${totalAmount.toLocaleString('id-ID')}\nJumlah Item: ${totalItems}\n\nSilakan bayar di kasir setelah selesai makan.`);
+            .then(text => {
+                console.log('Response text:', text);
+                try {
+                    const data = JSON.parse(text);
+                    console.log('Parsed data:', data);
+                    
+                    if (data.success) {
+                        currentOrderId = data.order_id;
+                        console.log('Order created successfully with ID:', currentOrderId);
                         
-                        // Reset cart dan tutup modal
-                        resetOrder();
-                        
-                    } else if (selectedPayment === 'qris') {
-                        // Redirect ke halaman pembayaran QRIS
-                        window.location.href = `payment_qris.php?order_id=${data.order_id}`;
-                    }
-                } else {
-                    alert('Gagal memproses pesanan: ' + (data.message || 'Terjadi kesalahan'));
-                    submitBtn.disabled = false;
-                    if (selectedPayment === 'cash') {
-                        submitBtn.textContent = 'Konfirmasi Pesanan - Bayar di Kasir';
+                        if (selectedPayment === 'cash') {
+                            showSuccessModal(data.order_id, totalAmount, totalItems);
+                        } else if (selectedPayment === 'qris') {
+                            showQrisModal(data.order_id, totalAmount);
+                        }
                     } else {
-                        submitBtn.textContent = 'Lanjut ke Pembayaran QRIS';
+                        console.error('Order failed:', data);
+                        alert('Gagal memproses pesanan: ' + (data.message || 'Terjadi kesalahan'));
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = selectedPayment === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
                     }
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    console.error('Received text:', text);
+                    alert('Terjadi kesalahan saat memproses respons server. Silakan coba lagi.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = selectedPayment === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = selectedPayment === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
+            });
+        }
+
+        function showSuccessModal(orderId, totalAmount, totalItems) {
+            closeCheckout();
+            document.getElementById('successOrderId').textContent = orderId;
+            document.getElementById('successTableNumber').textContent = mejaNumber;
+            document.getElementById('successTotalAmount').textContent = 'Rp ' + totalAmount.toLocaleString('id-ID');
+            document.getElementById('successTotalItems').textContent = totalItems + ' item';
+            document.getElementById('successModal').classList.add('active');
+        }
+
+        function closeSuccessModal() {
+            document.getElementById('successModal').classList.remove('active');
+            resetOrder();
+        }
+
+        function showQrisModal(orderId, totalAmount) {
+            closeCheckout();
+            document.getElementById('qrisTotalAmount').textContent = 'Rp ' + totalAmount.toLocaleString('id-ID');
+            document.getElementById('qrisModal').classList.add('active');
+            
+            // Reset upload section
+            selectedProofFile = null;
+            document.getElementById('paymentProof').value = '';
+            document.getElementById('fileUploadText').textContent = '📷 Pilih File Gambar';
+            document.getElementById('imagePreview').innerHTML = '';
+            document.getElementById('uploadProofBtn').disabled = true;
+            document.getElementById('qrisStatusSection').style.display = 'none';
+            document.getElementById('qrisContinueBtn').style.display = 'none';
+        }
+
+        function previewPaymentProof(input) {
+            const uploadBtn = document.getElementById('uploadProofBtn');
+            const preview = document.getElementById('imagePreview');
+            const fileText = document.getElementById('fileUploadText');
+            
+            if (input.files && input.files[0]) {
+                selectedProofFile = input.files[0];
+                
+                // Validasi tipe file
+                if (!selectedProofFile.type.match('image.*')) {
+                    alert('Hanya file gambar yang diperbolehkan!');
+                    input.value = '';
+                    selectedProofFile = null;
+                    uploadBtn.disabled = true;
+                    return;
+                }
+                
+                // Validasi ukuran file (max 5MB)
+                if (selectedProofFile.size > 5 * 1024 * 1024) {
+                    alert('Ukuran file maksimal 5MB!');
+                    input.value = '';
+                    selectedProofFile = null;
+                    uploadBtn.disabled = true;
+                    return;
+                }
+                
+                // Preview gambar
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview Bukti Pembayaran">`;
+                    fileText.textContent = '✓ ' + selectedProofFile.name;
+                    uploadBtn.disabled = false;
+                };
+                reader.readAsDataURL(selectedProofFile);
+            } else {
+                selectedProofFile = null;
+                preview.innerHTML = '';
+                fileText.textContent = '📷 Pilih File Gambar';
+                uploadBtn.disabled = true;
+            }
+        }
+
+        function uploadPaymentProof() {
+            if (!selectedProofFile) {
+                alert('Silakan pilih file bukti pembayaran terlebih dahulu!');
+                return;
+            }
+
+            const uploadBtn = document.getElementById('uploadProofBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Mengupload...';
+
+            const formData = new FormData();
+            formData.append('payment_proof', selectedProofFile);
+            formData.append('order_id', currentOrderId);
+
+            fetch('../include/upload_payment_proof.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    uploadBtn.textContent = '✓ Bukti Berhasil Diupload';
+                    uploadBtn.style.background = '#28a745';
+                    
+                    // Tampilkan status section dan mulai polling
+                    document.getElementById('qrisStatusSection').style.display = 'block';
+                    document.getElementById('qrisContinueBtn').style.display = 'block';
+                    startPaymentStatusCheck(currentOrderId);
+                } else {
+                    alert('Gagal mengupload bukti pembayaran: ' + (data.message || 'Terjadi kesalahan'));
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload Bukti Pembayaran';
+                    uploadBtn.style.background = '#FF6B00';
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
-                submitBtn.disabled = false;
-                if (selectedPayment === 'cash') {
-                    submitBtn.textContent = 'Konfirmasi Pesanan - Bayar di Kasir';
-                } else {
-                    submitBtn.textContent = 'Lanjut ke Pembayaran QRIS';
-                }
+                alert('Terjadi kesalahan saat mengupload. Silakan coba lagi.');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Bukti Pembayaran';
+                uploadBtn.style.background = '#FF6B00';
             });
+        }
+
+        function startPaymentStatusCheck(orderId) {
+            const statusIndicator = document.getElementById('qrisStatusIndicator');
+            const statusText = document.getElementById('qrisStatusText');
+            const continueBtn = document.getElementById('qrisContinueBtn');
+            
+            checkPaymentInterval = setInterval(() => {
+                fetch(`../include/check_payment_status.php?order_id=${orderId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.status === 'confirmed') {
+                                // Kasir mengkonfirmasi pembayaran
+                                clearInterval(checkPaymentInterval);
+                                statusIndicator.innerHTML = '<div class="success-check">✓</div>';
+                                statusText.textContent = 'Pembayaran dikonfirmasi!';
+                                statusIndicator.style.color = '#28a745';
+                                continueBtn.disabled = false;
+                            } else if (data.status === 'rejected') {
+                                // Kasir menolak pembayaran
+                                clearInterval(checkPaymentInterval);
+                                statusIndicator.innerHTML = '<div class="error-mark">✗</div>';
+                                statusText.textContent = 'Pembayaran ditolak oleh kasir';
+                                statusIndicator.style.color = '#dc3545';
+                                
+                                setTimeout(() => {
+                                    document.getElementById('qrisModal').classList.remove('active');
+                                    alert('Pembayaran ditolak oleh kasir. Silakan coba lagi atau hubungi kasir.');
+                                    resetOrder();
+                                }, 2000);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking payment status:', error);
+                    });
+            }, 3000); // Check setiap 3 detik
+        }
+
+        function cancelQrisPayment() {
+            if (checkPaymentInterval) {
+                clearInterval(checkPaymentInterval);
+            }
+            document.getElementById('qrisModal').classList.remove('active');
+            
+            // Reset form
+            const submitBtn = document.getElementById('submitOrderBtn');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Lanjut ke Pembayaran QRIS';
+        }
+
+        function completeQrisPayment() {
+            if (checkPaymentInterval) {
+                clearInterval(checkPaymentInterval);
+            }
+            
+            document.getElementById('qrisModal').classList.remove('active');
+            
+            // Ambil data untuk ditampilkan di success modal
+            const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+            
+            document.getElementById('qrisSuccessOrderId').textContent = currentOrderId;
+            document.getElementById('qrisSuccessTableNumber').textContent = mejaNumber;
+            document.getElementById('qrisSuccessTotalAmount').textContent = 'Rp ' + totalAmount.toLocaleString('id-ID');
+            
+            // Reset flag download
+            receiptDownloaded = false;
+            document.getElementById('closeQrisSuccessBtn').disabled = true;
+            document.getElementById('closeQrisSuccessBtn').textContent = 'Download Struk Terlebih Dahulu';
+            
+            document.getElementById('qrisSuccessModal').classList.add('active');
+        }
+
+        function downloadReceipt() {
+            // Generate struk pembayaran
+            const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            let receiptContent = `
+=========================================
+           STRUK PEMBAYARAN
+=========================================
+
+Nomor Pesanan: ${currentOrderId}
+Meja: ${mejaNumber}
+Tanggal: ${new Date().toLocaleString('id-ID')}
+
+-----------------------------------------
+DETAIL PESANAN:
+-----------------------------------------
+`;
+
+            cart.forEach(item => {
+                const itemTotal = item.harga * item.quantity;
+                receiptContent += `${item.nama}\n`;
+                receiptContent += `  ${item.quantity} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${itemTotal.toLocaleString('id-ID')}\n\n`;
+            });
+
+            receiptContent += `-----------------------------------------
+Total Item: ${totalItems}
+Total Pembayaran: Rp ${totalAmount.toLocaleString('id-ID')}
+
+Metode Pembayaran: QRIS
+Status: LUNAS
+
+=========================================
+  Terima kasih atas kunjungan Anda!
+  Tunjukkan struk ini ke kasir
+=========================================
+`;
+
+            // Download sebagai file txt
+            const blob = new Blob([receiptContent], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Struk_Pesanan_${currentOrderId}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Set flag bahwa struk sudah didownload
+            receiptDownloaded = true;
+            
+            // Enable tombol selesai
+            const closeBtn = document.getElementById('closeQrisSuccessBtn');
+            closeBtn.disabled = false;
+            closeBtn.textContent = 'Selesai';
+            
+            // Ubah tampilan tombol download
+            const downloadBtn = document.getElementById('downloadReceiptBtn');
+            downloadBtn.textContent = '✓ Struk Sudah Didownload';
+            downloadBtn.style.background = '#28a745';
+        }
+
+        function attemptCloseQrisSuccess() {
+            if (!receiptDownloaded) {
+                alert('Anda harus mendownload struk terlebih dahulu sebelum menutup!');
+                return;
+            }
+            
+            document.getElementById('qrisSuccessModal').classList.remove('active');
+            resetOrder();
         }
 
         function resetOrder() {
             cart = [];
             selectedPayment = null;
+            currentOrderId = null;
+            receiptDownloaded = false;
+            selectedProofFile = null;
             document.getElementById('orderNotes').value = '';
             document.querySelectorAll('.payment-option').forEach(option => {
                 option.classList.remove('selected');

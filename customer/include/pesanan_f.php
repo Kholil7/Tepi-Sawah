@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 
 // Enable error reporting untuk debugging
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Jangan tampilkan error langsung
+ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
 // Ambil data dari request
@@ -112,8 +112,10 @@ try {
         throw new Exception('Gagal mendapatkan ID pesanan yang baru dibuat');
     }
 
+    // Log success insert pesanan
+    error_log("Pesanan berhasil dibuat dengan ID: " . $id_pesanan);
+
     // 2. Insert detail pesanan untuk setiap item
-    // CATATAN: subtotal adalah generated column, tidak perlu di-insert
     $query_detail = "INSERT INTO detail_pesanan (
         id_pesanan,
         id_menu,
@@ -151,11 +153,16 @@ try {
         }
     }
 
+    // Log success insert detail
+    error_log("Detail pesanan berhasil dibuat untuk " . count($data['items']) . " item");
+
     // 3. Buat record pembayaran
-    $status_pembayaran = ($metode_bayar === 'qris') ? 'sudah_bayar' : 'belum_bayar';
+    // Untuk QRIS, status awal adalah belum_bayar sampai kasir konfirmasi
+    // Untuk Cash, status adalah belum_bayar
+    $status_pembayaran = 'belum_bayar';
     $waktu_pembayaran = date('Y-m-d H:i:s');
     $jumlah_tagihan = $total_harga;
-    $jumlah_dibayar = ($metode_bayar === 'qris') ? $total_harga : 0;
+    $jumlah_dibayar = 0;
     $kembalian = 0;
     
     $query_pembayaran = "INSERT INTO pembayaran (
@@ -192,9 +199,12 @@ try {
     
     $id_pembayaran = $conn->insert_id;
 
+    // Log success insert pembayaran
+    error_log("Pembayaran berhasil dibuat dengan ID: " . $id_pembayaran);
+
     // 4. Update status meja
     if ($id_meja) {
-        $query_update_meja = "UPDATE meja SET status_meja = 'menunggu_pembayaran' WHERE id_meja = ?";
+        $query_update_meja = "UPDATE meja SET status_meja = 'terisi' WHERE id_meja = ?";
         $stmt_meja = $conn->prepare($query_update_meja);
         
         if (!$stmt_meja) {
@@ -206,10 +216,16 @@ try {
         if (!$stmt_meja->execute()) {
             throw new Exception('Execute update meja gagal: ' . $stmt_meja->error);
         }
+
+        // Log success update meja
+        error_log("Status meja berhasil diupdate untuk ID: " . $id_meja);
     }
 
     // Commit transaction
     $conn->commit();
+
+    // Log final success
+    error_log("Transaksi berhasil - Order ID: " . $id_pesanan);
 
     // Response sukses
     echo json_encode([
@@ -230,6 +246,7 @@ try {
     
     // Log error
     error_log("Order processing error: " . $e->getMessage());
+    error_log("Error trace: " . $e->getTraceAsString());
     
     echo json_encode([
         'success' => false,
@@ -238,7 +255,8 @@ try {
             'id_meja' => $id_meja ?? 'not set',
             'total_harga' => $total_harga ?? 'not set',
             'items_count' => isset($data['items']) ? count($data['items']) : 0,
-            'metode_bayar' => $metode_bayar ?? 'not set'
+            'metode_bayar' => $metode_bayar ?? 'not set',
+            'error_line' => $e->getLine()
         ]
     ]);
 }
