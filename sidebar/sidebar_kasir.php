@@ -170,7 +170,7 @@
     </div>
 
     <div class="menu">
-      <a href="index.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'index') ? 'active' : '' ?>">
+      <a href="../inside/dashboard_kasir.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'index') ? 'active' : '' ?>">
         <i class="fa-solid fa-table-cells-large"></i><span>Dashboard</span>
       </a>
 
