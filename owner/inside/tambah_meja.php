@@ -1,41 +1,30 @@
 <?php
 include '../../sidebar/sidebar.php';
 require_once '../../database/connect.php';
-require_once '../../assets/phpqrcode/qrlib.php'; // QRCode tanpa Composer
+require_once '../../assets/phpqrcode/qrlib.php';
 
-// Fungsi tambah meja dengan QR
 function tambahMeja($conn, $nomor_meja) {
+    $id_meja   = 'MEJ' . substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 8);
     $kode_unik = uniqid('MEJA_');
     $qrcode_dir = '../../assets/qrcode/';
     $qrcode_path = $qrcode_dir . $kode_unik . '.png';
     $status = 'kosong';
 
-    // Cek duplikat nomor meja
     $cek = mysqli_query($conn, "SELECT * FROM meja WHERE nomor_meja = '$nomor_meja'");
-    if (mysqli_num_rows($cek) > 0) {
-        return ['msg' => 'Nomor meja sudah ada!'];
-    }
+    if (mysqli_num_rows($cek) > 0) return ['msg' => 'Nomor meja sudah ada!'];
 
-    // Generate QR Code
-    if (!file_exists($qrcode_dir)) {
-        mkdir($qrcode_dir, 0777, true);
-    }
+    if (!file_exists($qrcode_dir)) mkdir($qrcode_dir, 0777, true);
 
     $qr_data = "https://example.com/restoran/order.php?meja=" . urlencode($kode_unik);
     QRcode::png($qr_data, $qrcode_path, QR_ECLEVEL_L, 6, 2);
 
-    // Simpan ke database
-    $insert = mysqli_query($conn, "INSERT INTO meja (nomor_meja, kode_unik, status_meja, qrcode_url, last_update)
-                                   VALUES ('$nomor_meja', '$kode_unik', '$status', '$qrcode_path', NOW())");
+    $insert = mysqli_query($conn, "INSERT INTO meja (id_meja, nomor_meja, kode_unik, status_meja, qrcode_url, last_update)
+                                   VALUES ('$id_meja', '$nomor_meja', '$kode_unik', '$status', '$qrcode_path', NOW())");
 
-    if ($insert) {
-        return ['msg' => 'Meja berhasil ditambahkan beserta QR Code-nya!'];
-    } else {
-        return ['msg' => 'Gagal menambahkan meja: ' . mysqli_error($conn)];
-    }
+    if ($insert) return ['msg' => 'Meja berhasil ditambahkan beserta QR Code-nya!'];
+    else return ['msg' => 'Gagal menambahkan meja: ' . mysqli_error($conn)];
 }
 
-// Fungsi edit meja
 function editMeja($conn, $id_meja, $nomor_meja, $status_meja) {
     $update = mysqli_query($conn, "UPDATE meja 
                                    SET nomor_meja='$nomor_meja', status_meja='$status_meja', last_update=NOW() 
@@ -44,14 +33,12 @@ function editMeja($conn, $id_meja, $nomor_meja, $status_meja) {
     else return ['msg' => 'Gagal memperbarui data: ' . mysqli_error($conn)];
 }
 
-// Fungsi hapus meja
 function hapusMeja($conn, $id_meja) {
     $hapus = mysqli_query($conn, "DELETE FROM meja WHERE id_meja='$id_meja'");
     if ($hapus) return ['msg' => 'Meja berhasil dihapus!'];
     else return ['msg' => 'Gagal menghapus meja: ' . mysqli_error($conn)];
 }
 
-// Ambil semua data meja
 function getAllMeja($conn) {
     $result = mysqli_query($conn, "SELECT * FROM meja ORDER BY id_meja ASC");
     $data = [];
@@ -59,7 +46,6 @@ function getAllMeja($conn) {
     return $data;
 }
 
-// Aksi
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_meja'])) {
     $nomor_meja = trim($_POST['nomor_meja']);
     $res = tambahMeja($conn, $nomor_meja);
@@ -85,13 +71,13 @@ if (isset($_GET['hapus'])) {
 
 $meja = getAllMeja($conn);
 
-// Statistik
 $total = count($meja);
 $kosong = count(array_filter($meja, fn($m) => $m['status_meja'] === 'kosong'));
 $terisi = count(array_filter($meja, fn($m) => $m['status_meja'] === 'terisi'));
 $menunggu = count(array_filter($meja, fn($m) => $m['status_meja'] === 'menunggu_pembayaran'));
 $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'));
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
