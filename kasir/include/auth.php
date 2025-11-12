@@ -4,6 +4,16 @@ session_start();
 
 $action = $_POST['action'] ?? '';
 
+function generateKasirId() {
+    $prefix = 'KSR';
+    $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $randomString = '';
+    for ($i = 0; $i < 8; $i++) {
+        $randomString .= $characters[random_int(0, strlen($characters) - 1)];
+    }
+    return $prefix . $randomString;
+}
+
 if ($action === 'register') {
     $fullname = trim($_POST['fullname']);
     $email = trim($_POST['email']);
@@ -25,10 +35,18 @@ if ($action === 'register') {
         exit;
     }
 
+    do {
+        $id_pengguna = generateKasirId();
+        $idCheck = $conn->prepare("SELECT id_pengguna FROM pengguna WHERE id_pengguna = ?");
+        $idCheck->bind_param("s", $id_pengguna);
+        $idCheck->execute();
+        $idResult = $idCheck->get_result();
+    } while($idResult->num_rows > 0);
+
     $hashed = password_hash($password, PASSWORD_DEFAULT);
     $role = 'kasir';
-    $stmt = $conn->prepare("INSERT INTO pengguna (nama, email, password, role) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("ssss", $fullname, $email, $hashed, $role);
+    $stmt = $conn->prepare("INSERT INTO pengguna (id_pengguna, nama, email, password, role) VALUES (?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssss", $id_pengguna, $fullname, $email, $hashed, $role);
 
     if ($stmt->execute()) {
         echo "<script>alert('Registrasi berhasil! Silakan login.'); window.location.href='../register.php';</script>";
@@ -51,7 +69,7 @@ if ($action === 'register') {
             $_SESSION['user_id'] = $user['id_pengguna'];
             $_SESSION['user_name'] = $user['nama'];
             $_SESSION['user_role'] = $user['role'];
-            echo "<script>alert('Login berhasil!'); window.location.href='../dashboard.php';</script>";
+            echo "<script>alert('Login berhasil!'); window.location.href='../inside/dashboard_kasir.php';</script>";
         } else {
             echo "<script>alert('Kata sandi salah!'); history.back();</script>";
         }
