@@ -1,5 +1,4 @@
 <?php
-// Mulai output buffering
 ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -7,7 +6,6 @@ ini_set('display_errors', 1);
 if (session_status() === PHP_SESSION_NONE) session_start();
 require '../../database/connect.php';
 
-// Pastikan koneksi berhasil
 if (!$conn) {
     die("Koneksi database gagal: " . mysqli_connect_error());
 }
@@ -16,15 +14,20 @@ function clean($v) {
     return trim(htmlspecialchars($v ?? ''));
 }
 
-// === TAMBAH MENU ===
+function generateMenuID() {
+    return 'MNU' . strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8));
+}
+
 if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
+    $id_menu = generateMenuID();
     $nama = clean($_POST['nama_menu']);
     $kategori = strtolower(clean($_POST['kategori']));
     $harga = floatval($_POST['harga']);
-    $status = clean($_POST['status_menu']);
+    $status_raw = $_POST['status_menu'] ?? null;
+    $status = ($status_raw === '1' || $status_raw === 'on' || strtolower($status_raw) === 'aktif' || strtolower($status_raw) === 'true') ? 'aktif' : 'nonaktif';
     $gambar = $_FILES['gambar']['name'] ?? '';
 
-    if ($nama && $kategori && $harga && $status && $gambar) {
+    if ($nama && $kategori && $harga && $gambar) {
         $ext = strtolower(pathinfo($gambar, PATHINFO_EXTENSION));
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
         if (in_array($ext, $allowed)) {
@@ -35,8 +38,8 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
             $uploadPath = $uploadDir . $newName;
 
             if (move_uploaded_file($_FILES['gambar']['tmp_name'], $uploadPath)) {
-                $stmt = $conn->prepare("INSERT INTO menu (nama_menu, kategori, harga, status_menu, gambar) VALUES (?, ?, ?, ?, ?)");
-                $stmt->bind_param("ssdss", $nama, $kategori, $harga, $status, $newName);
+                $stmt = $conn->prepare("INSERT INTO menu (id_menu, nama_menu, kategori, harga, status_menu, gambar) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssiss", $id_menu, $nama, $kategori, $harga, $status, $newName);
                 if ($stmt->execute()) {
                     echo "<script>alert('✅ Menu berhasil ditambahkan!'); window.location='tambah_menu.php';</script>";
                 } else {
@@ -56,16 +59,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
     exit;
 }
 
-// === EDIT MENU ===
 if (isset($_POST['action']) && $_POST['action'] === 'edit') {
-    $id = intval($_POST['id_menu']);
+    $id = clean($_POST['id_menu']);
     $nama = clean($_POST['nama_menu']);
     $kategori = strtolower(clean($_POST['kategori']));
     $harga = floatval($_POST['harga']);
-    $status = clean($_POST['status_menu']);
+    $status_raw = $_POST['status_menu'] ?? null;
+    $status = ($status_raw === '1' || $status_raw === 'on' || strtolower($status_raw) === 'aktif' || strtolower($status_raw) === 'true') ? 'aktif' : 'nonaktif';
     $gambar = $_FILES['gambar']['name'] ?? '';
 
-    if ($id && $nama && $kategori && $harga && $status) {
+    if ($id && $nama && $kategori && $harga) {
         $uploadDir = '../../assets/uploads/';
         $newName = null;
 
@@ -86,17 +89,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
         }
 
         if ($newName) {
-            // Hapus gambar lama
-            $old = $conn->query("SELECT gambar FROM menu WHERE id_menu = $id")->fetch_assoc()['gambar'];
+            $old = $conn->query("SELECT gambar FROM menu WHERE id_menu = '$id'")->fetch_assoc()['gambar'];
             if ($old && file_exists($uploadDir . $old)) {
                 unlink($uploadDir . $old);
             }
 
             $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, status_menu=?, gambar=? WHERE id_menu=?");
-            $stmt->bind_param("ssdssi", $nama, $kategori, $harga, $status, $newName, $id);
+            $stmt->bind_param("ssdsss", $nama, $kategori, $harga, $status, $newName, $id);
         } else {
             $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, status_menu=? WHERE id_menu=?");
-            $stmt->bind_param("ssdsi", $nama, $kategori, $harga, $status, $id);
+            $stmt->bind_param("ssdss", $nama, $kategori, $harga, $status, $id);
         }
 
         if ($stmt->execute()) {
@@ -112,7 +114,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>

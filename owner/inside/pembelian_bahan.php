@@ -1,52 +1,50 @@
 <?php
 session_start();
-
-// Koneksi database (sesuaikan dengan konfigurasi Anda)
 include '../../database/connect.php';
 
-// Proses tambah pembelian
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tambah_pembelian'])) {
-    $nama_bahan = $_POST['nama_bahan'];
-    $harga = $_POST['harga'];
-    $tanggal_beli = $_POST['tanggal_beli'];
-    $keterangan = $_POST['keterangan'];
+    $nama_bahan      = $_POST['nama_bahan'];
+    $harga           = $_POST['harga'];
+    $tanggal_beli    = $_POST['tanggal_beli'];
+    $keterangan      = $_POST['keterangan'];
     $bukti_pembelian = $_POST['bukti_pembelian'];
-    $dibuat_oleh = $_SESSION['user_id'] ?? 1; // Sesuaikan dengan session user
-    
-    $query = "INSERT INTO pembelian_bahan (nama_bahan, harga, tanggal_beli, keterangan, bukti_pembelian, dibuat_oleh) 
+
+    $id_beli = 'BEL' . strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8));
+
+    $query = "INSERT INTO pembelian_bahan 
+              (id_beli, nama_bahan, harga, tanggal_beli, keterangan, bukti_pembelian) 
               VALUES (?, ?, ?, ?, ?, ?)";
+
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("sdsssi", $nama_bahan, $harga, $tanggal_beli, $keterangan, $bukti_pembelian, $dibuat_oleh);
-    
+    $stmt->bind_param("ssdsss", $id_beli, $nama_bahan, $harga, $tanggal_beli, $keterangan, $bukti_pembelian);
+
     if ($stmt->execute()) {
         $_SESSION['success'] = "Pembelian berhasil ditambahkan!";
     } else {
-        $_SESSION['error'] = "Gagal menambahkan pembelian!";
+        $_SESSION['error'] = "Gagal menambahkan pembelian: " . $conn->error;
     }
-    
+
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
 
-// Proses hapus pembelian
 if (isset($_GET['hapus'])) {
     $id_beli = $_GET['hapus'];
-    
+
     $query = "DELETE FROM pembelian_bahan WHERE id_beli = ?";
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $id_beli);
-    
+    $stmt->bind_param("s", $id_beli);
+
     if ($stmt->execute()) {
         $_SESSION['success'] = "Pembelian berhasil dihapus!";
     } else {
         $_SESSION['error'] = "Gagal menghapus pembelian!";
     }
-    
+
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
 
-// Ambil data pembelian hari ini
 $today = date('Y-m-d');
 $query = "SELECT * FROM pembelian_bahan WHERE DATE(tanggal_beli) = ? ORDER BY tanggal_beli DESC";
 $stmt = $conn->prepare($query);
@@ -55,7 +53,6 @@ $stmt->execute();
 $result = $stmt->get_result();
 $pembelian_list = $result->fetch_all(MYSQLI_ASSOC);
 
-// Hitung summary
 $total_pembelian = count($pembelian_list);
 $total_pengeluaran = array_sum(array_column($pembelian_list, 'harga'));
 ?>
