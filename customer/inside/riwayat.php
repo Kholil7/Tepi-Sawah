@@ -52,7 +52,7 @@ $pesanan = getPesananByMeja($meja['id_meja'], $conn);
     <div class="pesanan-list">
         <?php foreach ($pesanan as $p) : 
             $status = strtolower($p['status_pesanan']);
-            // tentukan warna status
+           
             $status_class = in_array($status, ['dibatalkan','selesai','diproses','pending']) ? $status : 'pending';
         ?>
             <div class="pesanan-item">
