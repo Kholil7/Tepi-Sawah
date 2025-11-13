@@ -3,10 +3,9 @@ require '../../database/connect.php';
 
 header('Content-Type: application/json');
 
-// Ambil order_id dari parameter GET
-$order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
+$order_id = isset($_GET['order_id']) ? trim($_GET['order_id']) : '';
 
-if ($order_id <= 0) {
+if (empty($order_id)) {
     echo json_encode([
         'success' => false,
         'message' => 'Order ID tidak valid'
@@ -15,7 +14,6 @@ if ($order_id <= 0) {
 }
 
 try {
-    // Cek status pembayaran dari tabel pembayaran
     $query = "SELECT p.status, p.metode, ps.status_pesanan 
               FROM pembayaran p
               LEFT JOIN pesanan ps ON p.id_pesanan = ps.id_pesanan
@@ -27,7 +25,7 @@ try {
         throw new Exception('Prepare statement gagal: ' . $conn->error);
     }
     
-    $stmt->bind_param('i', $order_id);
+    $stmt->bind_param('s', $order_id);
     
     if (!$stmt->execute()) {
         throw new Exception('Execute query gagal: ' . $stmt->error);
@@ -44,7 +42,6 @@ try {
         exit;
     }
     
-    // Tentukan status berdasarkan status pembayaran dan status pesanan
     $status = 'pending';
     
     if ($payment['status'] === 'sudah_bayar') {
