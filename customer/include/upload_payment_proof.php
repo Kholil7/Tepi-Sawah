@@ -24,6 +24,7 @@ if (!isset($_POST['order_id']) || empty($_POST['order_id'])) {
 }
 
 $order_id = $_POST['order_id'];
+error_log("Upload payment proof - Order ID: " . $order_id);
 
 if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
     echo json_encode([
@@ -56,6 +57,21 @@ if ($file['size'] > $max_size) {
 }
 
 try {
+    // Cek apakah order_id ada di database
+    $check_query = "SELECT id_pesanan, status FROM pembayaran WHERE id_pesanan = ?";
+    $check_stmt = $conn->prepare($check_query);
+    $check_stmt->bind_param('s', $order_id);
+    $check_stmt->execute();
+    $check_result = $check_stmt->get_result();
+    
+    if ($check_result->num_rows === 0) {
+        throw new Exception('Order ID tidak ditemukan di database: ' . $order_id);
+    }
+    
+    $payment_data = $check_result->fetch_assoc();
+    error_log("Current payment status: " . $payment_data['status']);
+    $check_stmt->close();
+
     $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
     $new_filename = 'bukti_' . $order_id . '_' . time() . '.' . $file_extension;
     $upload_path = '../../assets/uploads/' . $new_filename;
@@ -82,11 +98,19 @@ try {
         unlink($upload_path);
         throw new Exception('Gagal menyimpan data ke database: ' . $stmt->error);
     }
+    
+    $affected_rows = $stmt->affected_rows;
+    error_log("Rows affected by update: " . $affected_rows);
+    
+    if ($affected_rows === 0) {
+        error_log("WARNING: Update executed but no rows affected for order: " . $order_id);
+    }
 
     echo json_encode([
         'success' => true,
         'message' => 'Bukti pembayaran berhasil diupload',
-        'filename' => $new_filename
+        'filename' => $new_filename,
+        'order_id' => $order_id
     ]);
 
 } catch (Exception $e) {
