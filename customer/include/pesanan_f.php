@@ -1,22 +1,17 @@
 <?php
 require '../../database/connect.php';
 
-// Set header untuk JSON response
 header('Content-Type: application/json');
 
-// Enable error reporting untuk debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-// Ambil data dari request
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-// Log untuk debugging
 error_log("Received data: " . print_r($data, true));
 
-// Validasi data
 if (!$data) {
     echo json_encode([
         'success' => false,
@@ -35,7 +30,6 @@ if (!isset($data['items']) || empty($data['items'])) {
     exit;
 }
 
-// Validasi id_meja
 if (!isset($data['id_meja']) || empty($data['id_meja'])) {
     echo json_encode([
         'success' => false,
@@ -45,34 +39,78 @@ if (!isset($data['id_meja']) || empty($data['id_meja'])) {
     exit;
 }
 
+function generateRandomCode($length = 11) {
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $code = '';
+    for ($i = 0; $i < $length; $i++) {
+        $code .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+    return $code;
+}
+
 try {
-    // Cek koneksi database
     if ($conn->connect_error) {
         throw new Exception('Koneksi database gagal: ' . $conn->connect_error);
     }
 
-    // Start transaction
     $conn->begin_transaction();
 
-    // Data pesanan
-    $id_meja = intval($data['id_meja']);
+    $kode_meja = $data['id_meja'];
+    error_log("Mencari meja dengan nilai: " . $kode_meja);
+
+    $query_get_id = "SELECT id_meja FROM meja WHERE kode_unik = ? OR id_meja = ? OR nomor_meja = ?";
+    $stmt_get_id = $conn->prepare($query_get_id);
+
+    if (!$stmt_get_id) {
+        throw new Exception('Prepare statement get id_meja gagal: ' . $conn->error);
+    }
+
+    $stmt_get_id->bind_param('sss', $kode_meja, $kode_meja, $kode_meja);
+    $stmt_get_id->execute();
+    $result_get_id = $stmt_get_id->get_result();
+
+    if ($result_get_id->num_rows === 0) {
+        throw new Exception('Meja tidak ditemukan dengan nilai: ' . $kode_meja);
+    }
+
+    $row = $result_get_id->fetch_assoc();
+    $id_meja = $row['id_meja'];
+    $stmt_get_id->close();
+
+    if (empty($id_meja)) {
+        throw new Exception('ID Meja kosong setelah query');
+    }
+
+    error_log("ID Meja ditemukan: " . $id_meja);
+
+    $query_verify = "SELECT id_meja FROM meja WHERE id_meja = ?";
+    $stmt_verify = $conn->prepare($query_verify);
+    $stmt_verify->bind_param('s', $id_meja);
+    $stmt_verify->execute();
+    $result_verify = $stmt_verify->get_result();
+    
+    if ($result_verify->num_rows === 0) {
+        throw new Exception('ID Meja tidak ada di database: ' . $id_meja);
+    }
+    $stmt_verify->close();
+
     $catatan = isset($data['notes']) && !empty($data['notes']) ? $data['notes'] : null;
     $metode_bayar = isset($data['payment_method']) ? $data['payment_method'] : 'cash';
     $total_harga = isset($data['total_amount']) ? floatval($data['total_amount']) : 0;
     
-    // Validasi total harga
     if ($total_harga <= 0) {
         throw new Exception('Total harga tidak valid: ' . $total_harga);
     }
 
-    // Tentukan jenis_pesanan dan status_pesanan
     $jenis_pesanan = 'dine_in';
     $status_pesanan = 'menunggu';
     $waktu_pesan = date('Y-m-d H:i:s');
     $dibuat_oleh = null;
 
-    // 1. Insert ke tabel pesanan
+    $id_pesanan = generateRandomCode(11);
+
     $query_pesanan = "INSERT INTO pesanan (
+        id_pesanan,
         id_meja,
         dibuat_oleh,
         waktu_pesan,
@@ -82,7 +120,7 @@ try {
         total_harga,
         catatan,
         diterima_oleh
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)";
     
     $stmt_pesanan = $conn->prepare($query_pesanan);
     
@@ -91,7 +129,8 @@ try {
     }
     
     $stmt_pesanan->bind_param(
-        'iissssds',
+        'ssissssds',
+        $id_pesanan,
         $id_meja,
         $dibuat_oleh,
         $waktu_pesan,
@@ -106,24 +145,18 @@ try {
         throw new Exception('Execute insert pesanan gagal: ' . $stmt_pesanan->error);
     }
     
-    $id_pesanan = $conn->insert_id;
-    
-    if (!$id_pesanan) {
-        throw new Exception('Gagal mendapatkan ID pesanan yang baru dibuat');
-    }
-
-    // Log success insert pesanan
     error_log("Pesanan berhasil dibuat dengan ID: " . $id_pesanan);
 
-    // 2. Insert detail pesanan untuk setiap item
     $query_detail = "INSERT INTO detail_pesanan (
+        id_detail,
         id_pesanan,
         id_menu,
         jumlah,
         harga_satuan,
+        subtotal,
         status_item,
         catatan_item
-    ) VALUES (?, ?, ?, ?, 'menunggu', NULL)";
+    ) VALUES (?, ?, ?, ?, ?, ?, 'menunggu', NULL)";
     
     $stmt_detail = $conn->prepare($query_detail);
     
@@ -136,16 +169,20 @@ try {
             throw new Exception('Data item tidak lengkap pada index ' . $index);
         }
         
-        $id_menu = intval($item['id']);
+        $id_detail = generateRandomCode(11);
+        $id_menu = $item['id'];
         $jumlah = intval($item['quantity']);
         $harga_satuan = floatval($item['harga']);
+        $subtotal = $jumlah * $harga_satuan;
         
         $stmt_detail->bind_param(
-            'iiid',
+            'sssidd',
+            $id_detail,
             $id_pesanan,
             $id_menu,
             $jumlah,
-            $harga_satuan
+            $harga_satuan,
+            $subtotal
         );
         
         if (!$stmt_detail->execute()) {
@@ -153,19 +190,19 @@ try {
         }
     }
 
-    // Log success insert detail
     error_log("Detail pesanan berhasil dibuat untuk " . count($data['items']) . " item");
 
-    // 3. Buat record pembayaran
-    // Untuk QRIS, status awal adalah belum_bayar sampai kasir konfirmasi
-    // Untuk Cash, status adalah belum_bayar
     $status_pembayaran = 'belum_bayar';
     $waktu_pembayaran = date('Y-m-d H:i:s');
     $jumlah_tagihan = $total_harga;
     $jumlah_dibayar = 0;
     $kembalian = 0;
+    $bukti_pembayaran = '';
     
+    $id_pembayaran = generateRandomCode(11);
+
     $query_pembayaran = "INSERT INTO pembayaran (
+        id_pembayaran,
         id_pesanan,
         metode,
         status,
@@ -174,7 +211,7 @@ try {
         kembalian,
         waktu_pembayaran,
         bukti_pembayaran
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     $stmt_pembayaran = $conn->prepare($query_pembayaran);
     
@@ -183,26 +220,24 @@ try {
     }
     
     $stmt_pembayaran->bind_param(
-        'issddds',
+        'ssssdddss',
+        $id_pembayaran,
         $id_pesanan,
         $metode_bayar,
         $status_pembayaran,
         $jumlah_tagihan,
         $jumlah_dibayar,
         $kembalian,
-        $waktu_pembayaran
+        $waktu_pembayaran,
+        $bukti_pembayaran
     );
     
     if (!$stmt_pembayaran->execute()) {
         throw new Exception('Execute insert pembayaran gagal: ' . $stmt_pembayaran->error);
     }
-    
-    $id_pembayaran = $conn->insert_id;
 
-    // Log success insert pembayaran
     error_log("Pembayaran berhasil dibuat dengan ID: " . $id_pembayaran);
 
-    // 4. Update status meja
     if ($id_meja) {
         $query_update_meja = "UPDATE meja SET status_meja = 'terisi' WHERE id_meja = ?";
         $stmt_meja = $conn->prepare($query_update_meja);
@@ -211,23 +246,19 @@ try {
             throw new Exception('Prepare statement update meja gagal: ' . $conn->error);
         }
         
-        $stmt_meja->bind_param('i', $id_meja);
+        $stmt_meja->bind_param('s', $id_meja);
         
         if (!$stmt_meja->execute()) {
             throw new Exception('Execute update meja gagal: ' . $stmt_meja->error);
         }
 
-        // Log success update meja
         error_log("Status meja berhasil diupdate untuk ID: " . $id_meja);
     }
 
-    // Commit transaction
     $conn->commit();
 
-    // Log final success
     error_log("Transaksi berhasil - Order ID: " . $id_pesanan);
 
-    // Response sukses
     echo json_encode([
         'success' => true,
         'message' => 'Pesanan berhasil disimpan',
@@ -239,12 +270,10 @@ try {
     ]);
 
 } catch (Exception $e) {
-    // Rollback jika terjadi error
     if (isset($conn) && $conn->ping()) {
         $conn->rollback();
     }
     
-    // Log error
     error_log("Order processing error: " . $e->getMessage());
     error_log("Error trace: " . $e->getTraceAsString());
     
@@ -252,6 +281,7 @@ try {
         'success' => false,
         'message' => $e->getMessage(),
         'debug' => [
+            'kode_meja' => $kode_meja ?? 'not set',
             'id_meja' => $id_meja ?? 'not set',
             'total_harga' => $total_harga ?? 'not set',
             'items_count' => isset($data['items']) ? count($data['items']) : 0,
