@@ -186,7 +186,7 @@
         <i class="fa-solid fa-table-cells"></i><span>Meja</span>
       </a>
 
-      <a href="menu.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'menu') ? 'active' : '' ?>">
+      <a href="menu_kasir.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'menu') ? 'active' : '' ?>">
         <i class="fa-solid fa-utensils"></i><span>Menu</span>
       </a>
 
