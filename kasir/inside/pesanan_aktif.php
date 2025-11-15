@@ -24,7 +24,7 @@ class Pesanan {
             WHERE p.status_pesanan != 'selesai' AND p.status_pesanan != 'dibatalkan'
             ORDER BY 
                 CASE p.status_pesanan
-                    WHEN 'siap_disajikan' THEN 1
+                    WHEN 'disajikan' THEN 1
                     WHEN 'dimasak' THEN 2
                     WHEN 'diterima' THEN 3
                     WHEN 'menunggu' THEN 4
@@ -79,7 +79,7 @@ class Pesanan {
             'menunggu' => 0,
             'diterima' => 0, 
             'dimasak' => 0, 
-            'siap_disajikan' => 0, 
+            'disajikan' => 0, 
             'selesai' => 0, 
             'dibatalkan' => 0
         ];
@@ -88,7 +88,7 @@ class Pesanan {
         $result = $this->conn->query("
             SELECT status_pesanan, COUNT(*) AS total 
             FROM pesanan 
-            WHERE status_pesanan IN ('menunggu', 'diterima', 'dimasak', 'siap_disajikan', 'dibatalkan')
+            WHERE status_pesanan IN ('menunggu', 'diterima', 'dimasak', 'disajikan', 'dibatalkan')
             AND DATE(waktu_pesan) = CURDATE()
             GROUP BY status_pesanan
         ");
@@ -247,8 +247,9 @@ body {
   background: #f8fafc;
   margin: 0; padding: 0;
   color: #1e293b;
+    margin-left: 270px;
 }
-.container { margin-left: 260px; padding: 25px; }
+/* .container { margin-left: 260px; padding: 25px; } */
 .page-header {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 25px;
@@ -311,7 +312,7 @@ body {
 .status-badge.menunggu { background:#fef3c7;color:#b45309; }
 .status-badge.diterima { background:#e0e7ff;color:#3730a3; }
 .status-badge.dimasak { background:#dbeafe;color:#1d4ed8; }
-.status-badge.siap_disajikan { background:#dcfce7;color:#166534; }
+.status-badge.disajikan { background:#dcfce7;color:#166534; }
 .status-badge.dibatalkan { background:#fee2e2;color:#991b1b; }
 
 /* STATUS PEMBAYARAN - DIPERBAIKI */
@@ -829,6 +830,257 @@ body {
     50% { transform: scale(1.2); }
     100% { transform: scale(1); }
 }
+
+/* detail */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-detail {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-detail-header {
+    padding: 20px 25px;
+    background: linear-gradient(135deg, #FF6B00 0%, #ff8533 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-detail-header h3 {
+    margin: 0;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.close-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: rotate(90deg);
+}
+
+.modal-detail-body {
+    padding: 25px;
+    max-height: calc(85vh - 80px);
+    overflow-y: auto;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-size: 16px;
+}
+
+.detail-section {
+    margin-bottom: 25px;
+}
+
+.detail-section h4 {
+    font-size: 16px;
+    color: #333;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detail-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 15px;
+    color: #333;
+    font-weight: 500;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-menunggu {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-diterima {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-dimasak {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-disajikan {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-selesai {
+    background: #28a745;
+    color: white;
+}
+
+.status-ditolak {
+    background: #dc3545;
+    color: white;
+}
+
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.items-table thead {
+    background: #f8f9fa;
+}
+
+.items-table th {
+    padding: 12px;
+    text-align: left;
+    font-size: 13px;
+    color: #666;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.items-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+    color: #333;
+}
+
+.items-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 0;
+    border-top: 2px solid #dee2e6;
+    margin-top: 10px;
+}
+
+.total-row .label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.total-row .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #FF6B00;
+}
+
+.payment-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.payment-info .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.payment-info .info-row:last-child {
+    margin-bottom: 0;
+}
+
+.bukti-bayar {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.bukti-bayar img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.bukti-bayar img:hover {
+    transform: scale(1.05);
+}
+
 </style>
 </head>
 <body>
@@ -857,7 +1109,7 @@ body {
     </div>
     <div class="stat-card siap">
         <h4>Siap Disajikan</h4>
-        <div class="value"><?= $statistik['siap_disajikan'] ?? 0 ?></div>
+        <div class="value"><?= $statistik['disajikan'] ?? 0 ?></div>
         <small>Siap disajikan</small>
     </div>
     <div class="stat-card selesai">
@@ -865,11 +1117,11 @@ body {
         <div class="value counter-update" id="countSelesai"><?= $statistik['selesai'] ?? 0 ?></div>
         <small>Pesanan selesai hari ini</small>
     </div>
-    <div class="stat-card dibatalkan">
+    <!-- <div class="stat-card dibatalkan">
         <h4>Dibatalkan</h4>
         <div class="value"><?= $statistik['dibatalkan'] ?? 0 ?></div>
         <small>Pesanan dibatalkan</small>
-    </div>
+    </div> -->
   </div>
 
   <div class="tabs">
@@ -877,8 +1129,9 @@ body {
     <button class="tab" data-status="menunggu">Menunggu</button>
     <button class="tab" data-status="diterima">Diterima</button>
     <button class="tab" data-status="dimasak">Dimasak</button>
-    <button class="tab" data-status="siap_disajikan">Siap Disajikan</button>
-    <button class="tab" data-status="dibatalkan">Dibatalkan</button>
+    <button class="tab" data-status="disajikan">Siap Disajikan</button>
+    <!-- <button class="tab" data-status="dibatalkan">Dibatalkan</button>
+    <button class="tab" data-status="dibatalkan">Ditolak</button> -->
   </div>
 
   <div class="pesanan-grid" id="pesananGrid">
@@ -960,7 +1213,7 @@ body {
         <div class="pembayaran-menunggu-section">
           <div class="pembayaran-menunggu">
             <i class="fas fa-info-circle"></i>
-            <span>Bukti pembayaran telah diupload. Silakan konfirmasi atau tolak pembayaran.</span>
+            <span>Bukti pembayaran telah diupload. Silakan konfirmasi atau tolak pesanan.</span>
           </div>
         </div>
         <?php if ($statusPembayaran['status'] === 'gagal'): ?>
@@ -1028,68 +1281,81 @@ body {
         <div class="action-buttons">
           <?php if ($pesanan['status_pesanan'] === 'menunggu'): ?>
             <!-- STATUS: MENUNGGU -->
-            <button class="btn btn-success" onclick="updateStatus(<?= $pesanan['id_pesanan'] ?>,'diterima')">
+            <button type="button" class="btn btn-success btn-terima" data-id="<?= $pesanan['id_pesanan'] ?>" data-status="diterima">
                 <i class="fas fa-check-circle"></i> Terima Pesanan
             </button>
-            <button class="btn btn-danger" onclick="openBatalkanModal(<?= $pesanan['id_pesanan'] ?>)">
+            <button type="button" class="btn btn-danger btn-tolak" 
+    data-id="<?= $pesanan['id_pesanan'] ?>" 
+    data-status="ditolak" 
+    data-meja="<?= $pesanan['id_meja'] ?>">
                 <i class="fas fa-times"></i> Tolak
             </button>
             
           <?php elseif ($pesanan['status_pesanan'] === 'diterima'): ?>
-            <!-- STATUS: DITERIMA -->
-            <?php if ($statusPembayaran['status'] === 'lunas'): ?>
-                <button class="btn btn-warning" onclick="updateStatus(<?= $pesanan['id_pesanan'] ?>,'dimasak')">
-                    <i class="fas fa-utensils"></i> Proses ke Dapur
-                </button>
-            <?php else: ?>
-                <button class="btn btn-secondary" onclick="showNotification('Pesanan belum dibayar. Tunggu pembayaran dari customer terlebih dahulu.', 'warning')">
-                    <i class="fas fa-clock"></i> Tunggu Pembayaran
-                </button>
-            <?php endif; ?>
-            <button class="btn btn-danger" onclick="openBatalkanModal(<?= $pesanan['id_pesanan'] ?>)">
-                <i class="fas fa-times"></i> Batalkan
-            </button>
+    <!-- STATUS: DITERIMA -->
+    <?php 
+    $statusBayarOK = in_array($statusPembayaran['status'], ['sudah_bayar', 'lunas']);
+    $bisaProses = ($pesanan['metode_bayar'] === 'cash') || $statusBayarOK;
+    ?>
+    
+    <?php if ($bisaProses): ?>
+        <button type="button" class="btn btn-warning btn-proses-dapur" data-id="<?= $pesanan['id_pesanan'] ?>" data-status="dimasak">
+            <i class="fas fa-utensils"></i> Proses ke Dapur
+        </button>
+    <?php else: ?>
+        <button class="btn btn-secondary" disabled>
+            <i class="fas fa-clock"></i> Menunggu Konfirmasi Pembayaran QRIS
+        </button>
+    <?php endif; ?>
+    
+    <!-- <button type="button" class="btn btn-danger btn-batalkan" data-id="<?= $pesanan['id_pesanan'] ?>">
+        <i class="fas fa-times"></i> Batalkan
+    </button> -->
             
           <?php elseif ($pesanan['status_pesanan'] === 'dimasak'): ?>
             <!-- STATUS: DIMASAK -->
-            <button class="btn btn-info" onclick="updateStatus(<?= $pesanan['id_pesanan'] ?>,'siap_disajikan')">
-                <i class="fas fa-check-double"></i> Tandai Siap Disajikan
+            <button type="button" class="btn btn-info btn-disajikan" data-id="<?= $pesanan['id_pesanan'] ?>" data-status="disajikan">
+                <i class="fas fa-check-double"></i> Disajikan
             </button>
-            <button class="btn btn-danger" onclick="openBatalkanModal(<?= $pesanan['id_pesanan'] ?>)">
+            <!-- <button type="button" class="btn btn-danger btn-batalkan" data-id="<?= $pesanan['id_pesanan'] ?>">
                 <i class="fas fa-times"></i> Batalkan
-            </button>
+            </button> -->
             
-          <?php elseif ($pesanan['status_pesanan'] === 'siap_disajikan'): ?>
+          <?php elseif ($pesanan['status_pesanan'] === 'disajikan'): ?>
             <!-- STATUS: SIAP DISAJIKAN -->
-            <button class="btn btn-success" onclick="tandaiSelesai(<?= $pesanan['id_pesanan'] ?>)">
-                <i class="fas fa-check-circle"></i> Tandai Selesai
+            <button type="button" class="btn btn-success btn-selesai" data-id="<?= $pesanan['id_pesanan'] ?>" data-meja="<?= $pesanan['id_meja'] ?>">
+                <i class="fas fa-check-circle"></i> Selesai
             </button>
-            <button class="btn btn-danger" onclick="openBatalkanModal(<?= $pesanan['id_pesanan'] ?>)">
+            <!-- <button type="button" class="btn btn-danger btn-batalkan" data-id="<?= $pesanan['id_pesanan'] ?>">
                 <i class="fas fa-times"></i> Batalkan
-            </button>
+            </button> -->
             
           <?php endif; ?>
           
           <!-- TOMBOL LIHAT DETAIL -->
-          <button class="btn btn-secondary" onclick="lihatDetail(<?= $pesanan['id_pesanan'] ?>)">
+          <button type="button" class="btn btn-secondary btn-detail" data-id="<?= $pesanan['id_pesanan'] ?>">
               <i class="fas fa-eye"></i> Detail
           </button>
           
           <!-- TOMBOL AKSI PEMBAYARAN -->
           <?php if ($statusPembayaran['status'] === 'menunggu_konfirmasi'): ?>
-              <button class="btn btn-success" onclick="konfirmasiPembayaran(<?= $pesanan['id_pesanan'] ?>)">
+              <button type="button" class="btn btn-success btn-konfirmasi-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-check-circle"></i> Konfirmasi Bayar
               </button>
-              <button class="btn btn-gagal" onclick="tolakPembayaran(<?= $pesanan['id_pesanan'] ?>)">
+              <button type="button" class="btn btn-gagal btn-tolak-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-times-circle"></i> Tolak Bayar
               </button>
           <?php elseif ($statusPembayaran['status'] === 'gagal'): ?>
-              <button class="btn btn-reset" onclick="resetPembayaran(<?= $pesanan['id_pesanan'] ?>)">
+              <button type="button" class="btn btn-reset btn-reset-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-undo"></i> Reset Status
               </button>
           <?php elseif ($statusPembayaran['status'] === 'belum_bayar' && $hasBuktiPembayaran): ?>
-              <button class="btn btn-success" onclick="konfirmasiPembayaran(<?= $pesanan['id_pesanan'] ?>)">
+              <button type="button" class="btn btn-success btn-konfirmasi-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-money-bill-wave"></i> Konfirmasi Bayar
+              </button>
+          <?php elseif ($statusPembayaran['status'] === 'belum_bayar' && $pesanan['metode_bayar'] === 'cash'): ?>
+              <button type="button" class="btn btn-success btn-konfirmasi-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
+                  <i class="fas fa-money-bill-wave"></i> Konfirmasi Pembayaran Cash
               </button>
           <?php endif; ?>
         </div>
@@ -1164,7 +1430,7 @@ body {
   </div>
 </div>
 
-<!-- Modal pembatalan -->
+<!-- Modal pembatalan
 <div class="modal" id="batalkanModal">
   <div class="modal-content">
     <div class="modal-header"><h3>Batalkan Pesanan</h3></div>
@@ -1177,7 +1443,7 @@ body {
       <button class="btn btn-danger" onclick="confirmBatalkan()">Ya, Batalkan</button>
     </div>
   </div>
-</div>
+</div> -->
 
 <!-- Modal tolak pembayaran -->
 <div class="modal" id="tolakModal">
@@ -1200,6 +1466,23 @@ body {
   <div class="modal-preview-content">
     <img id="previewImage" src="" alt="Preview Bukti Pembayaran">
   </div>
+</div>
+
+<!-- Modal Detail Pesanan -->
+<div id="detailModal" class="modal-overlay" style="display: none;">
+    <div class="modal-detail">
+        <div class="modal-detail-header">
+            <h3><i class="fas fa-receipt"></i> Detail Pesanan</h3>
+            <button class="close-btn" onclick="closeDetailModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-detail-body" id="detailContent">
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i> Memuat data...
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -1236,62 +1519,58 @@ function toggleSelesai() {
 }
 
 // UPDATE STATUS PESANAN
-function updateStatus(id, status) {
-    console.log('🚀 UPDATE STATUS:', {id, status});
+function updateStatus(orderId, status) {
+    console.log('=== UPDATE STATUS CALLED ===');
+    console.log('Order ID:', orderId);
+    console.log('Status:', status);
     
-    const statusText = {
-        'menunggu': 'Menunggu',
-        'diterima': 'Diterima', 
-        'dimasak': 'Dimasak',
-        'siap_disajikan': 'Siap Disajikan',
-        'selesai': 'Selesai',
-        'dibatalkan': 'Dibatalkan'
-    }[status] || status;
-    
-    if(!confirm(`Update status pesanan menjadi "${statusText.toUpperCase()}"?`)) return;
-    
-    let button = event?.target?.closest?.('button');
-    if (!button) {
-        button = document.querySelector(`[onclick*="updateStatus(${id}, '${status}')"]`);
+    if (!orderId || orderId === '' || orderId === 'undefined') {
+        alert('Order ID tidak valid!');
+        return;
     }
     
-    const originalText = button?.innerHTML || '';
-    
-    if (button) {
-        button.innerHTML = '<div class="loading"></div> Memproses...';
-        button.disabled = true;
+    if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
+        return;
     }
     
-    const formData = new URLSearchParams();
-    formData.append('id', id);
-    formData.append('aksi', 'update');
-    formData.append('status', status);
+    const requestData = {
+        id_pesanan: orderId,
+        status: status
+    };
     
-    fetch('aksi_pesanan.php', {
+    console.log('Sending data:', requestData);
+    
+    fetch('../include/update_status_pesanan.php', {
         method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: formData
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
     })
-    .then(response => response.json())
-    .then(res => {
-        if(res.success) {
-            showNotification('✅ ' + res.message, 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showNotification('❌ ' + res.message, 'error');
-            if (button) {
-                button.innerHTML = originalText;
-                button.disabled = false;
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.text();
+    })
+    .then(text => {
+        console.log('Response text:', text);
+        try {
+            const data = JSON.parse(text);
+            console.log('Parsed data:', data);
+            
+            if (data.success) {
+                alert('Status pesanan berhasil diupdate!');
+                location.reload();
+            } else {
+                alert('Gagal mengupdate status: ' + (data.message || 'Terjadi kesalahan'));
             }
+        } catch (e) {
+            console.error('JSON parse error:', e);
+            alert('Error: Response tidak valid');
         }
     })
-    .catch(e => {
-        console.error('💥 Fetch Error:', e);
-        showNotification('❌ Error: Gagal terhubung ke server', 'error');
-        if (button) {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
+    .catch(error => {
+        console.error('Fetch error:', error);
+        alert('Terjadi kesalahan saat mengupdate status');
     });
 }
 
@@ -1498,57 +1777,57 @@ function resetPembayaran(id) {
 }
 
 // BATALKAN PESANAN
-function openBatalkanModal(id) {
-    currentIdPesanan = id;
-    document.getElementById('batalkanModal').classList.add('active');
-    document.getElementById('alasanBatal').focus();
-}
+// function openBatalkanModal(id) {
+//     currentIdPesanan = id;
+//     document.getElementById('batalkanModal').classList.add('active');
+//     document.getElementById('alasanBatal').focus();
+// }
 
-function closeModal() {
-    document.getElementById('batalkanModal').classList.remove('active');
-    document.getElementById('alasanBatal').value = '';
-    currentIdPesanan = null;
-}
+// function closeModal() {
+//     document.getElementById('batalkanModal').classList.remove('active');
+//     document.getElementById('alasanBatal').value = '';
+//     currentIdPesanan = null;
+// }
 
-function confirmBatalkan() {
-    const alasan = document.getElementById('alasanBatal').value.trim();
+// function confirmBatalkan() {
+//     const alasan = document.getElementById('alasanBatal').value.trim();
     
-    if(!confirm('Batalkan pesanan ini? Tindakan ini tidak dapat dibatalkan.')) return;
+//     if(!confirm('Batalkan pesanan ini? Tindakan ini tidak dapat dibatalkan.')) return;
     
-    const button = document.querySelector('.modal-footer .btn-danger');
-    const originalText = button.innerHTML;
-    button.innerHTML = '<div class="loading"></div> Membatalkan...';
-    button.disabled = true;
+//     const button = document.querySelector('.modal-footer .btn-danger');
+//     const originalText = button.innerHTML;
+//     button.innerHTML = '<div class="loading"></div> Membatalkan...';
+//     button.disabled = true;
     
-    const formData = new URLSearchParams();
-    formData.append('id', currentIdPesanan);
-    formData.append('aksi', 'batal');
-    formData.append('alasan', alasan || 'Pesanan dibatalkan oleh kasir');
+//     const formData = new URLSearchParams();
+//     formData.append('id', currentIdPesanan);
+//     formData.append('aksi', 'batal');
+//     formData.append('alasan', alasan || 'Pesanan dibatalkan oleh kasir');
     
-    fetch('aksi_pesanan.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: formData
-    })
-    .then(response => response.json())
-    .then(res => {
-        if(res.success) {
-            showNotification('✅ ' + res.message, 'success');
-            closeModal();
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showNotification('❌ ' + res.message, 'error');
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
-    })
-    .catch(e => {
-        console.error('💥 Cancel error:', e);
-        showNotification('❌ Error: Gagal membatalkan pesanan', 'error');
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
+//     fetch('aksi_pesanan.php', {
+//         method: 'POST',
+//         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+//         body: formData
+//     })
+//     .then(response => response.json())
+//     .then(res => {
+//         if(res.success) {
+//             showNotification('✅ ' + res.message, 'success');
+//             closeModal();
+//             setTimeout(() => location.reload(), 1000);
+//         } else {
+//             showNotification('❌ ' + res.message, 'error');
+//             button.innerHTML = originalText;
+//             button.disabled = false;
+//         }
+//     })
+//     .catch(e => {
+//         console.error('💥 Cancel error:', e);
+//         showNotification('❌ Error: Gagal membatalkan pesanan', 'error');
+//         button.innerHTML = originalText;
+//         button.disabled = false;
+//     });
+// }
 
 // PREVIEW GAMBAR
 function previewImage(src) {
@@ -1561,9 +1840,159 @@ function closePreview() {
 }
 
 // LIHAT DETAIL (Placeholder)
-function lihatDetail(id) {
-    showNotification('🔍 Fitur lihat detail pesanan akan segera tersedia', 'info');
+function lihatDetail(orderId) {
+    console.log('Lihat detail pesanan:', orderId);
+    
+    // Tampilkan modal dengan loading
+    document.getElementById('detailModal').style.display = 'flex';
+    document.getElementById('detailContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Memuat data...</div>';
+    
+    // Fetch detail pesanan
+    fetch('../include/get_detail_pesanan.php?id=' + orderId)
+        .then(response => response.text())
+        .then(text => {
+            console.log('Response:', text);
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    showDetailContent(data.pesanan);
+                } else {
+                    document.getElementById('detailContent').innerHTML = 
+                        '<div class="loading"><i class="fas fa-exclamation-circle"></i> ' + data.message + '</div>';
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+                document.getElementById('detailContent').innerHTML = 
+                    '<div class="loading"><i class="fas fa-exclamation-circle"></i> Error memuat data</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('detailContent').innerHTML = 
+                '<div class="loading"><i class="fas fa-exclamation-circle"></i> Terjadi kesalahan</div>';
+        });
 }
+
+function showDetailContent(pesanan) {
+    // Format status
+    let statusClass = 'status-' + pesanan.status_pesanan.toLowerCase();
+    let statusText = pesanan.status_pesanan.toUpperCase().replace('_', ' ');
+    
+    // Format status pembayaran
+    let statusBayar = pesanan.status_pembayaran || 'belum_bayar';
+    let statusBayarText = statusBayar.replace('_', ' ').toUpperCase();
+    
+    // Build items table
+    let itemsHtml = '';
+    if (pesanan.items && pesanan.items.length > 0) {
+        itemsHtml = `
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Menu</th>
+                        <th style="text-align: center;">Jumlah</th>
+                        <th style="text-align: right;">Harga</th>
+                        <th style="text-align: right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${pesanan.items.map(item => `
+                        <tr>
+                            <td>${item.nama_menu}</td>
+                            <td style="text-align: center;">${item.jumlah}x</td>
+                            <td style="text-align: right;">Rp ${parseInt(item.harga_satuan).toLocaleString('id-ID')}</td>
+                            <td style="text-align: right;">Rp ${parseInt(item.subtotal).toLocaleString('id-ID')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            <div class="total-row">
+                <span class="label">Total Pembayaran</span>
+                <span class="value">Rp ${parseInt(pesanan.total_harga).toLocaleString('id-ID')}</span>
+            </div>
+        `;
+    } else {
+        itemsHtml = '<p style="text-align: center; color: #999;">Tidak ada item</p>';
+    }
+    
+    // Bukti pembayaran
+    let buktiHtml = '';
+    if (pesanan.bukti_pembayaran) {
+        buktiHtml = `
+            <div class="bukti-bayar">
+                <img src="../../assets/uploads/${pesanan.bukti_pembayaran}" 
+                     alt="Bukti Pembayaran" 
+                     onclick="window.open(this.src, '_blank')">
+            </div>
+        `;
+    }
+    
+    // Build content
+    let content = `
+        <div class="detail-section">
+            <h4><i class="fas fa-info-circle"></i> Informasi Pesanan</h4>
+            <div class="detail-info">
+                <div class="info-item">
+                    <span class="info-label">ID Pesanan</span>
+                    <span class="info-value">${pesanan.id_pesanan}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Nomor Meja</span>
+                    <span class="info-value">${pesanan.nomor_meja}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Waktu Pesan</span>
+                    <span class="info-value">${pesanan.waktu_pesan}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Status Pesanan</span>
+                    <span class="info-value">
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </span>
+                </div>
+            </div>
+            ${pesanan.catatan ? `
+                <div style="margin-top: 15px;">
+                    <span class="info-label">Catatan</span>
+                    <p style="margin: 5px 0 0 0; color: #666;">${pesanan.catatan}</p>
+                </div>
+            ` : ''}
+        </div>
+        
+        <div class="detail-section">
+            <h4><i class="fas fa-utensils"></i> Daftar Menu</h4>
+            ${itemsHtml}
+        </div>
+        
+        <div class="detail-section">
+            <h4><i class="fas fa-credit-card"></i> Informasi Pembayaran</h4>
+            <div class="payment-info">
+                <div class="info-row">
+                    <span class="info-label">Metode Pembayaran</span>
+                    <span class="info-value">${pesanan.metode_bayar.toUpperCase()}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status Pembayaran</span>
+                    <span class="info-value">${statusBayarText}</span>
+                </div>
+            </div>
+            ${buktiHtml}
+        </div>
+    `;
+    
+    document.getElementById('detailContent').innerHTML = content;
+}
+
+function closeDetailModal() {
+    document.getElementById('detailModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    if (e.target.id === 'detailModal') {
+        closeDetailModal();
+    }
+});
 
 // Cek jika tidak ada pesanan aktif lagi
 function checkEmptyState() {
@@ -1619,11 +2048,11 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Close modal ketika klik di luar
-document.getElementById('batalkanModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeModal();
-    }
-});
+// document.getElementById('batalkanModal').addEventListener('click', function(e) {
+//     if (e.target === this) {
+//         closeModal();
+//     }
+// });
 
 document.getElementById('tolakModal').addEventListener('click', function(e) {
     if (e.target === this) {
@@ -1678,23 +2107,405 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Auto refresh data setiap 2 menit
-setInterval(() => {
-    fetch('get_counter_selesai.php')
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                const currentCount = parseInt(document.getElementById('countSelesai').textContent);
-                if (currentCount !== data.count) {
-                    document.getElementById('countSelesai').textContent = data.count;
-                    document.getElementById('countSelesai').classList.add('counter-update');
-                    setTimeout(() => {
-                        document.getElementById('countSelesai').classList.remove('counter-update');
-                    }, 500);
-                }
-            }
+// setInterval(() => {
+//     fetch('get_counter_selesai.php')
+//         .then(r => r.json())
+//         .then(data => {
+//             if (data.success) {
+//                 const currentCount = parseInt(document.getElementById('countSelesai').textContent);
+//                 if (currentCount !== data.count) {
+//                     document.getElementById('countSelesai').textContent = data.count;
+//                     document.getElementById('countSelesai').classList.add('counter-update');
+//                     setTimeout(() => {
+//                         document.getElementById('countSelesai').classList.remove('counter-update');
+//                     }, 500);
+//                 }
+//             }
+//         })
+//         .catch(e => console.error('Error refreshing counter:', e));
+// }, 120000);
+
+// Attach event untuk semua button terima
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, attaching events...');
+    
+    const buttons = document.querySelectorAll('.btn-terima');
+    console.log('Found buttons:', buttons.length);
+    
+    buttons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            const status = this.getAttribute('data-status');
+            
+            console.log('Button clicked!');
+            console.log('Order ID:', orderId);
+            console.log('Status:', status);
+            
+            updateStatus(orderId, status);
+        });
+    });
+});
+
+// Fungsi updateStatus (pastikan ada)
+function updateStatus(orderId, status) {
+    console.log('=== UPDATE STATUS CALLED ===');
+    console.log('Order ID:', orderId);
+    console.log('Status:', status);
+    
+    if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
+        return;
+    }
+    
+    fetch('../include/update_status_pesanan.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id_pesanan: orderId,
+            status: status
         })
-        .catch(e => console.error('Error refreshing counter:', e));
-}, 120000);
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert('Status pesanan berhasil diupdate!');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan');
+    });
+}
+
+// Button tolak
+document.querySelectorAll('.btn-tolak').forEach(function(button) {
+    button.addEventListener('click', function() {
+        updateStatus(this.getAttribute('data-id'), this.getAttribute('data-status'));
+    });
+});
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Konfirmasi Pembayaran
+    document.querySelectorAll('.btn-konfirmasi-bayar').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            console.log('Konfirmasi pembayaran:', orderId);
+            konfirmasiPembayaran(orderId);
+        });
+    });
+    
+    // Tolak Pembayaran
+    document.querySelectorAll('.btn-tolak-bayar').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            console.log('Tolak pembayaran:', orderId);
+            tolakPembayaran(orderId);
+        });
+    });
+    
+    // Reset Pembayaran
+    document.querySelectorAll('.btn-reset-bayar').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            console.log('Reset pembayaran:', orderId);
+            resetPembayaran(orderId);
+        });
+    });
+});
+
+// Fungsi konfirmasi pembayaran
+function konfirmasiPembayaran(orderId) {
+    console.log('=== KONFIRMASI PEMBAYARAN ===');
+    console.log('Order ID:', orderId);
+    
+    if (!confirm('Apakah Anda yakin ingin mengkonfirmasi pembayaran ini?')) {
+        return;
+    }
+    
+    fetch('../include/konfirmasi_pembayaran.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id_pesanan: orderId
+        })
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert('Pembayaran berhasil dikonfirmasi!');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan');
+    });
+}
+
+function tolakPembayaran(orderId) {
+    console.log('=== TOLAK PEMBAYARAN ===');
+    console.log('Order ID:', orderId);
+    
+    if (!confirm('Apakah Anda yakin ingin menolak pembayaran ini?')) {
+        return;
+    }
+    
+    fetch('../include/tolak_pembayaran.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id_pesanan: orderId
+        })
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert('Pembayaran ditolak!');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan');
+    });
+}
+
+function resetPembayaran(orderId) {
+    console.log('=== RESET PEMBAYARAN ===');
+    console.log('Order ID:', orderId);
+    
+    if (!confirm('Apakah Anda yakin ingin mereset status pembayaran?')) {
+        return;
+    }
+    
+    fetch('../include/reset_pembayaran.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id_pesanan: orderId
+        })
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert('Status pembayaran berhasil direset!');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ... event listener lain yang sudah ada ...
+    
+    // Proses ke Dapur
+    document.querySelectorAll('.btn-proses-dapur').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            const status = this.getAttribute('data-status');
+            console.log('Proses ke dapur:', orderId);
+            updateStatus(orderId, status);
+        });
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ... event listener lain ...
+    
+    // Disajikan
+    document.querySelectorAll('.btn-disajikan').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            const status = this.getAttribute('data-status');
+            console.log('Disajikan:', orderId);
+            updateStatus(orderId, status);
+        });
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ... event listener lain ...
+    
+    // Tandai Selesai
+    document.querySelectorAll('.btn-selesai').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            const mejaId = this.getAttribute('data-meja');
+            console.log('Tandai selesai:', orderId, 'Meja:', mejaId);
+            tandaiSelesai(orderId, mejaId);
+        });
+    });
+});
+
+// Fungsi tandai selesai
+function tandaiSelesai(orderId, mejaId) {
+    console.log('=== TANDAI SELESAI ===');
+    console.log('Order ID:', orderId);
+    console.log('Meja ID:', mejaId);
+    
+    if (!confirm('Apakah Anda yakin ingin menandai pesanan ini selesai? Status meja akan berubah menjadi kosong.')) {
+        return;
+    }
+    
+    fetch('../include/tandai_selesai.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            id_pesanan: orderId,
+            id_meja: mejaId
+        })
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert('Pesanan selesai! Meja sudah dikosongkan.');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Button Tolak
+    document.querySelectorAll('.btn-tolak').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-id');
+            const mejaId = this.getAttribute('data-meja');
+            const status = this.getAttribute('data-status');
+            
+            console.log('Tolak pesanan - Order:', orderId, 'Meja:', mejaId);
+            tolakPesanan(orderId, mejaId, status);
+        });
+    });
+    
+    // ... event listener lainnya ...
+});
+
+// Fungsi tolak pesanan
+function tolakPesanan(orderId, mejaId, status) {
+    console.log('=== TOLAK PESANAN ===');
+    console.log('Order ID:', orderId);
+    console.log('Meja ID:', mejaId);
+    
+    if (!confirm('Apakah Anda yakin ingin menolak pesanan ini? Meja akan dikosongkan.')) {
+        return;
+    }
+    
+    fetch('../include/tolak_pesanan.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id_pesanan: orderId,
+            id_meja: mejaId,
+            status: status
+        })
+    })
+    .then(response => response.text())
+    .then(text => {
+        console.log('Response:', text);
+        try {
+            const data = JSON.parse(text);
+            if (data.success) {
+                alert('Pesanan ditolak! Meja sudah dikosongkan.');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        } catch (e) {
+            console.error('Parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    console.log('DOM Loaded - Attaching events...');
+
+    // Button Detail - TAMBAHKAN INI
+    const detailButtons = document.querySelectorAll('.btn-detail');
+    console.log('Found detail buttons:', detailButtons.length);
+    
+    detailButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            console.log('Detail button clicked!');
+            const orderId = this.getAttribute('data-id');
+            console.log('Order ID:', orderId);
+            lihatDetail(orderId);
+        });
+    });
+});
 </script>
 </body>
 </html>
