@@ -182,7 +182,7 @@
         <i class="fa-solid fa-list"></i><span>Pesanan Aktif</span>
       </a>
 
-      <a href="meja.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'meja') ? 'active' : '' ?>">
+      <a href="meja_kasir.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'meja') ? 'active' : '' ?>">
         <i class="fa-solid fa-table-cells"></i><span>Meja</span>
       </a>
 
