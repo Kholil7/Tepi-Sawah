@@ -105,22 +105,19 @@ try {
     $jenis_pesanan = 'dine_in';
     $status_pesanan = 'menunggu';
     $waktu_pesan = date('Y-m-d H:i:s');
-    $dibuat_oleh = null;
 
     $id_pesanan = generateRandomCode(11);
 
     $query_pesanan = "INSERT INTO pesanan (
         id_pesanan,
         id_meja,
-        dibuat_oleh,
         waktu_pesan,
         jenis_pesanan,
         status_pesanan,
         metode_bayar,
         total_harga,
-        catatan,
-        diterima_oleh
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)";
+        catatan
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     
     $stmt_pesanan = $conn->prepare($query_pesanan);
     
@@ -129,10 +126,9 @@ try {
     }
     
     $stmt_pesanan->bind_param(
-        'ssissssds',
+        'ssssssds',
         $id_pesanan,
         $id_meja,
-        $dibuat_oleh,
         $waktu_pesan,
         $jenis_pesanan,
         $status_pesanan,
@@ -194,9 +190,6 @@ try {
 
     $status_pembayaran = 'belum_bayar';
     $waktu_pembayaran = date('Y-m-d H:i:s');
-    $jumlah_tagihan = $total_harga;
-    $jumlah_dibayar = 0;
-    $kembalian = 0;
     $bukti_pembayaran = '';
     
     $id_pembayaran = generateRandomCode(11);
@@ -206,12 +199,9 @@ try {
         id_pesanan,
         metode,
         status,
-        jumlah_tagihan,
-        jumlah_dibayar,
-        kembalian,
         waktu_pembayaran,
         bukti_pembayaran
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    ) VALUES (?, ?, ?, ?, ?, ?)";
     
     $stmt_pembayaran = $conn->prepare($query_pembayaran);
     
@@ -220,14 +210,11 @@ try {
     }
     
     $stmt_pembayaran->bind_param(
-        'ssssdddss',
+        'ssssss',
         $id_pembayaran,
         $id_pesanan,
         $metode_bayar,
         $status_pembayaran,
-        $jumlah_tagihan,
-        $jumlah_dibayar,
-        $kembalian,
         $waktu_pembayaran,
         $bukti_pembayaran
     );
