@@ -2,6 +2,15 @@
 session_start();
 require '../../database/connect.php';
 
+function generateRandomCode($length = 11) {
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $code = '';
+    for ($i = 0; $i < $length; $i++) {
+        $code .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+    return $code;
+}
+
 $query_meja = "SELECT id_meja, nomor_meja, kode_unik, status_meja 
                FROM meja 
                WHERE status_meja = 'kosong' 
@@ -26,6 +35,7 @@ $menu_by_category = [
     'minuman' => [],
     'cemilan' => []
 ];
+
 foreach ($menu_list as $menu) {
     $kategori = strtolower($menu['kategori']);
     if (isset($menu_by_category[$kategori])) {
@@ -35,52 +45,55 @@ foreach ($menu_list as $menu) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     mysqli_begin_transaction($conn);
+
     try {
         $jenis_pesanan = $_POST['jenis_pesanan'];
-        $metode_bayar  = strtolower(trim(mysqli_real_escape_string($conn, $_POST['metode_bayar'] ?? '')));
+        $metode_bayar = strtolower(trim(mysqli_real_escape_string($conn, $_POST['metode_bayar'] ?? '')));
         $id_meja = $jenis_pesanan === 'dine_in' ? $_POST['id_meja'] : null;
-        $cart_data_json = $_POST['cart_data'] ?? '[]';
-        $cart_items = json_decode($cart_data_json, true);
 
-        if (empty($cart_items)) {
-            throw new Exception("Keranjang masih kosong!");
-        }
+        $cart_items = json_decode($_POST['cart_data'] ?? '[]', true);
 
-        if ($jenis_pesanan === 'dine_in' && !$id_meja) {
-            throw new Exception("Harap pilih meja untuk Dine In!");
-        }
+        if (empty($cart_items)) throw new Exception("Keranjang masih kosong!");
+        if ($jenis_pesanan === 'dine_in' && !$id_meja) throw new Exception("Harap pilih meja!");
 
         $allowed_methods = ['qris', 'cash'];
-        if (!in_array($metode_bayar, $allowed_methods)) {
-            throw new Exception("Metode bayar tidak valid!");
-        }
+        if (!in_array($metode_bayar, $allowed_methods)) throw new Exception("Metode bayar tidak valid!");
 
-        $dibuat_oleh = $_SESSION['user_id'] ?? 1;
-        $diterima_oleh = $_SESSION['user_id'] ?? 1;
+        $id_pesanan = generateRandomCode(11);
 
         if ($jenis_pesanan === 'dine_in') {
-            $query_pesanan = "INSERT INTO pesanan (id_meja, dibuat_oleh, waktu_pesan, jenis_pesanan, status_pesanan, total_harga, diterima_oleh, metode_bayar)
-                              VALUES ('$id_meja', '$dibuat_oleh', NOW(), '$jenis_pesanan', 'menunggu', 0, '$diterima_oleh', '$metode_bayar')";
+            $query_pesanan = "
+                INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, total_harga, metode_bayar)
+                VALUES ('$id_pesanan', '$id_meja', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
+            ";
         } else {
-            $query_pesanan = "INSERT INTO pesanan (dibuat_oleh, waktu_pesan, jenis_pesanan, status_pesanan, total_harga, diterima_oleh, metode_bayar)
-                              VALUES ('$dibuat_oleh', NOW(), '$jenis_pesanan', 'menunggu', 0, '$diterima_oleh', '$metode_bayar')";
+            $query_pesanan = "
+                INSERT INTO pesanan (id_pesanan, waktu_pesan, jenis_pesanan, total_harga, metode_bayar)
+                VALUES ('$id_pesanan', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
+            ";
         }
+
         mysqli_query($conn, $query_pesanan);
-        $id_pesanan = mysqli_insert_id($conn);
+
         $total_harga = 0;
 
         foreach ($cart_items as $item) {
-            $id_menu = $item['id_menu'];
+            $id_detail = generateRandomCode(11);
+            $id_menu = mysqli_real_escape_string($conn, $item['id_menu']);
             $jumlah = $item['jumlah'];
             $catatan = mysqli_real_escape_string($conn, $item['catatan']);
-            $harga_result = mysqli_query($conn, "SELECT harga FROM menu WHERE id_menu='$id_menu'");
-            $menu = mysqli_fetch_assoc($harga_result);
+
+            $harga_res = mysqli_query($conn, "SELECT harga FROM menu WHERE id_menu='$id_menu'");
+            $menu = mysqli_fetch_assoc($harga_res);
             $harga = $menu['harga'];
+
             $subtotal = $harga * $jumlah;
             $total_harga += $subtotal;
 
-            mysqli_query($conn, "INSERT INTO detail_pesanan (id_pesanan, id_menu, jumlah, harga_satuan, status_item, catatan_item)
-                                 VALUES ('$id_pesanan', '$id_menu', '$jumlah', '$harga', 'menunggu', '$catatan')");
+            mysqli_query($conn, "
+                INSERT INTO detail_pesanan (id_detail, id_pesanan, id_menu, jumlah, harga_satuan, subtotal, status_item, catatan_item)
+                VALUES ('$id_detail', '$id_pesanan', '$id_menu', '$jumlah', '$harga', '$subtotal', 'menunggu', '$catatan')
+            ");
         }
 
         mysqli_query($conn, "UPDATE pesanan SET total_harga='$total_harga' WHERE id_pesanan='$id_pesanan'");
@@ -89,14 +102,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mysqli_query($conn, "UPDATE meja SET status_meja='terisi' WHERE id_meja='$id_meja'");
         }
 
+        $id_pembayaran = generateRandomCode(11);
+
+        mysqli_query($conn, "
+            INSERT INTO pembayaran 
+            (id_pembayaran, id_pesanan, metode, status, bukti_pembayaran, waktu_pembayaran)
+            VALUES 
+            ('$id_pembayaran', '$id_pesanan', '$metode_bayar', 'sudah_bayar', NULL, NOW())
+        ");
+
         mysqli_commit($conn);
-        $success_message = "✅ Pesanan berhasil dibuat! Nomor pesanan: $id_pesanan";
+        $success_message = "Pesanan berhasil dibuat! ID: $id_pesanan";
 
     } catch (Exception $e) {
         mysqli_rollback($conn);
-        $error_message = "❌ Gagal membuat pesanan: " . $e->getMessage();
+        $error_message = "Gagal membuat pesanan: " . $e->getMessage();
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -772,7 +795,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                     <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
                                     <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                    <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
+                                    <button type="button" class="btn-tambah" onclick="addToCart('<?= $menu['id_menu']; ?>', '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
                                         + Tambah
                                     </button>
                                 </div>
@@ -789,7 +812,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                     <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
                                     <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                    <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
+                                    <button type="button" class="btn-tambah" onclick="addToCart('<?= $menu['id_menu']; ?>', '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
                                         + Tambah
                                     </button>
                                 </div>
@@ -806,7 +829,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </div>
                                     <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
                                     <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                    <button type="button" class="btn-tambah" onclick="addToCart(<?= $menu['id_menu']; ?>, '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
+                                    <button type="button" class="btn-tambah" onclick="addToCart('<?= $menu['id_menu']; ?>', '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
                                         + Tambah
                                     </button>
                                 </div>
@@ -992,27 +1015,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 total += item.harga * item.jumlah;
                 cartList.innerHTML += `
                     <div class="cart-item">
-                        <div class="cart-item-header">
-                            <div>
-                                <div class="cart-item-name">${item.nama}</div>
-                                ${item.catatan ? `<div class="cart-item-note">Catatan: ${item.catatan}</div>` : ''}
-                            </div>
-                            <button type="button" class="cart-item-remove" onclick="removeItem(${item.id_menu})">×</button>
-                        </div>
-                        <div class="cart-item-controls">
-                            <div class="qty-controls">
-                                <button type="button" class="qty-btn" onclick="updateJumlah(${item.id_menu}, -1)">−</button>
-                                <span class="qty-value">${item.jumlah}</span>
-                                <button type="button" class="qty-btn" onclick="updateJumlah(${item.id_menu}, 1)">+</button>
-                            </div>
-                            <div class="item-price">Rp ${(item.harga * item.jumlah).toLocaleString()}</div>
-                        </div>
-                        <input type="text" 
-                               class="cart-item-note-input" 
-                               placeholder="Tambah catatan (opsional)..." 
-                               value="${item.catatan || ''}"
-                               onchange="updateCatatan(${item.id_menu}, this.value)">
-                    </div>
+    <div class="cart-item-header">
+        <div>
+            <div class="cart-item-name">${item.nama}</div>
+            ${item.catatan ? `<div class="cart-item-note">Catatan: ${item.catatan}</div>` : ''}
+        </div>
+        <button type="button" class="cart-item-remove" onclick="removeItem('${item.id_menu}')">×</button>
+    </div>
+    <div class="cart-item-controls">
+        <div class="qty-controls">
+            <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', -1)">−</button>
+            <span class="qty-value">${item.jumlah}</span>
+            <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', 1)">+</button>
+        </div>
+        <div class="item-price">Rp ${(item.harga * item.jumlah).toLocaleString()}</div>
+    </div>
+    <input type="text" 
+           class="cart-item-note-input" 
+           placeholder="Tambah catatan (opsional)..." 
+           value="${item.catatan || ''}"
+           onchange="updateCatatan('${item.id_menu}', this.value)">
+</div>
+
                 `;
             });
             
