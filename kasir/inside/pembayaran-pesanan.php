@@ -6,11 +6,10 @@ $query_pesanan = "SELECT p.*, m.nomor_meja, m.kode_unik,
                   (SELECT COUNT(*) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) as total_item
                   FROM pesanan p
                   JOIN meja m ON p.id_meja = m.id_meja
-                  WHERE p.status_pesanan = 'menunggu'
+                  WHERE p.status_pesanan = 'disajikan'
                   ORDER BY p.waktu_pesan DESC";
 $result_pesanan = mysqli_query($conn, $query_pesanan);
 $pesanan_list = mysqli_fetch_all($result_pesanan, MYSQLI_ASSOC);
-
 
 $detail_pesanan = [];
 $selected_pesanan = null;
@@ -18,7 +17,6 @@ $selected_pesanan = null;
 if (isset($_GET['id_pesanan'])) {
     $id_pesanan = mysqli_real_escape_string($conn, $_GET['id_pesanan']);
     
-
     $query_selected = "SELECT p.*, m.nomor_meja, m.kode_unik
                        FROM pesanan p
                        JOIN meja m ON p.id_meja = m.id_meja
@@ -26,7 +24,6 @@ if (isset($_GET['id_pesanan'])) {
     $result_selected = mysqli_query($conn, $query_selected);
     $selected_pesanan = mysqli_fetch_assoc($result_selected);
     
-   
     $query_detail = "SELECT dp.*, m.nama_menu
                      FROM detail_pesanan dp
                      JOIN menu m ON dp.id_menu = m.id_menu
@@ -34,7 +31,6 @@ if (isset($_GET['id_pesanan'])) {
     $result_detail = mysqli_query($conn, $query_detail);
     $detail_pesanan = mysqli_fetch_all($result_detail, MYSQLI_ASSOC);
 }
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     mysqli_begin_transaction($conn);
@@ -44,13 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $metode = mysqli_real_escape_string($conn, $_POST['metode']);
         $jumlah_dibayar = mysqli_real_escape_string($conn, $_POST['jumlah_dibayar']);
         
-      
         $query_total = "SELECT total_harga, id_meja FROM pesanan WHERE id_pesanan = '$id_pesanan'";
         $result_total = mysqli_query($conn, $query_total);
         $pesanan = mysqli_fetch_assoc($result_total);
         $total_harga = $pesanan['total_harga'];
         $id_meja = $pesanan['id_meja'];
-        
         
         $kembalian = $jumlah_dibayar - $total_harga;
         
@@ -60,24 +54,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
         $waktu_bayar = date('Y-m-d H:i:s');
         $query_update = "UPDATE pesanan 
-                        SET status_pesanan = 'dibayar',
+                        SET status_pesanan = 'selesai',
                             metode_bayar = '$metode',
                             total_harga = '$total_harga'
                         WHERE id_pesanan = '$id_pesanan'";
         mysqli_query($conn, $query_update);
         
-        
         $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = '$id_meja'";
         mysqli_query($conn, $query_meja);
         
-        
-        $query_pembayaran = "INSERT INTO pembayaran (id_pesanan, metode, status, jumlah_tagihan, jumlah_dibayar, kembalian, waktu_pembayaran)
-                            VALUES ('$id_pesanan', '$metode', 'sudah_bayar', '$total_harga', '$jumlah_dibayar', '$kembalian', '$waktu_bayar')";
+        $query_pembayaran = "UPDATE pembayaran 
+                            SET status = 'sudah_bayar',
+                                metode = '$metode',
+                                waktu_pembayaran = '$waktu_bayar'
+                            WHERE id_pesanan = '$id_pesanan'";
         mysqli_query($conn, $query_pembayaran);
         
         mysqli_commit($conn);
         
-       
         header("Location: " . $_SERVER['PHP_SELF'] . "?print=1&id_pesanan=$id_pesanan&metode=$metode&jumlah_dibayar=$jumlah_dibayar&kembalian=$kembalian");
         exit;
         
@@ -86,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = "Error: " . $e->getMessage();
     }
 }
-
 
 $print_data = null;
 if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
@@ -126,19 +119,16 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             background: #f5f5f5;
         }
 
-        
         .main-content {
             margin-left: 250px;
             transition: margin-left 0.3s ease;
             min-height: 100vh;
         }
 
-        
         body.sidebar-collapsed .main-content {
             margin-left: 80px;
         }
 
-        
         .container {
             display: flex;
             flex-wrap: wrap;
@@ -147,7 +137,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             max-width: 100%;
         }
 
-        
         .left-panel {
             width: 280px;
             background: white;
@@ -181,9 +170,9 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .order-header h3 { font-size: 15px; color: #333; }
 
-        .badge-menunggu {
-            background: #FFC864;
-            color: #333;
+        .badge-disajikan {
+            background: #28a745;
+            color: white;
             padding: 4px 10px;
             border-radius: 12px;
             font-size: 11px;
@@ -195,7 +184,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .order-time { color: #666; font-size: 13px; }
         .order-price { color: #333; font-weight: 600; font-size: 14px; }
 
-        
         .right-panel {
             flex: 1;
             background: white;
@@ -209,13 +197,11 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .form-meta { display: flex; gap: 10px; color: #666; font-size: 14px; }
         .badge-bayar { background: #FFC864; color: #333; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; }
 
-        
         .items-section { margin-bottom: 25px; }
         .item-row { display: flex; justify-content: space-between; padding: 12px 0; color: #333; }
         .item-name { font-size: 15px; }
         .item-price { font-weight: 600; font-size: 15px; }
 
-        
         .total-row {
             display: flex;
             justify-content: space-between;
@@ -227,9 +213,8 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .total-label { font-size: 16px; color: #333; }
         .total-amount { font-size: 24px; font-weight: 600; color: #FFC864; }
 
-        
         .payment-section h3 { font-size: 15px; margin-bottom: 15px; color: #333; }
-        .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+        .method-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 30px; }
 
         .method-card {
             border: 2px solid #e0e0e0;
@@ -247,7 +232,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .method-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 3px; }
         .method-desc { font-size: 13px; color: #666; }
 
-        
         .input-section { margin-bottom: 30px; }
         .input-group { margin-bottom: 20px; }
         .input-label { display: block; font-size: 14px; color: #333; margin-bottom: 8px; font-weight: 500; }
@@ -273,7 +257,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .change-label { font-size: 14px; color: #666; }
         .change-amount { font-size: 20px; font-weight: 600; color: #4A90E2; }
 
-       
         .action-buttons { display: flex; gap: 15px; flex-wrap: wrap; }
         .btn-confirm {
             flex: 1;
@@ -299,7 +282,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-       
         .notification-popup {
             display: none;
             position: fixed;
@@ -390,7 +372,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
         }
 
-        
         .receipt-overlay {
             display: none;
             position: fixed;
@@ -464,7 +445,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             .receipt-buttons { display: none; }
         }
         
-        
         @media (max-width: 1200px) {
             .main-content {
                 margin-left: 80px;
@@ -526,7 +506,7 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         <div class="container">
             
             <div class="left-panel">
-                <h2>Pesanan Menunggu Pembayaran</h2>
+                <h2>Pesanan Siap Dibayar</h2>
                 
                 <?php if (empty($pesanan_list)): ?>
                     <p style="text-align: center; color: #999; padding: 20px; font-size: 13px;">Tidak ada pesanan</p>
@@ -535,7 +515,7 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                         <a href="?id_pesanan=<?= $pesanan['id_pesanan'] ?>" class="order-card <?= isset($_GET['id_pesanan']) && $_GET['id_pesanan'] == $pesanan['id_pesanan'] ? 'active' : '' ?>">
                             <div class="order-header">
                                 <h3>Meja <?= $pesanan['nomor_meja'] ?></h3>
-                                <span class="badge-menunggu">Menunggu</span>
+                                <span class="badge-disajikan">Disajikan</span>
                             </div>
                             <div class="order-code"><?= $pesanan['kode_unik'] ?></div>
                             <div class="order-footer">
@@ -547,7 +527,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                 <?php endif; ?>
             </div>
 
-            
             <div class="right-panel">
                 <?php if ($selected_pesanan): ?>
                     <div style="margin-bottom: 20px;">
@@ -587,12 +566,7 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                         <div class="payment-section">
                             <h3>Metode Pembayaran</h3>
                             <div class="method-grid">
-                                <div class="method-card selected" onclick="selectMethod('qris', this)">
-                                    <div class="method-icon">📱</div>
-                                    <div class="method-title">QRIS</div>
-                                    <div class="method-desc">Scan QR Code</div>
-                                </div>
-                                <div class="method-card" onclick="selectMethod('cash', this)">
+                                <div class="method-card selected" onclick="selectMethod('cash', this)">
                                     <div class="method-icon">💵</div>
                                     <div class="method-title">Cash</div>
                                     <div class="method-desc">Tunai</div>
@@ -600,7 +574,7 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                             </div>
                         </div>
                         
-                        <input type="hidden" name="metode" id="metodeInput" value="qris">
+                        <input type="hidden" name="metode" id="metodeInput" value="cash">
                         
                         <div class="input-section">
                             <div class="input-group">
@@ -633,7 +607,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         </div>
     </div>
 
-    
     <?php if (isset($error_message)): ?>
     <div class="notification-popup" id="notificationPopup" style="display: flex;">
         <div class="notification-content">
@@ -647,7 +620,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     </div>
     <?php endif; ?>
 
-    <!-- Receipt Overlay -->
     <?php if ($print_data): ?>
     <div class="receipt-overlay" id="receiptOverlay" style="display: flex;">
         <div class="receipt-container">
@@ -714,7 +686,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         </div>
     </div>
 
-    
     <div class="notification-popup" id="successPopup" style="display: flex;">
         <div class="notification-content">
             <div class="notification-icon success">
@@ -737,12 +708,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             document.querySelectorAll('.method-card').forEach(card => card.classList.remove('selected'));
             element.classList.add('selected');
             document.getElementById('metodeInput').value = method;
-            
-            
-            if (method === 'qris') {
-                document.getElementById('jumlahBayar').value = totalTagihan;
-                hitungKembalian();
-            }
         }
         
         function hitungKembalian() {
@@ -781,13 +746,10 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             window.location.href = '<?= $_SERVER['PHP_SELF'] ?>';
         }
         
-        
         <?php if ($print_data): ?>
         window.onload = function() {
-            
             document.getElementById('successPopup').style.display = 'flex';
             
-           
             setTimeout(function() {
                 showReceipt();
                 
