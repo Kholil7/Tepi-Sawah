@@ -28,6 +28,35 @@ $pesanan = getPesananByMeja($meja['id_meja'], $conn);
     <title>Riwayat Pesanan - Meja <?= htmlspecialchars($meja['nomor_meja']); ?></title>
     <link rel="stylesheet" href="../../css/customer/riwayat.css">
 </head>
+<script>
+function batalkanPesanan(idPesanan) {
+    if(confirm('Yakin ingin membatalkan pesanan ini?')) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const kode = urlParams.get('kode');
+        
+        fetch('../include/batalkan_pesanan.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'id_pesanan=' + idPesanan + '&kode=' + kode
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert('Pesanan berhasil dibatalkan');
+                location.reload();
+            } else {
+                alert('Gagal: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Terjadi kesalahan');
+            console.error(error);
+        });
+    }
+}
+</script>
 <body>
 
 <header>
@@ -52,7 +81,6 @@ $pesanan = getPesananByMeja($meja['id_meja'], $conn);
     <div class="pesanan-list">
         <?php foreach ($pesanan as $p) : 
             $status = strtolower($p['status_pesanan']);
-            // tentukan warna status
             $status_class = in_array($status, ['dibatalkan','selesai','diproses','pending']) ? $status : 'pending';
         ?>
             <div class="pesanan-item">
@@ -61,8 +89,15 @@ $pesanan = getPesananByMeja($meja['id_meja'], $conn);
                 <p>Total: Rp <?= number_format($p['total_harga'], 0, ',', '.'); ?></p>
                 <p>Status: <span class="status <?= $status_class; ?>"><?= ucfirst($status); ?></span></p>
                 <p>Tanggal: <?= htmlspecialchars($p['tanggal']); ?></p>
+                
+                <?php if($status !== 'diterima' && $status !== 'selesai' && $status !== 'dibatalkan'): ?>
+                    <button onclick="batalkanPesanan('<?= $p['id_pesanan']; ?>')" class="btn-batalkan">
+                        Batalkan
+                    </button>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
+    </div>
     </div>
 <?php endif; ?>
 </div>
