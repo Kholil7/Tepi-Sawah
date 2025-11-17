@@ -13,7 +13,7 @@ function generateRandomCode($length = 11) {
 
 $query_meja = "SELECT id_meja, nomor_meja, kode_unik, status_meja 
                FROM meja 
-               WHERE status_meja = 'kosong' 
+               WHERE status_meja = 'kosong' AND kode_unik != 'TAKE_AWAY'
                ORDER BY CAST(nomor_meja AS UNSIGNED), nomor_meja";
 $result_meja = mysqli_query($conn, $query_meja);
 
@@ -51,6 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $metode_bayar = strtolower(trim(mysqli_real_escape_string($conn, $_POST['metode_bayar'] ?? '')));
         $id_meja = $jenis_pesanan === 'dine_in' ? $_POST['id_meja'] : null;
 
+        if ($jenis_pesanan === 'take_away') {
+            $qTA = mysqli_query($conn, "SELECT id_meja FROM meja WHERE kode_unik='TAKE_AWAY' LIMIT 1");
+            $TA = mysqli_fetch_assoc($qTA);
+            $id_meja = $TA['id_meja'];
+        }
+
         $cart_items = json_decode($_POST['cart_data'] ?? '[]', true);
 
         if (empty($cart_items)) throw new Exception("Keranjang masih kosong!");
@@ -61,17 +67,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $id_pesanan = generateRandomCode(11);
 
-        if ($jenis_pesanan === 'dine_in') {
-            $query_pesanan = "
-                INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, total_harga, metode_bayar)
-                VALUES ('$id_pesanan', '$id_meja', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
-            ";
-        } else {
-            $query_pesanan = "
-                INSERT INTO pesanan (id_pesanan, waktu_pesan, jenis_pesanan, total_harga, metode_bayar)
-                VALUES ('$id_pesanan', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
-            ";
-        }
+        $query_pesanan = "
+            INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, total_harga, metode_bayar)
+            VALUES ('$id_pesanan', '$id_meja', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
+        ";
 
         mysqli_query($conn, $query_pesanan);
 
@@ -112,14 +111,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
 
         mysqli_commit($conn);
-        $success_message = "Pesanan berhasil dibuat! ID: $id_pesanan";
+        
+        $_SESSION['success_message'] = "Pesanan berhasil dibuat! ID: $id_pesanan";
+        $_SESSION['order_id'] = $id_pesanan;
+        
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
 
     } catch (Exception $e) {
         mysqli_rollback($conn);
-        $error_message = "Gagal membuat pesanan: " . $e->getMessage();
+        $_SESSION['error_message'] = "Gagal membuat pesanan: " . $e->getMessage();
+        header("Location: " . $_SERVER['PHP_SELF']);
+        exit();
     }
 }
 
+$success_message = isset($_SESSION['success_message']) ? $_SESSION['success_message'] : null;
+$error_message = isset($_SESSION['error_message']) ? $_SESSION['error_message'] : null;
+$order_id = isset($_SESSION['order_id']) ? $_SESSION['order_id'] : null;
+
+unset($_SESSION['success_message']);
+unset($_SESSION['error_message']);
+unset($_SESSION['order_id']);
 ?>
 
 <!DOCTYPE html>
@@ -643,25 +656,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cursor: not-allowed;
         }
         
-        .alert {
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
         #mejaGroup {
             transition: all 0.3s ease;
             overflow: hidden;
@@ -672,6 +666,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             opacity: 0;
             margin: 0;
             padding: 0;
+        }
+        
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        
+        .modal-icon.success {
+            background: #d4edda;
+            color: #28a745;
+        }
+        
+        .modal-icon.error {
+            background: #f8d7da;
+            color: #dc3545;
+        }
+        
+        .modal-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .modal-message {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .modal-order-id {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .modal-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .modal-btn.success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .modal-btn.success:hover {
+            background: #218838;
+        }
+        
+        .modal-btn.error {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .modal-btn.error:hover {
+            background: #c82333;
         }
         
         @media (max-width: 768px) {
@@ -702,17 +809,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <?php include '../../sidebar/sidebar_kasir.php'; ?>
     
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon">
+                <span id="modalIconText"></span>
+            </div>
+            <div class="modal-title" id="modalTitle"></div>
+            <div class="modal-message" id="modalMessage"></div>
+            <div class="modal-order-id" id="modalOrderId" style="display: none;"></div>
+            <button class="modal-btn" id="modalBtn" onclick="closeModal()"></button>
+        </div>
+    </div>
+    
     <div class="main-content">
         <div class="container">
             <div class="left-section">
                 <h2>Input Pesanan Baru</h2>
                 <p class="subtitle">Kelola pesanan dari pelanggan</p>
-                
-                <?php if (isset($success_message)): ?>
-                    <div class="alert alert-success"><?= $success_message; ?></div>
-                <?php elseif (isset($error_message)): ?>
-                    <div class="alert alert-danger"><?= $error_message; ?></div>
-                <?php endif; ?>
                 
                 <form method="POST" id="formPesanan">
                     <input type="hidden" name="cart_data" id="cart_data">
@@ -893,7 +1006,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         let cart = [];
         
-        // Deteksi perubahan sidebar
         function checkSidebarState() {
             const sidebar = document.querySelector('.sidebar');
             if (sidebar) {
@@ -905,11 +1017,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Jalankan saat halaman dimuat
         document.addEventListener('DOMContentLoaded', function() {
             checkSidebarState();
             
-            // Monitor perubahan class sidebar
             const observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
                     if (mutation.attributeName === 'class') {
@@ -922,7 +1032,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (sidebar) {
                 observer.observe(sidebar, { attributes: true });
             }
+            
+            <?php if ($success_message): ?>
+                showModal('success', 'Pesanan Berhasil!', '<?= addslashes($success_message); ?>', '<?= $order_id; ?>');
+            <?php elseif ($error_message): ?>
+                showModal('error', 'Pesanan Gagal!', '<?= addslashes($error_message); ?>');
+            <?php endif; ?>
         });
+        
+        function showModal(type, title, message, orderId = null) {
+            const modal = document.getElementById('modalOverlay');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalIconText = document.getElementById('modalIconText');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalOrderId = document.getElementById('modalOrderId');
+            const modalBtn = document.getElementById('modalBtn');
+            
+            if (type === 'success') {
+                modalIcon.className = 'modal-icon success';
+                modalIconText.textContent = '✓';
+                modalBtn.className = 'modal-btn success';
+                modalBtn.textContent = 'OK';
+                
+                if (orderId) {
+                    modalOrderId.style.display = 'block';
+                    modalOrderId.textContent = 'ID: ' + orderId;
+                }
+            } else {
+                modalIcon.className = 'modal-icon error';
+                modalIconText.textContent = '✕';
+                modalBtn.className = 'modal-btn error';
+                modalBtn.textContent = 'Tutup';
+                modalOrderId.style.display = 'none';
+            }
+            
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.add('active');
+        }
+        
+        function closeModal() {
+            const modal = document.getElementById('modalOverlay');
+            modal.classList.remove('active');
+        }
         
         function selectOrderType(jenis, element) {
             document.querySelectorAll('.type-card').forEach(card => card.classList.remove('active'));
@@ -1015,28 +1168,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 total += item.harga * item.jumlah;
                 cartList.innerHTML += `
                     <div class="cart-item">
-    <div class="cart-item-header">
-        <div>
-            <div class="cart-item-name">${item.nama}</div>
-            ${item.catatan ? `<div class="cart-item-note">Catatan: ${item.catatan}</div>` : ''}
-        </div>
-        <button type="button" class="cart-item-remove" onclick="removeItem('${item.id_menu}')">×</button>
-    </div>
-    <div class="cart-item-controls">
-        <div class="qty-controls">
-            <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', -1)">−</button>
-            <span class="qty-value">${item.jumlah}</span>
-            <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', 1)">+</button>
-        </div>
-        <div class="item-price">Rp ${(item.harga * item.jumlah).toLocaleString()}</div>
-    </div>
-    <input type="text" 
-           class="cart-item-note-input" 
-           placeholder="Tambah catatan (opsional)..." 
-           value="${item.catatan || ''}"
-           onchange="updateCatatan('${item.id_menu}', this.value)">
-</div>
-
+                        <div class="cart-item-header">
+                            <div>
+                                <div class="cart-item-name">${item.nama}</div>
+                                ${item.catatan ? `<div class="cart-item-note">Catatan: ${item.catatan}</div>` : ''}
+                            </div>
+                            <button type="button" class="cart-item-remove" onclick="removeItem('${item.id_menu}')">×</button>
+                        </div>
+                        <div class="cart-item-controls">
+                            <div class="qty-controls">
+                                <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', -1)">−</button>
+                                <span class="qty-value">${item.jumlah}</span>
+                                <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', 1)">+</button>
+                            </div>
+                            <div class="item-price">Rp ${(item.harga * item.jumlah).toLocaleString()}</div>
+                        </div>
+                        <input type="text" 
+                               class="cart-item-note-input" 
+                               placeholder="Tambah catatan (opsional)..." 
+                               value="${item.catatan || ''}"
+                               onchange="updateCatatan('${item.id_menu}', this.value)">
+                    </div>
                 `;
             });
             
@@ -1067,7 +1219,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        // Search menu functionality
         document.getElementById('searchMenu').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
             document.querySelectorAll('.menu-card').forEach(card => {
