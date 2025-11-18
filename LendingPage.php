@@ -1,3 +1,46 @@
+<?php
+// Koneksi ke database
+require_once 'database/connect.php';
+
+try {
+    $sql = "SELECT 
+                m.id_menu,
+                m.nama_menu,
+                m.kategori,
+                m.harga,
+                m.gambar,
+                SUM(dp.jumlah) as jumlah_terjual
+            FROM menu m
+            INNER JOIN detail_pesanan dp ON m.id_menu = dp.id_menu
+            INNER JOIN pesanan p ON dp.id_pesanan = p.id_pesanan
+            WHERE p.status_pesanan IN ('dibayar', 'selesai')
+            AND p.waktu_pesan >= DATE_SUB(NOW(), INTERVAL 1 MONTH)
+            AND m.status_menu = 'aktif'
+            GROUP BY m.id_menu, m.nama_menu, m.kategori, m.harga, m.gambar
+            ORDER BY jumlah_terjual DESC
+            LIMIT 4";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $menus = $result->fetch_all(MYSQLI_ASSOC);
+
+    if (!$menus) {
+        $menus = [];
+    }
+
+} catch(Exception $e) {
+    $menus = [];
+}
+
+
+// Function untuk format harga
+function formatRupiah($angka) {
+    return "Rp " . number_format($angka, 0, ',', '.');
+}
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -27,7 +70,7 @@
         <li><a href="#galeri" class="hover:text-yellow-600">Galeri</a></li>
         <li><a href="#kontak" class="hover:text-yellow-600">Kontak</a></li>
       </ul>
-      <a href="#Pesan Sekarang" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700">Pesan Sekarang</a>
+      <a href="#menu" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700">Pesan Sekarang</a>
     </nav>
   </header>
 
@@ -37,58 +80,52 @@
     <div class="relative z-10">
       <h2 class="text-4xl md:text-6xl font-bold mb-4">Tepi Sawah</h2>
       <p class="text-lg md:text-xl mb-6">Pengalaman Kuliner Terbaik dengan Cita Rasa Istimewa</p>
-      <a href="#reservasi" class="bg-yellow-600 px-6 py-3 rounded-lg text-white font-semibold hover:bg-yellow-700">Pesan Sekarang</a>
+      <a href="#menu" class="bg-yellow-600 px-6 py-3 rounded-lg text-white font-semibold hover:bg-yellow-700">Pesan Sekarang</a>
     </div>
   </section>
 
-
-  <!-- Menu Unggulan -->
+  <!-- Menu Populer (1 Bulan Terakhir) -->
   <section id="menu" class="bg-gray-50 py-16 px-6">
     <div class="max-w-7xl mx-auto text-center">
-      <h3 class="text-3xl font-bold mb-4">Menu Unggulan</h3>
-      <p class="text-gray-600 mb-10">Nikmati berbagai hidangan istimewa yang disiapkan dengan bahan terbaik dan keahlian chef kami.</p>
+      <h3 class="text-3xl font-bold mb-4">Menu Populer Bulan Ini</h3>
+      <p class="text-gray-600 mb-10">Hidangan terlaris yang paling digemari pelanggan dalam 1 bulan terakhir</p>
       <div class="grid md:grid-cols-4 gap-6">
-        <div class="bg-white shadow rounded-lg p-4">
-          <img src="https://images.unsplash.com/photo-1604145559206-4a2cd9539d7d" class="rounded-lg mb-4">
-          <h4 class="font-semibold">Grilled Wagyu Steak</h4>
-          <p class="text-sm text-gray-500 mb-2">Steak wagyu premium dengan saus red wine.</p>
-          <p class="font-bold text-yellow-600">Rp 480.000</p>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4">
-          <img src="https://images.unsplash.com/photo-1529042410759-befb1204b468" class="rounded-lg mb-4">
-          <h4 class="font-semibold">Truffle Pasta Carbonara</h4>
-          <p class="text-sm text-gray-500 mb-2">Pasta creamy dengan aroma truffle khas Italia.</p>
-          <p class="font-bold text-yellow-600">Rp 185.000</p>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4">
-          <img src="https://images.unsplash.com/photo-1601050690597-9f6c0a2bb18f" class="rounded-lg mb-4">
-          <h4 class="font-semibold">Pan-Seared Salmon</h4>
-          <p class="text-sm text-gray-500 mb-2">Salmon panggang dengan saus lemon butter.</p>
-          <p class="font-bold text-yellow-600">Rp 275.000</p>
-        </div>
-        <div class="bg-white shadow rounded-lg p-4">
-          <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587" class="rounded-lg mb-4">
-          <h4 class="font-semibold">Chocolate Lava Cake</h4>
-          <p class="text-sm text-gray-500 mb-2">Kue coklat hangat dengan lelehan coklat di dalamnya.</p>
-          <p class="font-bold text-yellow-600">Rp 95.000</p>
-        </div>
+        <?php if(count($menus) > 0) { ?>
+          <?php foreach($menus as $menu) { ?>
+          <div class="bg-white shadow rounded-lg p-4 relative overflow-hidden hover:shadow-xl transition-shadow duration-300">
+            <div class="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-3 py-1 rounded-full font-semibold shadow-lg z-10">
+              🔥 <?php echo intval($menu['jumlah_terjual']); ?>x Terjual
+            </div>
+            <img src="../../uploads/<?php echo htmlspecialchars($menu['gambar']); ?>" 
+                 class="rounded-lg mb-4 w-full h-48 object-cover" 
+                 alt="<?php echo htmlspecialchars($menu['nama_menu']); ?>"
+                 onerror="this.src='../../uploads/default.png'">
+            <h4 class="font-semibold text-lg"><?php echo htmlspecialchars($menu['nama_menu']); ?></h4>
+            <p class="text-sm text-gray-500 mb-2 capitalize"><?php echo htmlspecialchars($menu['kategori']); ?></p>
+            <p class="font-bold text-yellow-600 text-lg"><?php echo formatRupiah($menu['harga']); ?></p>
+          </div>
+          <?php } ?>
+        <?php } else { ?>
+          <div class="col-span-4 text-center text-gray-500 py-10">
+            <p>Belum ada data penjualan dalam 1 bulan terakhir. Menu populer akan muncul setelah ada transaksi.</p>
+          </div>
+        <?php } ?>
       </div>
     </div>
   </section>
 
-
-    <!-- Galeri -->
+  <!-- Galeri -->
   <section id="galeri" class="py-16 px-6">
     <div class="max-w-7xl mx-auto text-center">
       <h3 class="text-3xl font-bold mb-4">Galeri Kami</h3>
       <p class="text-gray-600 mb-10">Lihat keindahan hidangan dan suasana restoran kami.</p>
       <div class="grid md:grid-cols-3 gap-6">
-        <img src="https://images.unsplash.com/photo-1555992336-03a23c9d7c62" class="rounded-lg shadow">
-        <img src="https://images.unsplash.com/photo-1528605248644-14dd04022da1" class="rounded-lg shadow">
-        <img src="https://images.unsplash.com/photo-1586190848861-99aa4a171e90" class="rounded-lg shadow">
-        <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4" class="rounded-lg shadow">
-        <img src="https://images.unsplash.com/photo-1529042410759-befb1204b468" class="rounded-lg shadow">
-        <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587" class="rounded-lg shadow">
+        <img src="asset/LendingPage/tepi sawah 1.jpg" class="rounded-lg shadow">
+        <img src="asset/LendingPage/tepi sawah 5.jpg" class="rounded-lg shadow">
+        <img src="asset/LendingPage/tepi sawah 3.jpg"class="rounded-lg shadow">
+        <img src="asset/LendingPage/tepi sawah 4.jpg" class="rounded-lg shadow">
+        <img src="asset/LendingPage/tepi sawah 6.jpg" class="rounded-lg shadow">
+        <img src="asset/LendingPage/tepi sawah 2.jpg" class="rounded-lg shadow">
       </div>
     </div>
   </section>
@@ -103,7 +140,6 @@
     </div>
     <img src="https://images.unsplash.com/photo-1600891963933-c7b4c0c51f9b" alt="Chef Cooking" class="rounded-2xl shadow-lg">
   </section>
-
 
   <!-- Kontak -->
   <section id="kontak" class="py-16 px-6">
@@ -161,3 +197,7 @@
 
 </body>
 </html>
+
+<?php
+$conn = null;
+?>
