@@ -194,7 +194,7 @@
         <i class="fa-solid fa-credit-card"></i><span>Pembayaran</span>
       </a>
 
-      <a href="transaksi_harian.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'transaksi_harian') ? 'active' : '' ?>">
+      <a href="riwayat_transaksi.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'riwayat_transaksi') ? 'active' : '' ?>">
         <i class="fa-solid fa-chart-line"></i><span>Transaksi Harian</span>
       </a>
 
