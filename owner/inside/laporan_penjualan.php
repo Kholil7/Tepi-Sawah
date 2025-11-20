@@ -4,29 +4,33 @@ ini_set('display_errors', 1);
 require '../../database/connect.php';
 
 function clean($v){ return trim(htmlspecialchars($v ?? '')); }
-function rupiah($v){ return 'Rp '.number_format($v,0,',','.'); }
+function rupiah($v){ return 'Rp '.number_format((float)$v,0,',','.'); }
 
-// === Filter waktu ===
-$range = $_GET['range'] ?? 'hari';
-$today = new DateTime('now');
+// === Ambil filter tanggal dari GET (validasi sederhana) ===
+$start_input = $_GET['start'] ?? date('Y-m-d');
+$end_input   = $_GET['end']   ?? date('Y-m-d');
 
-switch ($range) {
-    case 'bulan':
-        $start = new DateTime($today->format('Y-m-01 00:00:00'));
-        $end   = new DateTime($today->format('Y-m-t 23:59:59'));
-        break;
-    case 'tahun':
-        $start = new DateTime($today->format('Y-01-01 00:00:00'));
-        $end   = new DateTime($today->format('Y-12-31 23:59:59'));
-        break;
-    default: // hari
-        $start = new DateTime($today->format('Y-m-d 00:00:00'));
-        $end   = new DateTime($today->format('Y-m-d 23:59:59'));
-        break;
+// Validasi format YYYY-MM-DD sederhana
+$start_valid = DateTime::createFromFormat('Y-m-d', $start_input) !== false;
+$end_valid   = DateTime::createFromFormat('Y-m-d', $end_input) !== false;
+
+if (!$start_valid) { $start_input = date('Y-m-d'); }
+if (!$end_valid)   { $end_input   = date('Y-m-d'); }
+
+// Pastikan start <= end; jika tidak, swap
+$start_dt = new DateTime($start_input);
+$end_dt   = new DateTime($end_input);
+if ($start_dt > $end_dt) {
+    $tmp = $start_dt;
+    $start_dt = $end_dt;
+    $end_dt = $tmp;
 }
 
-$start_sql = $start->format('Y-m-d H:i:s');
-$end_sql   = $end->format('Y-m-d H:i:s');
+$start_sql = $start_dt->format('Y-m-d') . " 00:00:00";
+$end_sql   = $end_dt->format('Y-m-d') . " 23:59:59";
+
+// Label untuk ditampilkan (mis. "01-11-2025 s/d 20-11-2025")
+$label_range = $start_dt->format('d-m-Y') . ' s/d ' . $end_dt->format('d-m-Y');
 
 // === Penjualan ===
 $sql = "SELECT d.id_pesanan, 
@@ -40,6 +44,9 @@ $sql = "SELECT d.id_pesanan,
         GROUP BY d.id_pesanan
         ORDER BY p.waktu_pesan ASC";
 $stmt = $conn->prepare($sql);
+if ($stmt === false) {
+    die('Prepare failed: ' . $conn->error);
+}
 $stmt->bind_param("ss",$start_sql,$end_sql);
 $stmt->execute();
 $sales = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -51,11 +58,15 @@ $sql2 = "SELECT id_beli, tanggal_beli, nama_bahan, harga
           WHERE tanggal_beli BETWEEN ? AND ? 
           ORDER BY tanggal_beli ASC";
 $stmt = $conn->prepare($sql2);
+if ($stmt === false) {
+    die('Prepare failed: ' . $conn->error);
+}
 $stmt->bind_param("ss",$start_sql,$end_sql);
 $stmt->execute();
 $expenses = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
+// Hitung total
 $total_sales = array_sum(array_column($sales,'total'));
 $total_expenses = array_sum(array_column($expenses,'harga'));
 $profit = $total_sales - $total_expenses;
@@ -67,11 +78,11 @@ $status_color_class = $is_profit ? 'status-untung' : 'status-rugi';
 // === EXPORT CSV ===
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename=laporan_keuangan_'.$range.'_'.date('Ymd_His').'.csv');
+    header('Content-Disposition: attachment; filename=laporan_keuangan_'.$start_dt->format('Ymd').'_to_'.$end_dt->format('Ymd').'.csv');
     $output = fopen('php://output', 'w');
 
     // Judul
-    fputcsv($output, ['Laporan Keuangan - '.ucfirst($range).' Ini']);
+    fputcsv($output, ['Laporan Keuangan - Periode: '.$label_range]);
     fputcsv($output, []);
 
     // Penjualan
@@ -116,10 +127,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     exit;
 }
 
-$chart_label = ($range === 'hari' ? date('j M') : ucfirst($range)." Ini");
+// Data chart (satu titik: periode yang dipilih)
+$chart_label = $label_range;
 $chart_data_array = [
     ['Tipe', 'Pendapatan', 'Pengeluaran'],
-    [$chart_label, $total_sales, $total_expenses]
+    [$chart_label, (float)$total_sales, (float)$total_expenses]
 ];
 $chart_data_json = json_encode($chart_data_array);
 ?>
@@ -184,6 +196,12 @@ h1{margin:0;font-size:24px;color:#111827;}
 .btn.ghost{background:#fff;color:var(--blue);border:1px solid #cbd5e1;}
 .actions{display:flex;gap:8px;}
 @media print{.print-hide{display:none}}
+/* Simple responsive table for small screens */
+@media (max-width:600px){
+  .summary-cards{grid-template-columns:repeat(2,1fr);}
+  .table th:nth-child(3), .table td:nth-child(3),
+  .table th:nth-child(4), .table td:nth-child(4) {display:block;text-align:right;}
+}
 </style>
 </head>
 <body>
@@ -196,19 +214,26 @@ h1{margin:0;font-size:24px;color:#111827;}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
         <div>
           <h1>Laporan Keuangan</h1>
-          <div class="small">Rekap Penjualan & Pengeluaran Restoran</div>
+          <div class="small">Rekap Penjualan & Pengeluaran Restoran — Periode: <strong><?= $label_range ?></strong></div>
         </div>
         <div class="actions print-hide">
-          <a class="btn ghost" href="?range=<?= $range ?>&export=csv"><i class="fa fa-download"></i> CSV</a>
+          <a class="btn ghost" href="?start=<?= urlencode($start_dt->format('Y-m-d')) ?>&end=<?= urlencode($end_dt->format('Y-m-d')) ?>&export=csv"><i class="fa fa-download"></i> CSV</a>
           <a class="btn primary" href="javascript:window.print()"><i class="fa fa-file-pdf"></i> PDF</a>
         </div>
       </div>
 
-      <div class="range-btns print-hide">
-        <a class="<?= $range==='hari'?'active':'' ?>" href="?range=hari">Hari Ini</a>
-        <a class="<?= $range==='bulan'?'active':'' ?>" href="?range=bulan">Bulan Ini</a>
-        <a class="<?= $range==='tahun'?'active':'' ?>" href="?range=tahun">Tahun Ini</a>
-      </div>
+      <!-- FORM FILTER TANGGAL -->
+      <form method="GET" class="print-hide" style="margin:20px 0; display:flex; gap:10px; align-items:center;">
+          <input type="date" name="start" value="<?= $start_dt->format('Y-m-d') ?>" 
+                 style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;">
+
+          <input type="date" name="end" value="<?= $end_dt->format('Y-m-d') ?>" 
+                 style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;">
+
+          <button type="submit" class="btn primary">
+              <i class="fa fa-search"></i> Cari
+          </button>
+      </form>
 
       <div class="summary-cards">
         <div class="summary-card">
@@ -225,12 +250,12 @@ h1{margin:0;font-size:24px;color:#111827;}
         </div>
         <div class="summary-card <?= $status_color_class ?>">
           <div class="card-status-box"><?= $status_text ?></div>
-          <div style="text-align:center;color:var(--gray);font-size:14px;">Status <?= ucfirst($range) ?> Ini</div>
+          <div style="text-align:center;color:var(--gray);font-size:14px;">Status Periode</div>
         </div>
       </div>
 
       <div class="card">
-        <h3>Grafik Perbandingan <?= ucfirst($range) ?> Ini</h3>
+        <h3>Grafik Perbandingan Periode</h3>
         <div id="chart_div" class="chart-container"></div>
       </div>
 
@@ -240,7 +265,7 @@ h1{margin:0;font-size:24px;color:#111827;}
       </div>
 
       <div class="card tab-content" id="content-penjualan">
-        <h3>Detail Penjualan <?= ucfirst($range) ?> Ini</h3>
+        <h3>Detail Penjualan — <?= $label_range ?></h3>
         <table class="table">
           <thead>
             <tr>
@@ -255,7 +280,7 @@ h1{margin:0;font-size:24px;color:#111827;}
               <tr><td colspan="4" style="text-align:center;color:var(--gray);padding:18px;">Tidak ada penjualan</td></tr>
             <?php else: foreach($sales as $s): ?>
               <tr>
-                <td><?= $s['id_pesanan'] ?></td>
+                <td><?= htmlspecialchars($s['id_pesanan']) ?></td>
                 <td><?= htmlspecialchars($s['items']) ?></td>
                 <td style="text-align:right;"><?= date('d-m-Y H:i', strtotime($s['waktu_pesan'])) ?></td>
                 <td style="text-align:right;font-weight:600;"><?= rupiah($s['total']) ?></td>
@@ -266,7 +291,7 @@ h1{margin:0;font-size:24px;color:#111827;}
       </div>
 
       <div class="card tab-content hidden" id="content-pengeluaran">
-        <h3>Laporan Pengeluaran</h3>
+        <h3>Laporan Pengeluaran — <?= $label_range ?></h3>
         <table class="table">
           <thead>
             <tr>
@@ -282,7 +307,7 @@ h1{margin:0;font-size:24px;color:#111827;}
             <?php else: $i=1; foreach($expenses as $e): ?>
               <tr>
                 <td><?= $i++ ?></td>
-                <td><?= $e['tanggal_beli'] ?></td>
+                <td><?= htmlspecialchars($e['tanggal_beli']) ?></td>
                 <td><?= htmlspecialchars($e['nama_bahan']) ?></td>
                 <td style="text-align:right;"><?= rupiah($e['harga']) ?></td>
               </tr>
