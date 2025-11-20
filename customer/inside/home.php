@@ -19,6 +19,7 @@ if (!$meja) {
     <title>Lesehan Tepi Sawah</title>
     <link rel="stylesheet" href="../../css/customer/home.css">
 </head>
+<script src="../geofence/geofence.js"></script>
 <body>
     <div class="container">
         <div class="header">
@@ -40,4 +41,11 @@ if (!$meja) {
         </div>
     </div>
 </body>
+  <script>
+    window.onload = function() {
+      checkGeofence(function(granted, distance) {
+        console.log('Akses diberikan! Jarak: ' + distance + 'm');
+      });
+    };
+  </script>
 </html>
