@@ -129,3 +129,21 @@
                 padding: 12px;
             }
         }
+        .btn-batalkan {
+    background-color: #e00000;   
+    color: #fff;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: 0.2s;
+    float: right;
+}
+
+.btn-batalkan:hover {
+    background-color: #b00000; 
+
+}
+

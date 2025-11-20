@@ -26,7 +26,8 @@ $pesanan = getPesananByMeja($meja['id_meja'], $conn);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Riwayat Pesanan - Meja <?= htmlspecialchars($meja['nomor_meja']); ?></title>
-    <link rel="stylesheet" href="../../css/customer/riwayat.css">
+    <?php $version = filemtime('../../css/customer/riwayat.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/customer/riwayat.css?v=<?php echo $version; ?>">
 </head>
 <script>
 function batalkanPesanan(idPesanan) {
