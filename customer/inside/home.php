@@ -17,13 +17,13 @@ if (!$meja) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lesehan Tepi Sawah</title>
-    <link rel="stylesheet" href="../../css/customer/home.css">
+        <?php $version = filemtime('../../css/customer/home.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/customer/home.css?v=<?php echo $version; ?>">
 </head>
-<script src="../geofence/geofence.js"></script>
 <body>
     <div class="container">
         <div class="header">
-            <h2 class="nama-resto">Kantin Tepi Sawah</h2>
+            <h2 class="nama-resto">Lesehan Tepi Sawah</h2>
             <p>Selamat Datang</p>
         </div>
 
@@ -37,15 +37,8 @@ if (!$meja) {
         </div>
  
         <div class="footer">
-            <a href="riwayat.php?kode=<?= urlencode($kode_unik); ?>" class="btn">riwayat</a>
+            <a href="riwayat.php?kode=<?= urlencode($kode_unik); ?>" class="btn riw">Riwayat Pemesanan</a>
         </div>
     </div>
 </body>
-  <script>
-    window.onload = function() {
-      checkGeofence(function(granted, distance) {
-        console.log('Akses diberikan! Jarak: ' + distance + 'm');
-      });
-    };
-  </script>
 </html>
