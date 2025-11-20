@@ -1,136 +1,45 @@
-        body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            background: #f5f6fa;
-            color: #333;
-        }
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    background: #f5f6fa;
+    color: #333;
+}
 
-        header {
-            display: flex;
-            align-items: center;
-            background: #ff6600;
-            color: white;
-            padding: 15px 20px;
-        }
+header {
+    display: flex;
+    align-items: center;
+    background: #ff6600;
+    color: white;
+    padding: 15px 20px;
+}
 
-        .back-arrow {
-            text-decoration: none;
-            color: white;
-            font-size: 22px;
-            margin-right: 15px;
-        }
+.back-arrow {
+    text-decoration: none;
+    color: white;
+    font-size: 22px;
+    margin-right: 15px;
+}
 
-        header h2 {
-            margin: 0;
-            font-size: 20px;
-        }
+.container {
+    padding: 20px;
+}
 
-        header p {
-            margin: 0;
-            font-size: 14px;
-            opacity: 0.8;
-        }
+.pesanan-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
 
-        .container {
-            padding: 20px;
-        }
+.pesanan-item {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 15px;
+    position: relative;
+}
 
-        h3 {
-            margin-bottom: 15px;
-            color: #2c3e50;
-        }
-
-        .pesanan-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .pesanan-item {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            padding: 15px;
-            transition: 0.3s;
-        }
-
-        .pesanan-item:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .pesanan-item h4 {
-            margin: 0 0 8px;
-            color: #34495e;
-        }
-
-        .pesanan-item p {
-            margin: 3px 0;
-            font-size: 14px;
-        }
-
-        /* ===== STATUS COLORS ===== */
-        .status {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 13px;
-        }
-
-        .status.dibatalkan {
-            background: #ffe6e6;
-            color: #c0392b;
-        }
-
-        .status.selesai {
-            background: #eafaf1;
-            color: #27ae60;
-        }
-
-        .status.diproses {
-            background: #eaf2ff;
-            color: #2980b9;
-        }
-
-        .status.pending {
-            background: #fff5e6;
-            color: #e67e22;
-        }
-
-        /* ===== EMPTY STATE ===== */
-        .empty {
-            text-align: center;
-            margin-top: 60px;
-        }
-
-        .empty-icon {
-            font-size: 60px;
-            margin-bottom: 10px;
-        }
-
-        .btn {
-            margin-top: 15px;
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .btn:hover {
-            background: #219150;
-        }
-
-        @media (max-width: 600px) {
-            .pesanan-item {
-                padding: 12px;
-            }
-        }
-        .btn-batalkan {
-    background-color: #e00000;   
+.btn-batalkan {
+    background-color: #e00000;
     color: #fff;
     padding: 8px 14px;
     border: none;
@@ -143,7 +52,62 @@
 }
 
 .btn-batalkan:hover {
-    background-color: #b00000; 
-
+    background-color: #b00000;
 }
 
+/* POPUP */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.55);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.popup-box {
+    background: #fff;
+    width: 85%;
+    max-width: 330px;
+    padding: 20px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.25);
+    animation: popupScale 0.25s ease;
+}
+
+@keyframes popupScale {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Tombol Popup */
+.popup-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-cancel {
+    flex: 1;
+    background: #d6d6d6;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.btn-yes {
+    flex: 1;
+    background: #e00000;
+    color: white;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.btn-yes:hover {
+    background: #b00000;
+}
