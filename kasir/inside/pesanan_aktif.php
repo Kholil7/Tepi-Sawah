@@ -1081,6 +1081,229 @@ body {
     transform: scale(1.05);
 }
 
+/* alert */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Modal Confirm */
+.modal-confirm {
+    background: white;
+    border-radius: 16px;
+    padding: 35px;
+    width: 90%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-confirm-icon {
+    font-size: 64px;
+    color: #FF6B00;
+    margin-bottom: 20px;
+    animation: bounce 0.6s ease;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.modal-confirm h3 {
+    font-size: 24px;
+    color: #333;
+    margin: 0 0 15px 0;
+    font-weight: 600;
+}
+
+.modal-confirm p {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 30px 0;
+    line-height: 1.5;
+}
+
+.modal-confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+/* Modal Success */
+.modal-success {
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-success-icon {
+    font-size: 72px;
+    color: #28a745;
+    margin-bottom: 20px;
+    animation: scaleInBounce 0.5s ease;
+}
+
+@keyframes scaleInBounce {
+    0% { transform: scale(0); }
+    60% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.modal-success h3 {
+    font-size: 24px;
+    color: #333;
+    margin: 0 0 15px 0;
+    font-weight: 600;
+}
+
+.modal-success p {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 30px 0;
+}
+
+/* Modal Error */
+.modal-error {
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-15px); }
+    50% { transform: translateX(15px); }
+    75% { transform: translateX(-10px); }
+}
+
+.modal-error-icon {
+    font-size: 72px;
+    color: #dc3545;
+    margin-bottom: 20px;
+}
+
+.modal-error h3 {
+    font-size: 24px;
+    color: #333;
+    margin: 0 0 15px 0;
+    font-weight: 600;
+}
+
+.modal-error p {
+    font-size: 16px;
+    color: #666;
+    margin: 0 0 30px 0;
+}
+
+/* Button Styles */
+.btn-modal {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 120px;
+    justify-content: center;
+}
+
+.btn-modal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.btn-modal:active {
+    transform: translateY(0);
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+}
+
+.btn-confirm {
+    background: #FF6B00;
+    color: white;
+}
+
+.btn-confirm:hover {
+    background: #e55f00;
+}
+
+.btn-ok {
+    background: #28a745;
+    color: white;
+}
+
+.btn-ok:hover {
+    background: #218838;
+}
+
+.btn-close {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-close:hover {
+    background: #c82333;
+}
+
 </style>
 </head>
 <body>
@@ -1323,9 +1546,16 @@ body {
             
           <?php elseif ($pesanan['status_pesanan'] === 'disajikan'): ?>
             <!-- STATUS: SIAP DISAJIKAN -->
+            <?php if ($pesanan['metode_bayar'] === 'qris'): ?>
             <button type="button" class="btn btn-success btn-selesai" data-id="<?= $pesanan['id_pesanan'] ?>" data-meja="<?= $pesanan['id_meja'] ?>">
-                <i class="fas fa-check-circle"></i> Selesai
+            <i class="fas fa-check-circle"></i> Selesai
             </button>
+            <?php elseif ($pesanan['metode_bayar'] === 'cash'): ?>
+    <!-- Untuk cash, pesanan selesai otomatis setelah pembayaran dikonfirmasi -->
+            <span class="text-muted" style="font-size: 12px;">
+        <i class="fas fa-info-circle"></i> Selesaikan di kasir setelah pembayaran
+    </span>
+<?php endif; ?>
             <!-- <button type="button" class="btn btn-danger btn-batalkan" data-id="<?= $pesanan['id_pesanan'] ?>">
                 <i class="fas fa-times"></i> Batalkan
             </button> -->
@@ -1342,9 +1572,9 @@ body {
               <button type="button" class="btn btn-success btn-konfirmasi-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-check-circle"></i> Konfirmasi Bayar
               </button>
-              <button type="button" class="btn btn-gagal btn-tolak-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
+              <!-- <button type="button" class="btn btn-gagal btn-tolak-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-times-circle"></i> Tolak Bayar
-              </button>
+              </button> -->
           <?php elseif ($statusPembayaran['status'] === 'gagal'): ?>
               <button type="button" class="btn btn-reset btn-reset-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-undo"></i> Reset Status
@@ -1354,9 +1584,9 @@ body {
                   <i class="fas fa-money-bill-wave"></i> Konfirmasi Bayar
               </button>
           <?php elseif ($statusPembayaran['status'] === 'belum_bayar' && $pesanan['metode_bayar'] === 'cash'): ?>
-              <button type="button" class="btn btn-success btn-konfirmasi-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
+              <!-- <button type="button" class="btn btn-success btn-konfirmasi-bayar" data-id="<?= $pesanan['id_pesanan'] ?>">
                   <i class="fas fa-money-bill-wave"></i> Konfirmasi Pembayaran Cash
-              </button>
+              </button> -->
           <?php endif; ?>
         </div>
       </div>
@@ -1482,6 +1712,54 @@ body {
                 <i class="fas fa-spinner fa-spin"></i> Memuat data...
             </div>
         </div>
+    </div>
+</div>
+
+
+<!-- Modal Konfirmasi -->
+<div id="confirmModal" class="modal-overlay" style="display: none;">
+    <div class="modal-confirm">
+        <div class="modal-confirm-icon">
+            <i class="fas fa-question-circle"></i>
+        </div>
+        <h3 id="confirmTitle">Konfirmasi</h3>
+        <p id="confirmMessage">Apakah Anda yakin?</p>
+        <div class="modal-confirm-buttons">
+            <button type="button" class="btn-modal btn-cancel" onclick="closeConfirmModal()">
+                <i class="fas fa-times"></i> Batal
+            </button>
+            <button type="button" class="btn-modal btn-confirm" id="confirmButton">
+                <i class="fas fa-check"></i> Ya, Lanjutkan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Success -->
+<div id="successModal" class="modal-overlay" style="display: none;">
+    <div class="modal-success">
+        <div class="modal-success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h3>Berhasil!</h3>
+        <p id="successMessage">Operasi berhasil dilakukan.</p>
+        <button type="button" class="btn-modal btn-ok" onclick="closeSuccessModal()">
+            <i class="fas fa-check"></i> OK
+        </button>
+    </div>
+</div>
+
+<!-- Modal Error -->
+<div id="errorModal" class="modal-overlay" style="display: none;">
+    <div class="modal-error">
+        <div class="modal-error-icon">
+            <i class="fas fa-times-circle"></i>
+        </div>
+        <h3>Gagal!</h3>
+        <p id="errorMessage">Terjadi kesalahan.</p>
+        <button type="button" class="btn-modal btn-close" onclick="closeErrorModal()">
+            <i class="fas fa-times"></i> Tutup
+        </button>
     </div>
 </div>
 
@@ -2506,6 +2784,247 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+
+// alert
+function showConfirm(message, onConfirm, title = 'Konfirmasi') {
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('confirmModal').style.display = 'flex';
+    
+    document.getElementById('confirmButton').onclick = function() {
+        closeConfirmModal();
+        onConfirm();
+    };
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+function showSuccess(message) {
+    document.getElementById('successMessage').textContent = message;
+    document.getElementById('successModal').style.display = 'flex';
+}
+
+function closeSuccessModal() {
+    document.getElementById('successModal').style.display = 'none';
+    location.reload();
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    document.getElementById('errorModal').style.display = 'flex';
+}
+
+function closeErrorModal() {
+    document.getElementById('errorModal').style.display = 'none';
+}
+
+// Close modal ketika klik di luar
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+        closeConfirmModal();
+        closeErrorModal();
+    }
+});
+
+// ========== UPDATE SEMUA FUNGSI ==========
+
+function updateStatus(orderId, status) {
+    showConfirm(
+        `Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`,
+        function() {
+            fetch('../include/update_status_pesanan.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId,
+                    status: status
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Status pesanan berhasil diupdate!');
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        }
+    );
+}
+
+function tolakPesanan(orderId, mejaId, status) {
+    showConfirm(
+        'Apakah Anda yakin ingin menolak pesanan ini? Data pesanan akan dihapus dan meja dikosongkan.',
+        function() {
+            fetch('../include/tolak_pesanan.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId,
+                    id_meja: mejaId,
+                    status: status
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Pesanan ditolak dan data dihapus. Meja sudah dikosongkan.');
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        },
+        'Tolak Pesanan'
+    );
+}
+
+function tandaiSelesai(orderId, mejaId) {
+    showConfirm(
+        'Apakah Anda yakin pesanan sudah selesai? Meja akan dikosongkan.',
+        function() {
+            fetch('../include/tandai_selesai.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId,
+                    id_meja: mejaId
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Pesanan selesai! Meja sudah dikosongkan.');
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        },
+        'Tandai Selesai'
+    );
+}
+
+function konfirmasiPembayaran(orderId) {
+    showConfirm(
+        'Apakah Anda yakin pembayaran sudah diterima?',
+        function() {
+            fetch('../include/konfirmasi_pembayaran.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Pembayaran berhasil dikonfirmasi!');
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        },
+        'Konfirmasi Pembayaran'
+    );
+}
+
+function tolakPembayaran(orderId) {
+    showConfirm(
+        'Apakah Anda yakin ingin menolak pembayaran ini?',
+        function() {
+            fetch('../include/tolak_pembayaran.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Pembayaran ditolak!');
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        },
+        'Tolak Pembayaran'
+    );
+}
+
+function resetPembayaran(orderId) {
+    showConfirm(
+        'Status pembayaran akan direset. Lanjutkan?',
+        function() {
+            fetch('../include/reset_pembayaran.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Status pembayaran berhasil direset!');
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        },
+        'Reset Status Pembayaran'
+    );
+}
 </script>
 </body>
 </html>
