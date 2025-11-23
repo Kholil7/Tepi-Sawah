@@ -6,7 +6,8 @@ $query_pesanan = "SELECT p.*, m.nomor_meja, m.kode_unik,
                   (SELECT COUNT(*) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) as total_item
                   FROM pesanan p
                   JOIN meja m ON p.id_meja = m.id_meja
-                  WHERE p.status_pesanan = 'disajikan'
+                  JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
+                  WHERE p.status_pesanan = 'disajikan' AND pb.metode = 'cash'
                   ORDER BY p.waktu_pesan DESC";
 $result_pesanan = mysqli_query($conn, $query_pesanan);
 $pesanan_list = mysqli_fetch_all($result_pesanan, MYSQLI_ASSOC);
@@ -701,64 +702,62 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     </div>
     <?php endif; ?>
 
-    <script>
-        const totalTagihan = <?= $selected_pesanan ? $selected_pesanan['total_harga'] : 0 ?>;
+<script>
+    const totalTagihan = <?= $selected_pesanan ? $selected_pesanan['total_harga'] : 0 ?>;
+    
+    function selectMethod(method, element) {
+        document.querySelectorAll('.method-card').forEach(card => card.classList.remove('selected'));
+        element.classList.add('selected');
+        document.getElementById('metodeInput').value = method;
+    }
+    
+    function hitungKembalian() {
+        const jumlahBayar = parseFloat(document.getElementById('jumlahBayar').value) || 0;
+        const kembalian = jumlahBayar - totalTagihan;
         
-        function selectMethod(method, element) {
-            document.querySelectorAll('.method-card').forEach(card => card.classList.remove('selected'));
-            element.classList.add('selected');
-            document.getElementById('metodeInput').value = method;
-        }
+        const kembalianDisplay = document.getElementById('kembalianDisplay');
+        const btnConfirm = document.getElementById('btnConfirm');
         
-        function hitungKembalian() {
-            const jumlahBayar = parseFloat(document.getElementById('jumlahBayar').value) || 0;
-            const kembalian = jumlahBayar - totalTagihan;
-            
-            const kembalianDisplay = document.getElementById('kembalianDisplay');
-            const btnConfirm = document.getElementById('btnConfirm');
-            
-            if (kembalian >= 0) {
-                kembalianDisplay.textContent = 'Rp ' + kembalian.toLocaleString('id-ID');
-                kembalianDisplay.style.color = '#4A90E2';
-                btnConfirm.disabled = false;
-                document.getElementById('jumlahDibayarHidden').value = jumlahBayar;
-            } else {
-                kembalianDisplay.textContent = 'Rp ' + Math.abs(kembalian).toLocaleString('id-ID') + ' (Kurang)';
-                kembalianDisplay.style.color = '#dc3545';
-                btnConfirm.disabled = true;
-            }
+        if (kembalian >= 0) {
+            kembalianDisplay.textContent = 'Rp ' + kembalian.toLocaleString('id-ID');
+            kembalianDisplay.style.color = '#4A90E2';
+            btnConfirm.disabled = false;
+            document.getElementById('jumlahDibayarHidden').value = jumlahBayar;
+        } else {
+            kembalianDisplay.textContent = 'Rp ' + Math.abs(kembalian).toLocaleString('id-ID') + ' (Kurang)';
+            kembalianDisplay.style.color = '#dc3545';
+            btnConfirm.disabled = true;
         }
-        
-        function closeNotification() {
-            document.getElementById('notificationPopup').style.display = 'none';
-        }
+    }
+    
+    function closeNotification() {
+        document.getElementById('notificationPopup').style.display = 'none';
+    }
 
-        function showReceipt() {
-            document.getElementById('successPopup').style.display = 'none';
-            document.getElementById('receiptOverlay').style.display = 'flex';
-        }
+    function showReceipt() {
+        document.getElementById('successPopup').style.display = 'none';
+        document.getElementById('receiptOverlay').style.display = 'flex';
+    }
+    
+    function printReceipt() {
+        window.print();
+    }
+    
+    function closeReceipt() {
+        window.location.href = '<?= $_SERVER['PHP_SELF'] ?>';
+    }
+    
+    <?php if ($print_data): ?>
+    window.onload = function() {
+        document.getElementById('successPopup').style.display = 'flex';
         
-        function printReceipt() {
-            window.print();
-        }
-        
-        function closeReceipt() {
-            window.location.href = '<?= $_SERVER['PHP_SELF'] ?>';
-        }
-        
-        <?php if ($print_data): ?>
-        window.onload = function() {
-            document.getElementById('successPopup').style.display = 'flex';
+        setTimeout(function() {
+            showReceipt();
             
             setTimeout(function() {
-                showReceipt();
-                
-                setTimeout(function() {
-                    window.print();
-                }, 500);
-            }, 2000);
-        };
-        <?php endif; ?>
-    </script>
-</body>
-</html>
+                window.print();
+            }, 500);
+        }, 2000);
+    };
+    <?php endif; ?>
+</script>
