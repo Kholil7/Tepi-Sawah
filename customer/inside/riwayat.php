@@ -100,7 +100,12 @@ function batalkanPesanan(idPesanan) {
 </header>
 
 <div class="container">
-<?php if (empty($pesanan)) : ?>
+<?php
+$pesanan_filtered = array_filter($pesanan, function($p) {
+    return strtolower($p['status_pesanan']) !== 'selesai';
+});
+
+if (empty($pesanan_filtered)) : ?>
     <div class="empty">
         <div class="empty-icon">&#128340;</div>
         <h3>Belum ada riwayat pesanan</h3>
@@ -111,73 +116,69 @@ function batalkanPesanan(idPesanan) {
 <?php else : ?>
 <div class="pesanan-list">
     <?php 
-    if (empty($pesanan)) {
-        echo '<p class="no-data">Belum ada riwayat pesanan.</p>';
-    } else {
-        $grouped_pesanan = [];
-        foreach ($pesanan as $p) {
-            $id = $p['id_pesanan'];
-            if (!isset($grouped_pesanan[$id])) {
-                $grouped_pesanan[$id] = [
-                    'id_pesanan' => $p['id_pesanan'],
-                    'waktu_pesan' => $p['tanggal'],
-                    'status_pesanan' => $p['status_pesanan'],
-                    'total_harga' => $p['total_harga'],
-                    'jenis_pesanan' => $p['jenis_pesanan'],
-                    'metode_bayar' => $p['metode_bayar'],
-                    'catatan' => $p['catatan'],
-                    'items' => []
-                ];
-            }
-            if (!empty($p['nama_menu'])) {
-                $grouped_pesanan[$id]['items'][] = [
-                    'nama_menu' => $p['nama_menu'],
-                    'jumlah' => $p['jumlah'],
-                    'harga_satuan' => $p['harga_satuan']
-                ];
-            }
+    $grouped_pesanan = [];
+    foreach ($pesanan_filtered as $p) {
+        $id = $p['id_pesanan'];
+        if (!isset($grouped_pesanan[$id])) {
+            $grouped_pesanan[$id] = [
+                'id_pesanan' => $p['id_pesanan'],
+                'waktu_pesan' => $p['tanggal'],
+                'status_pesanan' => $p['status_pesanan'],
+                'total_harga' => $p['total_harga'],
+                'jenis_pesanan' => $p['jenis_pesanan'],
+                'metode_bayar' => $p['metode_bayar'],
+                'catatan' => $p['catatan'],
+                'items' => []
+            ];
         }
-        
-        foreach ($grouped_pesanan as $pesanan_data) : 
-            $status = strtolower($pesanan_data['status_pesanan']);
-            $status_class = in_array($status, ['dibatalkan','selesai','diproses','menunggu','diterima']) ? $status : 'menunggu';
-        ?>
-            <div class="pesanan-item">
-                <h4>Pesanan #<?= htmlspecialchars($pesanan_data['id_pesanan']); ?></h4>
-                
-                <?php if (!empty($pesanan_data['items'])) : ?>
-                    <div class="menu-items">
-                        <?php 
-                        $no = 1;
-                        foreach ($pesanan_data['items'] as $item) : ?>
-                            <p><?= $no; ?>. <?= htmlspecialchars($item['nama_menu']); ?> 
-                               - <?= (int)$item['jumlah']; ?> porsi 
-                               (Rp <?= number_format($item['harga_satuan'], 0, ',', '.'); ?>/porsi)
-                            </p>
-                        <?php 
-                        $no++;
-                        endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                
-                <p><strong>Total: Rp <?= number_format($pesanan_data['total_harga'], 0, ',', '.'); ?></strong></p>
-                <p>Jenis: <?= htmlspecialchars($pesanan_data['jenis_pesanan']); ?></p>
-                <p>Metode Bayar: <?= htmlspecialchars($pesanan_data['metode_bayar'] ?? '-'); ?></p>
-                <p>Status: <span class="status-badge <?= $status_class; ?>"><?= ucfirst($status); ?></span></p>
-                <p>Tanggal: <?= date('d/m/Y H:i', strtotime($pesanan_data['waktu_pesan'])); ?></p>
-                
-                <?php if (!empty($pesanan_data['catatan'])) : ?>
-                    <p>Catatan: <em><?= htmlspecialchars($pesanan_data['catatan']); ?></em></p>
-                <?php endif; ?>
-                
-                <?php if ($status === 'menunggu') : ?>
-                    <button onclick="batalkanPesanan('<?= $pesanan_data['id_pesanan']; ?>')" class="btn-batalkan">
-                        Batalkan
-                    </button>
-                <?php endif; ?>
-            </div>
-        <?php endforeach; 
-    } ?>
+        if (!empty($p['nama_menu'])) {
+            $grouped_pesanan[$id]['items'][] = [
+                'nama_menu' => $p['nama_menu'],
+                'jumlah' => $p['jumlah'],
+                'harga_satuan' => $p['harga_satuan']
+            ];
+        }
+    }
+    
+    foreach ($grouped_pesanan as $pesanan_data) : 
+        $status = strtolower($pesanan_data['status_pesanan']);
+        $status_class = in_array($status, ['dibatalkan','selesai','diproses','menunggu','diterima']) ? $status : 'menunggu';
+    ?>
+        <div class="pesanan-item">
+            <h4>Pesanan #<?= htmlspecialchars($pesanan_data['id_pesanan']); ?></h4>
+            
+            <?php if (!empty($pesanan_data['items'])) : ?>
+                <div class="menu-items">
+                    <?php 
+                    $no = 1;
+                    foreach ($pesanan_data['items'] as $item) : ?>
+                        <p><?= $no; ?>. <?= htmlspecialchars($item['nama_menu']); ?> 
+                           - <?= (int)$item['jumlah']; ?> porsi 
+                           (Rp <?= number_format($item['harga_satuan'], 0, ',', '.'); ?>/porsi)
+                        </p>
+                    <?php 
+                    $no++;
+                    endforeach; ?>
+                </div>
+            <?php endif; ?>
+            
+            <p><strong>Total: Rp <?= number_format($pesanan_data['total_harga'], 0, ',', '.'); ?></strong></p>
+            <p>Jenis: <?= htmlspecialchars($pesanan_data['jenis_pesanan']); ?></p>
+            <p>Metode Bayar: <?= htmlspecialchars($pesanan_data['metode_bayar'] ?? '-'); ?></p>
+            <p>Status: <span class="status-badge <?= $status_class; ?>"><?= ucfirst($status); ?></span></p>
+            <p>Tanggal: <?= date('d/m/Y H:i', strtotime($pesanan_data['waktu_pesan'])); ?></p>
+            
+            <?php if (!empty($pesanan_data['catatan'])) : ?>
+                <p>Catatan: <em><?= htmlspecialchars($pesanan_data['catatan']); ?></em></p>
+            <?php endif; ?>
+            
+            <?php if ($status === 'menunggu') : ?>
+                <button onclick="batalkanPesanan('<?= $pesanan_data['id_pesanan']; ?>')" class="btn-batalkan">
+                    Batalkan
+                </button>
+            <?php endif; ?>
+        </div>
+    <?php endforeach; ?>
 </div>
 <?php endif; ?>
 </div>
