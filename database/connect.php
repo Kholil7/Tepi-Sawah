@@ -1,8 +1,8 @@
 <?php
-$host     = "localhost";
-$user     = "root";
-$password = "";
-$database = "dbresto_app";
+$host     = "sql106.infinityfree.com";
+$user     = "if0_40493381";
+$password = "9t6CHUY4Vde5";
+$database = "if0_40493381_db_resto";
 
 $conn = mysqli_connect($host, $user, $password, $database);
 
