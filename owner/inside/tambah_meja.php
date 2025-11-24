@@ -3,74 +3,188 @@ include '../../sidebar/sidebar.php';
 require_once '../../database/connect.php';
 require_once '../../assets/phpqrcode/qrlib.php';
 
+// Fungsi untuk mendapatkan Base URL secara otomatis
+function getBaseUrl() {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    return $protocol . "://" . $host;
+}
+
 function tambahMeja($conn, $nomor_meja) {
+    // Generate ID dan kode unik
     $id_meja   = 'MEJ' . substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 8);
     $kode_unik = uniqid('MEJA_');
     $qrcode_dir = '../../assets/qrcode/';
     $qrcode_path = $qrcode_dir . $kode_unik . '.png';
     $status = 'kosong';
 
-    $cek = mysqli_query($conn, "SELECT * FROM meja WHERE nomor_meja = '$nomor_meja'");
-    if (mysqli_num_rows($cek) > 0) return ['msg' => 'Nomor meja sudah ada!'];
+    // Validasi input
+    $nomor_meja = trim($nomor_meja);
+    if (empty($nomor_meja)) {
+        return ['success' => false, 'msg' => 'Nomor meja tidak boleh kosong!'];
+    }
 
-    if (!file_exists($qrcode_dir)) mkdir($qrcode_dir, 0777, true);
+    // Cek apakah nomor meja sudah ada (menggunakan prepared statement)
+    $stmt = $conn->prepare("SELECT nomor_meja FROM meja WHERE nomor_meja = ?");
+    $stmt->bind_param("s", $nomor_meja);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $stmt->close();
+        return ['success' => false, 'msg' => 'Nomor meja sudah ada!'];
+    }
+    $stmt->close();
 
-    $qr_data = "https://example.com/restoran/order.php?meja=" . urlencode($kode_unik);
-    QRcode::png($qr_data, $qrcode_path, QR_ECLEVEL_L, 6, 2);
+    // Buat direktori QR code jika belum ada
+    if (!file_exists($qrcode_dir)) {
+        mkdir($qrcode_dir, 0755, true);
+    }
 
-    $insert = mysqli_query($conn, "INSERT INTO meja (id_meja, nomor_meja, kode_unik, status_meja, qrcode_url, last_update)
-                                   VALUES ('$id_meja', '$nomor_meja', '$kode_unik', '$status', '$qrcode_path', NOW())");
+    // Generate URL dinamis berdasarkan domain yang digunakan
+    $base_url = getBaseUrl();
+    $qr_data = $base_url . "/restoran/order.php?meja=" . urlencode($kode_unik);
+    
+    // Generate QR Code
+    try {
+        QRcode::png($qr_data, $qrcode_path, QR_ECLEVEL_L, 6, 2);
+    } catch (Exception $e) {
+        return ['success' => false, 'msg' => 'Gagal membuat QR Code: ' . $e->getMessage()];
+    }
 
-    if ($insert) return ['msg' => 'Meja berhasil ditambahkan beserta QR Code-nya!'];
-    else return ['msg' => 'Gagal menambahkan meja: ' . mysqli_error($conn)];
+    // Insert data menggunakan prepared statement
+    $stmt = $conn->prepare("INSERT INTO meja (id_meja, nomor_meja, kode_unik, status_meja, qrcode_url, last_update) 
+                            VALUES (?, ?, ?, ?, ?, NOW())");
+    $stmt->bind_param("sssss", $id_meja, $nomor_meja, $kode_unik, $status, $qrcode_path);
+    
+    if ($stmt->execute()) {
+        $stmt->close();
+        return ['success' => true, 'msg' => 'Meja berhasil ditambahkan beserta QR Code-nya!'];
+    } else {
+        $stmt->close();
+        return ['success' => false, 'msg' => 'Gagal menambahkan meja: ' . $conn->error];
+    }
 }
 
 function editMeja($conn, $id_meja, $nomor_meja, $status_meja) {
-    $update = mysqli_query($conn, "UPDATE meja 
-                                   SET nomor_meja='$nomor_meja', status_meja='$status_meja', last_update=NOW() 
-                                   WHERE id_meja='$id_meja'");
-    if ($update) return ['msg' => 'Data meja berhasil diperbarui!'];
-    else return ['msg' => 'Gagal memperbarui data: ' . mysqli_error($conn)];
+    // Validasi input
+    $nomor_meja = trim($nomor_meja);
+    if (empty($nomor_meja)) {
+        return ['success' => false, 'msg' => 'Nomor meja tidak boleh kosong!'];
+    }
+
+    // Validasi status meja
+    $valid_status = ['kosong', 'terisi', 'menunggu_pembayaran', 'selesai'];
+    if (!in_array($status_meja, $valid_status)) {
+        return ['success' => false, 'msg' => 'Status meja tidak valid!'];
+    }
+
+    // Cek apakah nomor meja sudah digunakan meja lain
+    $stmt = $conn->prepare("SELECT id_meja FROM meja WHERE nomor_meja = ? AND id_meja != ?");
+    $stmt->bind_param("ss", $nomor_meja, $id_meja);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        $stmt->close();
+        return ['success' => false, 'msg' => 'Nomor meja sudah digunakan meja lain!'];
+    }
+    $stmt->close();
+
+    // Update data menggunakan prepared statement
+    $stmt = $conn->prepare("UPDATE meja SET nomor_meja = ?, status_meja = ?, last_update = NOW() WHERE id_meja = ?");
+    $stmt->bind_param("sss", $nomor_meja, $status_meja, $id_meja);
+    
+    if ($stmt->execute()) {
+        $stmt->close();
+        return ['success' => true, 'msg' => 'Data meja berhasil diperbarui!'];
+    } else {
+        $stmt->close();
+        return ['success' => false, 'msg' => 'Gagal memperbarui data: ' . $conn->error];
+    }
 }
 
 function hapusMeja($conn, $id_meja) {
-    $hapus = mysqli_query($conn, "DELETE FROM meja WHERE id_meja='$id_meja'");
-    if ($hapus) return ['msg' => 'Meja berhasil dihapus!'];
-    else return ['msg' => 'Gagal menghapus meja: ' . mysqli_error($conn)];
+    // Ambil path QR code sebelum dihapus
+    $stmt = $conn->prepare("SELECT qrcode_url FROM meja WHERE id_meja = ?");
+    $stmt->bind_param("s", $id_meja);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $meja = $result->fetch_assoc();
+    $stmt->close();
+
+    if ($meja && file_exists($meja['qrcode_url'])) {
+        unlink($meja['qrcode_url']); // Hapus file QR code
+    }
+
+    // Hapus data dari database
+    $stmt = $conn->prepare("DELETE FROM meja WHERE id_meja = ?");
+    $stmt->bind_param("s", $id_meja);
+    
+    if ($stmt->execute()) {
+        $stmt->close();
+        return ['success' => true, 'msg' => 'Meja berhasil dihapus!'];
+    } else {
+        $stmt->close();
+        return ['success' => false, 'msg' => 'Gagal menghapus meja: ' . $conn->error];
+    }
 }
 
 function getAllMeja($conn) {
-    $result = mysqli_query($conn, "SELECT * FROM meja ORDER BY id_meja ASC");
+    $stmt = $conn->prepare("SELECT * FROM meja ORDER BY nomor_meja ASC");
+    $stmt->execute();
+    $result = $stmt->get_result();
     $data = [];
-    while ($row = mysqli_fetch_assoc($result)) $data[] = $row;
+    while ($row = $result->fetch_assoc()) {
+        $data[] = $row;
+    }
+    $stmt->close();
     return $data;
 }
 
+// Proses Tambah Meja
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_meja'])) {
-    $nomor_meja = trim($_POST['nomor_meja']);
+    // Validasi CSRF token (opsional, tapi sangat direkomendasikan)
+    $nomor_meja = $_POST['nomor_meja'] ?? '';
     $res = tambahMeja($conn, $nomor_meja);
-    echo "<script>alert('{$res['msg']}'); window.location.href='tambah_meja.php';</script>";
+    
+    $msg = htmlspecialchars($res['msg'], ENT_QUOTES, 'UTF-8');
+    echo "<script>alert('$msg'); window.location.href='tambah_meja.php';</script>";
     exit;
 }
 
+// Proses Edit Meja
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_meja'])) {
-    $id_meja = $_POST['id_meja'];
-    $nomor_meja = trim($_POST['nomor_meja']);
-    $status_meja = $_POST['status_meja'];
-    $res = editMeja($conn, $id_meja, $nomor_meja, $status_meja);
-    echo "<script>alert('{$res['msg']}'); window.location.href='tambah_meja.php';</script>";
+    $id_meja = $_POST['id_meja'] ?? '';
+    $status_meja = $_POST['status_meja'] ?? '';
+    
+    $res = editMeja($conn, $id_meja, $status_meja);
+    
+    $msg = htmlspecialchars($res['msg'], ENT_QUOTES, 'UTF-8');
+    echo "<script>alert('$msg'); window.location.href='tambah_meja.php';</script>";
     exit;
 }
 
+// Proses Hapus Meja
 if (isset($_GET['hapus'])) {
-    $id_meja = $_GET['hapus'];
-    $res = hapusMeja($conn, $id_meja);
-    echo "<script>alert('{$res['msg']}'); window.location.href='tambah_meja.php';</script>";
+    $id_meja = $_GET['hapus'] ?? '';
+    
+    // Validasi format ID meja
+    if (preg_match('/^MEJ[A-Z0-9]{8}$/', $id_meja)) {
+        $res = hapusMeja($conn, $id_meja);
+        $msg = htmlspecialchars($res['msg'], ENT_QUOTES, 'UTF-8');
+    } else {
+        $msg = 'ID meja tidak valid!';
+    }
+    
+    echo "<script>alert('$msg'); window.location.href='tambah_meja.php';</script>";
     exit;
 }
 
+// Ambil semua data meja
 $meja = getAllMeja($conn);
 
+// Hitung statistik
 $total = count($meja);
 $kosong = count(array_filter($meja, fn($m) => $m['status_meja'] === 'kosong'));
 $terisi = count(array_filter($meja, fn($m) => $m['status_meja'] === 'terisi'));
@@ -115,17 +229,17 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
       <div class="col-md-3">
         <div class="card shadow-sm border rounded p-3 bg-white">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="mb-0"><i class="bi bi-grid-3x3-gap me-1"></i> <?= htmlspecialchars($m['nomor_meja']) ?></h6>
-            <span class="status <?= htmlspecialchars($m['status_meja']) ?>">
-              <?= ucfirst(str_replace('_',' ', $m['status_meja'])) ?>
+            <h6 class="mb-0"><i class="bi bi-grid-3x3-gap me-1"></i> <?= htmlspecialchars($m['nomor_meja'], ENT_QUOTES, 'UTF-8') ?></h6>
+            <span class="status <?= htmlspecialchars($m['status_meja'], ENT_QUOTES, 'UTF-8') ?>">
+              <?= ucfirst(str_replace('_',' ', htmlspecialchars($m['status_meja'], ENT_QUOTES, 'UTF-8'))) ?>
             </span>
           </div>
-          <img src="<?= htmlspecialchars($m['qrcode_url']) ?>" class="img-fluid rounded mt-2" alt="QR Code">
+          <img src="<?= htmlspecialchars($m['qrcode_url'], ENT_QUOTES, 'UTF-8') ?>" class="img-fluid rounded mt-2" alt="QR Code">
           <div class="d-flex justify-content-between mt-3">
-            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#editMejaModal<?= $m['id_meja'] ?>">
+            <button class="btn btn-outline-dark btn-sm" data-bs-toggle="modal" data-bs-target="#editMejaModal<?= htmlspecialchars($m['id_meja'], ENT_QUOTES, 'UTF-8') ?>">
               <i class="bi bi-pencil-square me-1"></i>Edit
             </button>
-            <a href="tambah_meja.php?hapus=<?= $m['id_meja'] ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Yakin ingin menghapus meja ini?')">
+            <a href="tambah_meja.php?hapus=<?= urlencode($m['id_meja']) ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Yakin ingin menghapus meja ini?')">
               <i class="bi bi-trash"></i>
             </a>
           </div>
@@ -133,23 +247,23 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
       </div>
 
       <!-- Modal Edit -->
-      <div class="modal fade" id="editMejaModal<?= $m['id_meja'] ?>" tabindex="-1">
+      <div class="modal fade" id="editMejaModal<?= htmlspecialchars($m['id_meja'], ENT_QUOTES, 'UTF-8') ?>" tabindex="-1">
         <div class="modal-dialog">
           <div class="modal-content">
             <form method="POST" action="">
               <div class="modal-header">
-                <h5 class="modal-title">Edit Meja <?= htmlspecialchars($m['nomor_meja']) ?></h5>
+                <h5 class="modal-title">Edit Meja <?= htmlspecialchars($m['nomor_meja'], ENT_QUOTES, 'UTF-8') ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
               </div>
               <div class="modal-body">
-                <input type="hidden" name="id_meja" value="<?= $m['id_meja'] ?>">
+                <input type="hidden" name="id_meja" value="<?= htmlspecialchars($m['id_meja'], ENT_QUOTES, 'UTF-8') ?>">
                 <div class="mb-3">
                   <label class="form-label">Nomor Meja</label>
-                  <input type="text" name="nomor_meja" class="form-control" value="<?= htmlspecialchars($m['nomor_meja']) ?>" required>
+                  <input type="text" class="form-control" value="<?= htmlspecialchars($m['nomor_meja'], ENT_QUOTES, 'UTF-8') ?>" readonly disabled>
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Status Meja</label>
-                  <select name="status_meja" class="form-select">
+                  <select name="status_meja" class="form-select" required>
                     <option value="kosong" <?= $m['status_meja']=='kosong'?'selected':'' ?>>Kosong</option>
                     <option value="terisi" <?= $m['status_meja']=='terisi'?'selected':'' ?>>Terisi</option>
                     <option value="menunggu_pembayaran" <?= $m['status_meja']=='menunggu_pembayaran'?'selected':'' ?>>Menunggu Pembayaran</option>
@@ -182,7 +296,8 @@ $selesai = count(array_filter($meja, fn($m) => $m['status_meja'] === 'selesai'))
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">Nomor Meja</label>
-            <input type="text" name="nomor_meja" class="form-control" placeholder="Contoh: Meja 5" required>
+            <input type="number" name="nomor_meja" class="form-control" placeholder="Contoh: 5" required min="1">
+            <small class="text-muted">Hanya angka yang diperbolehkan</small>
           </div>
         </div>
         <div class="modal-footer">
