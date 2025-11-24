@@ -129,3 +129,161 @@
                 padding: 12px;
             }
         }
+        .btn-batalkan {
+    background-color: #e00000;   
+    color: #fff;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: 0.2s;
+    float: right;
+}
+
+.btn-batalkan:hover {
+    background-color: #b00000; 
+
+}
+
+.pesanan-item {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    position: relative;
+    transition: box-shadow 0.3s ease;
+}
+
+.pesanan-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.pesanan-item h4 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    padding-right: 150px; /* Beri ruang untuk tanggal */
+}
+
+.pesanan-item .tanggal {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    font-size: 13px;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.menu-items {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.menu-items p {
+    margin: 8px 0;
+    font-size: 14px;
+    color: #34495e;
+    line-height: 1.6;
+}
+
+.pesanan-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.pesanan-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #555;
+}
+
+.pesanan-info p strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.total-harga {
+    background: #ecf0f1;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #27ae60;
+}
+
+.status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.status.menunggu {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status.diproses {
+    background: #cfe2ff;
+    color: #084298;
+}
+
+.status.selesai {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+.status.dibatalkan {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.catatan {
+    background: #e7f3ff;
+    border-left: 4px solid #3498db;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+    font-style: italic;
+    color: #2c3e50;
+}
+
+.btn-batalkan {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: all 0.3s ease;
+}
+
+.btn-batalkan:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+.btn-batalkan:active {
+    transform: translateY(0);
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #95a5a6;
+    font-size: 16px;
+}
