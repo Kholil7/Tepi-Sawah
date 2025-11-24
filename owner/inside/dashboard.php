@@ -1,9 +1,6 @@
 <?php
 require '../../database/connect.php';
 
-// ============================
-// Total Penjualan Hari Ini & Bulan Ini
-// ============================
 $q_penjualan_hari = mysqli_query($conn, "
     SELECT SUM(total_harga) AS total 
     FROM pesanan 
@@ -20,9 +17,6 @@ $q_penjualan_bulan = mysqli_query($conn, "
 ");
 $total_penjualan_bulan_ini = mysqli_fetch_assoc($q_penjualan_bulan)['total'] ?? 0;
 
-// ============================
-// Total Pembelian Bahan
-// ============================
 $q_pembelian_hari = mysqli_query($conn, "
     SELECT SUM(harga) AS total 
     FROM pembelian_bahan 
@@ -38,9 +32,6 @@ $q_pembelian_bulan = mysqli_query($conn, "
 ");
 $total_pembelian_bulan_ini = mysqli_fetch_assoc($q_pembelian_bulan)['total'] ?? 0;
 
-// ============================
-// Status Meja
-// ============================
 $q_meja_total = mysqli_query($conn, "SELECT COUNT(*) AS total FROM meja");
 $status_meja_total = mysqli_fetch_assoc($q_meja_total)['total'] ?? 0;
 
@@ -50,9 +41,6 @@ $status_meja_terisi = mysqli_fetch_assoc($q_meja_terisi)['total'] ?? 0;
 $q_meja_menunggu = mysqli_query($conn, "SELECT COUNT(*) AS total FROM meja WHERE status_meja = 'menunggu_pembayaran'");
 $status_meja_menunggu = mysqli_fetch_assoc($q_meja_menunggu)['total'] ?? 0;
 
-// ============================
-// Menu Terlaris Hari Ini
-// ============================
 $q_terlaris = mysqli_query($conn, "
     SELECT m.nama_menu, SUM(d.jumlah) AS total_jual
     FROM detail_pesanan d
@@ -72,30 +60,25 @@ if ($row = mysqli_fetch_assoc($q_terlaris)) {
     $menu_terlaris_jumlah = 0;
 }
 
-// ============================
-// Data Penjualan Mingguan
-// ============================
-$q_mingguan = mysqli_query($conn, "
-    SELECT DAYOFWEEK(waktu_pesan) AS hari, SUM(total_harga) AS total
+$penjualan_jam = array_fill(0, 24, 0);
+$q_jam = mysqli_query($conn, "
+    SELECT HOUR(waktu_pesan) AS jam, SUM(total_harga) AS total
     FROM pesanan
-    WHERE YEARWEEK(waktu_pesan, 1) = YEARWEEK(CURDATE(), 1)
+    WHERE DATE(waktu_pesan) = CURDATE()
       AND status_pesanan = 'selesai'
-    GROUP BY hari
+    GROUP BY jam
+    ORDER BY jam
 ");
-$penjualan_mingguan = array_fill(0, 7, 0);
-while ($r = mysqli_fetch_assoc($q_mingguan)) {
-    $penjualan_mingguan[$r['hari'] - 1] = (float)$r['total'];
+while ($r = mysqli_fetch_assoc($q_jam)) {
+    $penjualan_jam[(int)$r['jam']] = (float)$r['total'];
 }
 
-// ============================
-// Data Kategori Menu
-// ============================
+$kategori = [];
 $q_kategori = mysqli_query($conn, "
     SELECT kategori, COUNT(*) AS jumlah 
     FROM menu 
     GROUP BY kategori
 ");
-$kategori = [];
 while ($r = mysqli_fetch_assoc($q_kategori)) {
     $kategori[ucfirst($r['kategori'])] = (int)$r['jumlah'];
 }
@@ -107,7 +90,8 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Restoran</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -120,17 +104,15 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
             background-color: #f7f9fb;
         }
         
-        /* Main Content Container - akan menyesuaikan dengan sidebar */
         .main-content {
-            margin-left: 250px; /* Sesuaikan dengan lebar sidebar terbuka */
+            margin-left: 250px;
             padding: 20px;
             transition: margin-left 0.3s ease;
             min-height: 100vh;
         }
         
-        /* Jika sidebar tertutup */
         .main-content.sidebar-closed {
-            margin-left: 70px; /* Sesuaikan dengan lebar sidebar tertutup */
+            margin-left: 70px;
         }
         
         .dashboard {
@@ -192,8 +174,11 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
             color: #333; 
             font-weight: 600;
         }
+
+        canvas {
+            max-height: 300px;
+        }
         
-        /* Responsive Design */
         @media (max-width: 1200px) {
             .main-section {
                 grid-template-columns: 1fr;
@@ -249,7 +234,7 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
 
         <div class="main-section">
             <div class="chart-container">
-                <h3>Penjualan Mingguan</h3>
+                <h3>Penjualan Hari Ini (Real-time per Jam)</h3>
                 <canvas id="chartPenjualan"></canvas>
             </div>
 
@@ -261,58 +246,98 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
     </div>
 
     <script>
-        // Pastikan Chart.js sudah dimuat
-        if (typeof Chart !== 'undefined') {
-            // Chart Penjualan
-            const ctxPenjualan = document.getElementById('chartPenjualan').getContext('2d');
+        const ctxPenjualan = document.getElementById('chartPenjualan');
+        const ctxKategori = document.getElementById('chartKategori');
+
+        if (ctxPenjualan && ctxKategori) {
+            const labels = [];
+            for (let i = 0; i < 24; i++) {
+                labels.push(i.toString().padStart(2, '0') + ':00');
+            }
+
             new Chart(ctxPenjualan, {
-                type: 'bar',
+                type: 'line',
                 data: {
-                    labels: ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'],
+                    labels: labels,
                     datasets: [{
                         label: 'Penjualan',
-                        data: <?= json_encode($penjualan_mingguan); ?>,
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 8
+                        data: <?= json_encode($penjualan_jam); ?>,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
                     scales: {
                         y: {
                             beginAtZero: true,
-                            ticks: { callback: (v) => 'Rp ' + v.toLocaleString('id-ID') }
+                            ticks: { 
+                                callback: function(value) {
+                                    return 'Rp ' + value.toLocaleString('id-ID');
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
                         }
                     },
-                    plugins: { legend: { display: false } }
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
+                                }
+                            }
+                        }
+                    }
                 }
             });
 
-            // Chart Kategori
-            const ctxKategori = document.getElementById('chartKategori').getContext('2d');
             new Chart(ctxKategori, {
                 type: 'pie',
                 data: {
                     labels: <?= json_encode(array_keys($kategori)); ?>,
                     datasets: [{
                         data: <?= json_encode(array_values($kategori)); ?>,
-                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a259ff']
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a259ff', '#ef4444', '#8b5cf6']
                     }]
                 },
                 options: { 
-                    plugins: { legend: { position: 'right' } } 
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { 
+                        legend: { 
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    } 
                 }
             });
-        } else {
-            console.error('Chart.js tidak dimuat dengan benar');
         }
 
-        // Deteksi perubahan sidebar
         function checkSidebarState() {
-            const sidebar = document.querySelector('.sidebar'); // Sesuaikan selector
+            const sidebar = document.querySelector('.sidebar');
             const mainContent = document.getElementById('mainContent');
             
-            if (sidebar) {
-                // Jika sidebar memiliki class 'closed' atau 'collapsed'
+            if (sidebar && mainContent) {
                 if (sidebar.classList.contains('closed') || sidebar.classList.contains('collapsed')) {
                     mainContent.classList.add('sidebar-closed');
                 } else {
@@ -321,15 +346,17 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
             }
         }
 
-        // Cek state sidebar saat load
         document.addEventListener('DOMContentLoaded', checkSidebarState);
 
-        // Observasi perubahan class pada sidebar
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) {
             const observer = new MutationObserver(checkSidebarState);
             observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
         }
+
+        setInterval(function() {
+            location.reload();
+        }, 60000);
     </script>
 </body>
 </html>
