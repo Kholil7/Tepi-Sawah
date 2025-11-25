@@ -43,8 +43,8 @@ function tambahMeja($conn, $nomor_meja) {
     }
 
     $base_url = getBaseUrl();
-    // Path URL tetap menggunakan /home.php/ sesuai kebutuhan routing Anda
-    $qr_data = $base_url . "/home.php/?kode=" . urlencode($kode_unik);
+    // Path URL diubah: menghilangkan garis miring setelah home.php/ -> home.php?kode=
+    $qr_data = $base_url . "/home.php?kode=" . urlencode($kode_unik);
     
     try {
         QRcode::png($qr_data, $qrcode_path, QR_ECLEVEL_L, 6, 2);
