@@ -1,4 +1,4 @@
-name: Auto Deploy to InfinityFree
+name: Auto Deploy
 
 on:
   push:
@@ -11,12 +11,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Deploy to InfinityFree
+      - name: Deploy
         uses: SamKirkland/FTP-Deploy-Action@4.3.0
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
           server-dir: /htdocs/
-          local-dir: .
+          local-dir: ./
           dangerous-clean-slate: false
