@@ -1549,18 +1549,27 @@ body {
                 <i class="fas fa-times"></i> Batalkan
             </button> -->
             
-          <?php elseif ($pesanan['status_pesanan'] === 'disajikan'): ?>
-            <!-- STATUS: SIAP DISAJIKAN -->
-            <?php if ($pesanan['metode_bayar'] === 'qris'): ?>
-            <button type="button" class="btn btn-success btn-selesai" data-id="<?= $pesanan['id_pesanan'] ?>" data-meja="<?= $pesanan['id_meja'] ?>">
+<?php elseif ($pesanan['status_pesanan'] === 'disajikan'): ?>
+    <?php 
+    $sudahBayar = in_array($statusPembayaran['status'], ['sudah_bayar', 'lunas']);
+    ?>
+    
+    <?php if ($sudahBayar): ?>
+        <button type="button" class="btn btn-success btn-selesai" 
+            data-id="<?= $pesanan['id_pesanan'] ?>" 
+            data-meja="<?= $pesanan['id_meja'] ?>">
             <i class="fas fa-check-circle"></i> Selesai
-            </button>
-            <?php elseif ($pesanan['metode_bayar'] === 'cash'): ?>
-    <!-- Untuk cash, pesanan selesai otomatis setelah pembayaran dikonfirmasi -->
-            <span class="text-muted" style="font-size: 12px;">
-        <i class="fas fa-info-circle"></i> Selesaikan di kasir setelah pembayaran
-    </span>
-<?php endif; ?>
+        </button>
+    <?php else: ?>
+        <div class="alert alert-warning" style="padding: 10px; margin: 10px 0; border-radius: 6px; background: #fff3cd; border-left: 4px solid #ffc107;">
+            <i class="fas fa-clock"></i> Menunggu konfirmasi pembayaran
+            <?php if ($pesanan['metode_bayar'] === 'cash'): ?>
+                <br><small style="color: #856404;">Konfirmasi pembayaran cash di kasir untuk menyelesaikan pesanan</small>
+            <?php elseif ($pesanan['metode_bayar'] === 'qris'): ?>
+                <br><small style="color: #856404;">Konfirmasi pembayaran QRIS terlebih dahulu</small>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
             <!-- <button type="button" class="btn btn-danger btn-batalkan" data-id="<?= $pesanan['id_pesanan'] ?>">
                 <i class="fas fa-times"></i> Batalkan
             </button> -->
