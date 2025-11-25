@@ -204,7 +204,6 @@ body{
 <header class="header" id="header">
   <div class="left">
     <i class="fa-solid fa-bars" id="mobileToggle"></i>
-    <i class="fa-solid fa-bell" title="Notifikasi"></i>
     <i class="fa-solid fa-right-from-bracket" title="Logout" id="logoutBtn"></i>
   </div>
   <div class="right">
@@ -218,8 +217,8 @@ body{
   <div class="logout-box">
     <h3>Yakin ingin logout?</h3>
     <div class="logout-buttons">
-      <button class="logout-no" id="cancelLogout">No</button>
-      <button class="logout-yes" id="confirmLogout">Yes</button>
+      <button class="logout-no" id="cancelLogout">Tidak</button>
+      <button class="logout-yes" id="confirmLogout">Iya</button>
     </div>
   </div>
 </div>

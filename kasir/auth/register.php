@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once '../../config/session.php';
+redirectIfLoggedIn();
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -7,8 +8,8 @@ session_start();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lesehan Tepi Sawah - Admin</title>
-    <?php $version = filemtime('../css/kasir/register.css'); ?>
-    <link rel="stylesheet" type="text/css" href="../css/kasir/register.css?v=<?php echo $version; ?>">
+    <?php $version = filemtime('../../css/kasir/register.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/kasir/register.css?v=<?php echo $version; ?>">
 </head>
 <body>
     <div class="container">
@@ -31,7 +32,7 @@ session_start();
                 <h2>Masuk</h2>
                 <p class="form-description">Lengkapi Data Di Bawah</p>
                 
-                <form method="POST" action="include/auth.php">
+                <form method="POST" action="../include/auth.php">
                     <!-- Aksi login -->
                     <input type="hidden" name="action" value="login">
 
@@ -63,7 +64,7 @@ session_start();
                 <h2>Daftar</h2>
                 <p class="form-description">Buat akun admin untuk mengakses panel</p>
                 
-                <form method="POST" action="include/auth.php">
+                <form method="POST" action="../include/auth.php">
                     <!-- Aksi register -->
                     <input type="hidden" name="action" value="register">
 

@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 require '../../database/connect.php';
 
 $q_penjualan_hari = mysqli_query($conn, "
@@ -91,7 +96,7 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Restoran</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -166,6 +171,8 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             padding: 20px;
+            position: relative;
+            min-height: 350px;
         }
         
         .chart-container h3 { 
@@ -177,6 +184,8 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
 
         canvas {
             max-height: 300px;
+            width: 100% !important;
+            height: auto !important;
         }
         
         @media (max-width: 1200px) {
@@ -246,113 +255,120 @@ while ($r = mysqli_fetch_assoc($q_kategori)) {
     </div>
 
     <script>
-        const ctxPenjualan = document.getElementById('chartPenjualan');
-        const ctxKategori = document.getElementById('chartKategori');
-
-        if (ctxPenjualan && ctxKategori) {
-            const labels = [];
-            for (let i = 0; i < 24; i++) {
-                labels.push(i.toString().padStart(2, '0') + ':00');
+        document.addEventListener('DOMContentLoaded', function() {
+            function checkSidebarState() {
+                const sidebarEl = document.querySelector('.sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (sidebarEl && mainContent) {
+                    if (sidebarEl.classList.contains('closed') || sidebarEl.classList.contains('collapsed')) {
+                        mainContent.classList.add('sidebar-closed');
+                    } else {
+                        mainContent.classList.remove('sidebar-closed');
+                    }
+                }
             }
 
-            new Chart(ctxPenjualan, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Penjualan',
-                        data: <?= json_encode($penjualan_jam); ?>,
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderColor: '#3b82f6',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#3b82f6',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { 
-                                callback: function(value) {
-                                    return 'Rp ' + value.toLocaleString('id-ID');
+            checkSidebarState();
+
+            const sidebarElement = document.querySelector('.sidebar');
+            if (sidebarElement) {
+                const observer = new MutationObserver(checkSidebarState);
+                observer.observe(sidebarElement, { attributes: true, attributeFilter: ['class'] });
+            }
+
+            setTimeout(function() {
+                const ctxPenjualan = document.getElementById('chartPenjualan');
+                const ctxKategori = document.getElementById('chartKategori');
+
+                if (!ctxPenjualan || !ctxKategori) {
+                    console.error('Canvas elements not found');
+                    return;
+                }
+
+                const labels = [];
+                for (let i = 0; i < 24; i++) {
+                    labels.push(i.toString().padStart(2, '0') + ':00');
+                }
+
+                new Chart(ctxPenjualan, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Penjualan',
+                            data: <?= json_encode(array_values($penjualan_jam)); ?>,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderColor: '#3b82f6',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { 
+                                    callback: function(value) {
+                                        return 'Rp ' + value.toLocaleString('id-ID');
+                                    }
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
                                 }
                             }
                         },
-                        x: {
-                            ticks: {
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
-                        }
-                    },
-                    plugins: { 
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
+                        plugins: { 
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
 
-            new Chart(ctxKategori, {
-                type: 'pie',
-                data: {
-                    labels: <?= json_encode(array_keys($kategori)); ?>,
-                    datasets: [{
-                        data: <?= json_encode(array_values($kategori)); ?>,
-                        backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a259ff', '#ef4444', '#8b5cf6']
-                    }]
-                },
-                options: { 
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: { 
-                        legend: { 
-                            position: 'right',
-                            labels: {
-                                padding: 15,
-                                font: {
-                                    size: 12
+                new Chart(ctxKategori, {
+                    type: 'pie',
+                    data: {
+                        labels: <?= json_encode(array_keys($kategori)); ?>,
+                        datasets: [{
+                            data: <?= json_encode(array_values($kategori)); ?>,
+                            backgroundColor: ['#3b82f6', '#f59e0b', '#10b981', '#a259ff', '#ef4444', '#8b5cf6']
+                        }]
+                    },
+                    options: { 
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { 
+                            legend: { 
+                                position: 'right',
+                                labels: {
+                                    padding: 15,
+                                    font: {
+                                        size: 12
+                                    }
                                 }
                             }
-                        }
-                    } 
-                }
-            });
-        }
-
-        function checkSidebarState() {
-            const sidebar = document.querySelector('.sidebar');
-            const mainContent = document.getElementById('mainContent');
-            
-            if (sidebar && mainContent) {
-                if (sidebar.classList.contains('closed') || sidebar.classList.contains('collapsed')) {
-                    mainContent.classList.add('sidebar-closed');
-                } else {
-                    mainContent.classList.remove('sidebar-closed');
-                }
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', checkSidebarState);
-
-        const sidebar = document.querySelector('.sidebar');
-        if (sidebar) {
-            const observer = new MutationObserver(checkSidebarState);
-            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-        }
+                        } 
+                    }
+                });
+            }, 100);
+        });
 
         setInterval(function() {
             location.reload();

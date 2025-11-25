@@ -1,6 +1,6 @@
 <?php
+require_once '../../config/session.php';
 require_once '../../database/connect.php';
-session_start();
 
 $action = $_POST['action'] ?? '';
 
@@ -14,6 +14,71 @@ function generateKasirId() {
     return $prefix . $randomString;
 }
 
+function showPopup($message, $redirect) {
+    echo "
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+            }
+            .popup {
+                background: white;
+                padding: 30px 40px;
+                border-radius: 10px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                text-align: center;
+                animation: slideIn 0.3s ease;
+            }
+            @keyframes slideIn {
+                from { transform: translateY(-50px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .popup h2 {
+                color: #27ae60;
+                margin-bottom: 15px;
+                font-size: 24px;
+            }
+            .popup p {
+                color: #555;
+                margin-bottom: 25px;
+                font-size: 16px;
+            }
+            .popup button {
+                background: #FF9500;
+                color: white;
+                border: none;
+                padding: 12px 30px;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+                font-weight: 600;
+            }
+            .popup button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(102,126,234,0.4);
+            }
+        </style>
+    </head>
+    <body>
+        <div class='popup'>
+            <h2>✓ Berhasil!</h2>
+            <p>{$message}</p>
+            <button onclick='window.location.href=\"{$redirect}\"'>OK</button>
+        </div>
+    </body>
+    </html>
+    ";
+    exit;
+}
+
 if ($action === 'register') {
     $fullname = trim($_POST['fullname']);
     $email = trim($_POST['email']);
@@ -21,8 +86,7 @@ if ($action === 'register') {
     $confirm = $_POST['confirm_password'];
 
     if ($password !== $confirm) {
-        echo "<script>alert('Kata sandi tidak sama!'); history.back();</script>";
-        exit;
+        showPopup('Kata sandi tidak sama!', '../auth/register.php');
     }
 
     $check = $conn->prepare("SELECT * FROM pengguna WHERE email = ?");
@@ -31,8 +95,7 @@ if ($action === 'register') {
     $result = $check->get_result();
 
     if ($result->num_rows > 0) {
-        echo "<script>alert('Email sudah terdaftar!'); history.back();</script>";
-        exit;
+        showPopup('Email sudah terdaftar!', '../auth/register.php');
     }
 
     do {
@@ -49,16 +112,16 @@ if ($action === 'register') {
     $stmt->bind_param("sssss", $id_pengguna, $fullname, $email, $hashed, $role);
 
     if ($stmt->execute()) {
-        echo "<script>alert('Registrasi berhasil! Silakan login.'); window.location.href='../register.php';</script>";
+        showPopup('Registrasi berhasil! Silakan login.', '../auth/register.php');
     } else {
-        echo "<script>alert('Gagal menyimpan data!'); history.back();</script>";
+        showPopup('Gagal menyimpan data!', '../auth/register.php');
     }
 
 } elseif ($action === 'login') {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    $stmt = $conn->prepare("SELECT * FROM pengguna WHERE email = ?");
+    $stmt = $conn->prepare("SELECT * FROM pengguna WHERE email = ? AND role = 'kasir'");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -66,18 +129,21 @@ if ($action === 'register') {
     if ($result->num_rows === 1) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
-            $_SESSION['user_id'] = $user['id_pengguna'];
-            $_SESSION['user_name'] = $user['nama'];
-            $_SESSION['user_role'] = $user['role'];
-            echo "<script>alert('Login berhasil!'); window.location.href='../inside/dashboard_kasir.php';</script>";
+            setUserSession([
+                'id_pengguna' => $user['id_pengguna'],
+                'nama' => $user['nama'],
+                'email' => $user['email'],
+                'role' => $user['role']
+            ]);
+            showPopup('Login berhasil! Selamat datang.', '../inside/dashboard_kasir.php');
         } else {
-            echo "<script>alert('Kata sandi salah!'); history.back();</script>";
+            showPopup('Kata sandi salah!', '../auth/register.php');
         }
     } else {
-        echo "<script>alert('Email tidak ditemukan!'); history.back();</script>";
+        showPopup('Email tidak ditemukan!', '../auth/register.php');
     }
 
 } else {
-    echo "<script>alert('Aksi tidak dikenali.'); history.back();</script>";
+    showPopup('Aksi tidak dikenali.', '../auth/register.php');
 }
 ?>

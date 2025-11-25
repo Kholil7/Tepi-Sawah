@@ -1,5 +1,9 @@
 <?php
-session_start();
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 require '../../database/connect.php';
 
 function generateRandomCode($length = 11) {

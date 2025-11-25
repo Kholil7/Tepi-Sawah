@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 session_start();
 include '../../database/connect.php';
 

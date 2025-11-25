@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 require '../../database/connect.php';

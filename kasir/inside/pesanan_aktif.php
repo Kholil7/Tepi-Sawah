@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 require_once '../../database/connect.php';
 include '../../sidebar/sidebar_kasir.php';
 

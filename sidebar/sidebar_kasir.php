@@ -163,7 +163,7 @@
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="title">
-        <h2>Resto<span>Cashier</span></h2>
+        <h2>Tepi Sawah <span>Kasir</span></h2>
         <p>Kasir Dashboard</p>
       </div>
       <button id="toggle-btn"><i class="fa-solid fa-angles-left"></i></button>
@@ -197,16 +197,14 @@
       <a href="riwayat_transaksi.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'riwayat_transaksi') ? 'active' : '' ?>">
         <i class="fa-solid fa-chart-line"></i><span>Transaksi Harian</span>
       </a>
-
-      <a href="pembatalan.php" class="<?= str_contains(basename($_SERVER['PHP_SELF']), 'pembatalan') ? 'active' : '' ?>">
-        <i class="fa-solid fa-xmark-circle"></i><span>Pembatalan</span>
-      </a>
     </div>
 
     <div class="menu-footer">
       <hr class="logout-divider">
       <div class="logout-item">
-        <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
+        <div onclick="window.location.href='../auth/logout.php'" style="cursor: pointer;">
+        <i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span>
+        </div>
       </div>
     </div>
   </div>

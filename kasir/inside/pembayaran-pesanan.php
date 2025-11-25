@@ -1,5 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
 
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 require '../../database/connect.php';
 
 $query_pesanan = "SELECT p.*, m.nomor_meja, m.kode_unik,

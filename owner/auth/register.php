@@ -1,11 +1,39 @@
+<?php
+require_once '../../config/session.php';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+    
+    $stmt = $pdo->prepare("SELECT id_pengguna, nama, email, password, role FROM users WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user && password_verify($password, $user['password'])) {
+        setUserSession([
+            'id_pengguna' => $user['id_pengguna'],
+            'nama' => $user['nama'],
+            'email' => $user['email'],
+            'role' => $user['role']
+        ]);
+        
+        if ($user['role'] === 'kasir') {
+            header("Location: /kasir/inside/dashboard_kasir.php");
+        } else {
+            header("Location: /owner/inside/dashboard.php");
+        }
+        exit();
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Register</title>
-    <?php $version = filemtime('../css/styleOwner.css'); ?>
-    <link rel="stylesheet" type="text/css" href="../css/styleOwner.css?v=<?php echo $version; ?>">
+    <?php $version = filemtime('../../css/styleOwner.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/styleOwner.css?v=<?php echo $version; ?>">
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
@@ -18,7 +46,7 @@
     <div class="container">
       <div class="frame">
         <h1>Register Owner</h1>
-        <form action="include/registerProses.php" method="POST">
+        <form action="../include/registerProses.php" method="POST">
           <label for="">Nama</label>
           <input type="text" name="nama" placeholder="Masukkan nama" required />
 
