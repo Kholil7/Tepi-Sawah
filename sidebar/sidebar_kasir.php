@@ -202,7 +202,9 @@
     <div class="menu-footer">
       <hr class="logout-divider">
       <div class="logout-item">
+        <div onclick="window.location.href='../auth/logout.php'" style="cursor: pointer;">
         <i class="fa-solid fa-right-from-bracket"></i><span>Keluar</span>
+        </div>
       </div>
     </div>
   </div>

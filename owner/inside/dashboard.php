@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 require '../../database/connect.php';
 
 $q_penjualan_hari = mysqli_query($conn, "

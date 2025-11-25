@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 include '../../sidebar/sidebar.php';
 require_once '../../database/connect.php';
 require_once '../../assets/phpqrcode/qrlib.php';

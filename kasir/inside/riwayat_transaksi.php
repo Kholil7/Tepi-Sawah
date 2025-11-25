@@ -1,4 +1,9 @@
 <?php
+require_once '../include/check_auth.php';
+
+$username = getUsername();
+$email = getUserEmail();
+$userId = getUserId();
 if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pesanan'])) {
     $koneksi = new mysqli("localhost", "root", "", "dbresto_app");
     if ($koneksi->connect_error) { die("Koneksi gagal: " . $koneksi->connect_error); }
