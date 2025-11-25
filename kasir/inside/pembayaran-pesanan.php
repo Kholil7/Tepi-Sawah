@@ -11,7 +11,9 @@ $query_pesanan = "SELECT p.*, m.nomor_meja, m.kode_unik,
                   FROM pesanan p
                   JOIN meja m ON p.id_meja = m.id_meja
                   JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
-                  WHERE p.status_pesanan = 'disajikan' AND pb.metode = 'cash'
+                  WHERE p.status_pesanan = 'disajikan' 
+                  AND pb.metode = 'cash'
+                  AND pb.status = 'belum_bayar'
                   ORDER BY p.waktu_pesan DESC";
 $result_pesanan = mysqli_query($conn, $query_pesanan);
 $pesanan_list = mysqli_fetch_all($result_pesanan, MYSQLI_ASSOC);
@@ -105,7 +107,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     $detail_print = mysqli_fetch_all($result_detail_print, MYSQLI_ASSOC);
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
