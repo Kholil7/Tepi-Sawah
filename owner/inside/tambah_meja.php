@@ -9,6 +9,7 @@ require_once '../../database/connect.php';
 require_once '../../assets/phpqrcode/qrlib.php';
 
 function getBaseUrl() {
+    // Dikembalikan ke pembuatan URL dinamis agar otomatis menyesuaikan dengan domain (http_host)
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
     $host = $_SERVER['HTTP_HOST'];
     return $protocol . "://" . $host;
@@ -42,7 +43,8 @@ function tambahMeja($conn, $nomor_meja) {
     }
 
     $base_url = getBaseUrl();
-    $qr_data = $base_url . "/home/?kode=" . urlencode($kode_unik);
+    // Path URL tetap menggunakan /home.php/ sesuai kebutuhan routing Anda
+    $qr_data = $base_url . "/home.php/?kode=" . urlencode($kode_unik);
     
     try {
         QRcode::png($qr_data, $qrcode_path, QR_ECLEVEL_L, 6, 2);
