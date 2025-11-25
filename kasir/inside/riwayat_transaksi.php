@@ -1,5 +1,8 @@
 <?php
 require_once '../include/check_auth.php';
+include '../../sidebar/sidebar_kasir.php';
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 $username = getUsername();
 $email = getUserEmail();
@@ -184,8 +187,6 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
     <?php
     exit;
 }
-
-include '../../sidebar/sidebar_kasir.php';
 
 $koneksi = new mysqli("localhost", "root", "", "dbresto_app");
 if ($koneksi->connect_error) { die("Koneksi gagal: " . $koneksi->connect_error); }
