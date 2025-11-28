@@ -1,16 +1,12 @@
 <?php
 require_once '../include/check_auth.php';
-include '../../sidebar/sidebar_kasir.php';
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+require_once '../../database/connect.php';
 
 $username = getUsername();
 $email = getUserEmail();
 $userId = getUserId();
+
 if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pesanan'])) {
-    $koneksi = new mysqli("localhost", "root", "", "dbresto_app");
-    if ($koneksi->connect_error) { die("Koneksi gagal: " . $koneksi->connect_error); }
-    
     $id_pesanan = $_GET['id_pesanan'];
     $query = "
         SELECT d.*, mn.nama_menu, m.nomor_meja, p.metode, p.waktu_pembayaran
@@ -21,10 +17,10 @@ if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pes
         JOIN meja m ON m.id_meja = ps.id_meja
         WHERE d.id_pesanan = '$id_pesanan'
     ";
-    $result = $koneksi->query($query);
+    $result = mysqli_query($conn, $query);
 
-    $first_row = $result->fetch_assoc();
-    $result->data_seek(0);
+    $first_row = mysqli_fetch_assoc($result);
+    mysqli_data_seek($result, 0);
 
     echo "<div class='mb-3'>
             <p><strong>Meja:</strong> {$first_row['nomor_meja']}</p>
@@ -39,7 +35,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pes
             <tbody>";
     
     $total = 0;
-    while ($row = $result->fetch_assoc()) {
+    while ($row = mysqli_fetch_assoc($result)) {
         $total += $row['subtotal'];
         echo "<tr>
                 <td>{$row['nama_menu']}</td>
@@ -60,29 +56,29 @@ if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pes
 }
 
 if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesanan'])) {
-    $koneksi = new mysqli("localhost", "root", "", "dbresto_app");
-    if ($koneksi->connect_error) { die("Koneksi gagal: " . $koneksi->connect_error); }
-    
     $id_pesanan = $_GET['id_pesanan'];
 
-    $transaksi = $koneksi->query("
+    $transaksi_query = "
         SELECT p.*, m.nomor_meja
         FROM pembayaran p
         JOIN pesanan ps ON p.id_pesanan = ps.id_pesanan
         JOIN meja m ON m.id_meja = ps.id_meja
         WHERE p.id_pesanan = '$id_pesanan'
-    ")->fetch_assoc();
+    ";
+    $transaksi_result = mysqli_query($conn, $transaksi_query);
+    $transaksi = mysqli_fetch_assoc($transaksi_result);
 
-    $items = $koneksi->query("
+    $items_query = "
         SELECT d.*, mn.nama_menu 
         FROM detail_pesanan d
         JOIN menu mn ON mn.id_menu = d.id_menu
         WHERE d.id_pesanan='$id_pesanan'
-    ");
+    ";
+    $items = mysqli_query($conn, $items_query);
     
-    $total_print = $koneksi->query("
-        SELECT SUM(subtotal) AS total FROM detail_pesanan WHERE id_pesanan='$id_pesanan'
-    ")->fetch_assoc()['total'];
+    $total_query = "SELECT SUM(subtotal) AS total FROM detail_pesanan WHERE id_pesanan='$id_pesanan'";
+    $total_result = mysqli_query($conn, $total_query);
+    $total_print = mysqli_fetch_assoc($total_result)['total'];
     ?>
     <!DOCTYPE html>
     <html>
@@ -157,7 +153,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
     </head>
     <body>
     <div class="text-center">
-      <h3>Resto App</h3>
+      <h3>Lesehan Tepi Sawah</h3>
       <small><?= date('d/m/Y H:i', strtotime($transaksi['waktu_pembayaran'])) ?></small>
       <hr>
     </div>
@@ -166,7 +162,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
     <b>Metode:</b> <?= strtoupper($transaksi['metode']) ?><br><br>
 
     <table>
-    <?php while($i = $items->fetch_assoc()): ?>
+    <?php while($i = mysqli_fetch_assoc($items)): ?>
       <tr>
         <td><?= $i['nama_menu'] ?> x<?= $i['jumlah'] ?></td>
         <td align="right">Rp <?= number_format($i['subtotal'],0,',','.') ?></td>
@@ -188,33 +184,40 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
     exit;
 }
 
-$koneksi = new mysqli("localhost", "root", "", "dbresto_app");
-if ($koneksi->connect_error) { die("Koneksi gagal: " . $koneksi->connect_error); }
+include '../../sidebar/sidebar_kasir.php';
 
-$total_transaksi = $koneksi->query("
+$total_transaksi_query = "
     SELECT COUNT(*) AS total 
     FROM pembayaran 
     WHERE status='sudah_bayar'
-")->fetch_assoc()['total'];
+";
+$total_transaksi_result = mysqli_query($conn, $total_transaksi_query);
+$total_transaksi = mysqli_fetch_assoc($total_transaksi_result)['total'];
 
-$total_pendapatan = $koneksi->query("
+$total_pendapatan_query = "
     SELECT SUM(subtotal) AS total
     FROM detail_pesanan d
     JOIN pembayaran p ON p.id_pesanan = d.id_pesanan
     WHERE p.status='sudah_bayar'
-")->fetch_assoc()['total'];
+";
+$total_pendapatan_result = mysqli_query($conn, $total_pendapatan_query);
+$total_pendapatan = mysqli_fetch_assoc($total_pendapatan_result)['total'];
 
-$total_qris = $koneksi->query("
+$total_qris_query = "
     SELECT COUNT(*) AS total 
     FROM pembayaran 
     WHERE metode='qris' AND status='sudah_bayar'
-")->fetch_assoc()['total'];
+";
+$total_qris_result = mysqli_query($conn, $total_qris_query);
+$total_qris = mysqli_fetch_assoc($total_qris_result)['total'];
 
-$total_cash = $koneksi->query("
+$total_cash_query = "
     SELECT COUNT(*) AS total 
     FROM pembayaran 
     WHERE metode='cash' AND status='sudah_bayar'
-")->fetch_assoc()['total'];
+";
+$total_cash_result = mysqli_query($conn, $total_cash_query);
+$total_cash = mysqli_fetch_assoc($total_cash_result)['total'];
 
 $query = "
     SELECT 
@@ -230,7 +233,7 @@ $query = "
     WHERE p.status='sudah_bayar'
     ORDER BY p.waktu_pembayaran DESC
 ";
-$result = $koneksi->query($query);
+$result = mysqli_query($conn, $query);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -319,20 +322,24 @@ body {
                     </thead>
 
                     <tbody>
-                    <?php while ($row = $result->fetch_assoc()): ?>
+                    <?php while ($row = mysqli_fetch_assoc($result)): ?>
                         <?php
-                            $first = $koneksi->query("
+                            $first_query = "
                                 SELECT mn.nama_menu, d.jumlah 
                                 FROM detail_pesanan d
                                 JOIN menu mn ON mn.id_menu = d.id_menu
                                 WHERE d.id_pesanan='{$row['id_pesanan']}' LIMIT 1
-                            ")->fetch_assoc();
+                            ";
+                            $first_result = mysqli_query($conn, $first_query);
+                            $first = mysqli_fetch_assoc($first_result);
 
-                            $jumlah_item = $koneksi->query("
+                            $jumlah_query = "
                                 SELECT COUNT(*) AS total 
                                 FROM detail_pesanan 
                                 WHERE id_pesanan='{$row['id_pesanan']}'
-                            ")->fetch_assoc()['total'];
+                            ";
+                            $jumlah_result = mysqli_query($conn, $jumlah_query);
+                            $jumlah_item = mysqli_fetch_assoc($jumlah_result)['total'];
                         ?>
 
                         <tr>

@@ -4,7 +4,6 @@ require_once '../include/check_auth.php';
 $username = getUsername();
 $email = getUserEmail();
 $userId = getUserId();
-session_start();
 include '../../database/connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tambah_pembelian'])) {
@@ -67,7 +66,8 @@ $total_pengeluaran = array_sum(array_column($pembelian_list, 'harga'));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Input Pembelian Bahan</title>
-    <link rel="stylesheet" href="../../css/owner/pembelian_bahan.css">
+    <?php $version = filemtime('../../css/owner/pembelian_bahan.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/owner/pembelian_bahan.css?v=<?php echo $version; ?>">
 </head>
 <body>
     <?php include '../../sidebar/sidebar.php'; ?>

@@ -184,7 +184,7 @@ body{
 
 <nav class="sidebar" id="sidebar">
   <div class="hero">
-    <div class="title">Resto Owner</div>
+    <div class="title">Tepi Sawah Owner</div>
     <button class="hamburger" id="heroToggle"><i class="fa-solid fa-bars"></i></button>
   </div>
   <div class="menu">
@@ -196,6 +196,8 @@ body{
     <a href="pembelian_bahan.php" class="<?= str_contains($current, 'pembelian_bahan') ? 'active' : '' ?>"><i class="fa-solid fa-file-circle-plus"></i><span>Input Pembelian Bahan</span></a>
     <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
     <a href="laporan_penjualan.php" class="<?= str_contains($current, 'laporan_penjualan') ? 'active' : '' ?>"><i class="fa-solid fa-chart-line"></i><span>Laporan</span></a>
+    <hr style="margin:8px 0;border:none;border-top:1px solid #f1f5f9;">
+    <a href="upload_qris.php" class="<?= str_contains($current, 'upload_qris') ? 'active' : '' ?>"><i class="fa-solid fa-angles-up"></i><span>Upload Barcode Qris</span></a>
   </div>
 </nav>
 
