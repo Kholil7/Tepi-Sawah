@@ -274,7 +274,7 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
             <div class="checkout-modal">
                 <div class="checkout-header">
                     <h2>Pembayaran QRIS</h2>
-                    <button class="close-modal" onclick="cancelQrisPayment()">×</button>
+                    <!-- <button class="close-modal" onclick="cancelQrisPayment()">×</button> -->
                 </div>
                 <div class="checkout-content">
                     <div class="qris-container">
