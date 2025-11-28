@@ -77,6 +77,11 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
     $params[] = "kategori=" . urlencode($kategoriValue);
     return '?' . implode('&', $params);
 }
+
+$sql_qris = "SELECT nilai_pengaturan FROM pengaturan WHERE nama_pengaturan = 'qris_image_path'";
+$result_qris = mysqli_query($conn, $sql_qris);
+$data_qris = mysqli_fetch_assoc($result_qris);
+$qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qris/qris.png';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -274,9 +279,13 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
                 <div class="checkout-content">
                     <div class="qris-container">
                         <h3>Scan QRIS untuk Membayar</h3>
-                        <div class="qris-image-wrapper">
-                            <img src="../../assets/uploads/qris.png" alt="QRIS Code" class="qris-image">
-                        </div>
+                    <div class="qris-image-wrapper">
+                    <?php if ($qris_path && file_exists($qris_path)): ?>
+                        <img src="<?php echo $qris_path; ?>?v=<?php echo time(); ?>" alt="QRIS Code" class="qris-image">
+                    <?php else: ?>
+                        <p>QRIS belum tersedia</p>
+                    <?php endif; ?>
+                </div>
                         
                         <div class="qris-amount">
                             <span>Total Pembayaran:</span>
