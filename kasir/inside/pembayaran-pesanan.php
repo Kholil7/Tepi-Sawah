@@ -7,14 +7,14 @@ $userId = getUserId();
 require '../../database/connect.php';
 
 $query_pesanan = "SELECT p.*, m.nomor_meja, m.kode_unik,
-                  (SELECT COUNT(*) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) as total_item
-                  FROM pesanan p
-                  JOIN meja m ON p.id_meja = m.id_meja
-                  JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
-                  WHERE p.status_pesanan = 'disajikan' 
-                  AND pb.metode = 'cash'
-                  AND pb.status = 'belum_bayar'
-                  ORDER BY p.waktu_pesan DESC";
+                 (SELECT COUNT(*) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) as total_item
+                 FROM pesanan p
+                 JOIN meja m ON p.id_meja = m.id_meja
+                 JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
+                 WHERE p.status_pesanan = 'disajikan' 
+                 AND pb.metode = 'cash'
+                 AND pb.status = 'belum_bayar'
+                 ORDER BY p.waktu_pesan DESC";
 $result_pesanan = mysqli_query($conn, $query_pesanan);
 $pesanan_list = mysqli_fetch_all($result_pesanan, MYSQLI_ASSOC);
 
@@ -45,37 +45,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $id_pesanan = mysqli_real_escape_string($conn, $_POST['id_pesanan']);
         $metode = mysqli_real_escape_string($conn, $_POST['metode']);
-        $jumlah_dibayar = mysqli_real_escape_string($conn, $_POST['jumlah_dibayar']);
+        $jumlah_dibayar = (float)mysqli_real_escape_string($conn, $_POST['jumlah_dibayar']); 
         
         $query_total = "SELECT total_harga, id_meja FROM pesanan WHERE id_pesanan = '$id_pesanan'";
         $result_total = mysqli_query($conn, $query_total);
         $pesanan = mysqli_fetch_assoc($result_total);
-        $total_harga = $pesanan['total_harga'];
+        $total_harga = (float)$pesanan['total_harga'];
         $id_meja = $pesanan['id_meja'];
         
         $kembalian = $jumlah_dibayar - $total_harga;
         
         if ($kembalian < 0) {
-            throw new Exception("Jumlah pembayaran kurang!");
+            throw new Exception("Jumlah pembayaran kurang dari total tagihan.");
         }
     
         $waktu_bayar = date('Y-m-d H:i:s');
-        $query_update = "UPDATE pesanan 
-                        SET status_pesanan = 'selesai',
-                            metode_bayar = '$metode',
-                            total_harga = '$total_harga'
-                        WHERE id_pesanan = '$id_pesanan'";
-        mysqli_query($conn, $query_update);
+        
+        $query_update_pesanan = "UPDATE pesanan 
+                                 SET status_pesanan = 'selesai',
+                                     metode_bayar = '$metode',
+                                     total_harga = '$total_harga'
+                                 WHERE id_pesanan = '$id_pesanan'";
+        mysqli_query($conn, $query_update_pesanan);
         
         $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = '$id_meja'";
         mysqli_query($conn, $query_meja);
         
         $query_pembayaran = "UPDATE pembayaran 
-                            SET status = 'sudah_bayar',
-                                metode = '$metode',
-                                waktu_pembayaran = '$waktu_bayar'
-                            WHERE id_pesanan = '$id_pesanan'";
-        mysqli_query($conn, $query_pembayaran);
+                             SET status = 'sudah_bayar',
+                                 metode = '$metode',
+                                 waktu_pembayaran = '$waktu_bayar',
+                                 bayar = '$jumlah_dibayar', 
+                                 kembalian = '$kembalian' 
+                             WHERE id_pesanan = '$id_pesanan'";
+        
+        if (!mysqli_query($conn, $query_pembayaran)) {
+             throw new Exception("Gagal menyimpan data pembayaran. Pastikan kolom 'bayar' dan 'kembalian' ada di tabel pembayaran. MySQL Error: " . mysqli_error($conn));
+        }
         
         mysqli_commit($conn);
         
@@ -89,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $print_data = null;
+$detail_print = [];
 if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     $id_pesanan = mysqli_real_escape_string($conn, $_GET['id_pesanan']);
     
@@ -100,9 +107,9 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     $print_data = mysqli_fetch_assoc($result_print);
     
     $query_detail_print = "SELECT dp.*, m.nama_menu
-                          FROM detail_pesanan dp
-                          JOIN menu m ON dp.id_menu = m.id_menu
-                          WHERE dp.id_pesanan = '$id_pesanan'";
+                           FROM detail_pesanan dp
+                           JOIN menu m ON dp.id_menu = m.id_menu
+                           WHERE dp.id_pesanan = '$id_pesanan'";
     $result_detail_print = mysqli_query($conn, $query_detail_print);
     $detail_print = mysqli_fetch_all($result_detail_print, MYSQLI_ASSOC);
 }
@@ -112,398 +119,9 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php $version = filemtime('../../css/kasir/pembayaran-kasir.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/kasir/pembayaran-kasir.css?v=<?php echo $version; ?>">
     <title>Pembayaran - Dashboard Kasir</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-        }
-
-        .main-content {
-            margin-left: 250px;
-            transition: margin-left 0.3s ease;
-            min-height: 100vh;
-        }
-
-        body.sidebar-collapsed .main-content {
-            margin-left: 80px;
-        }
-
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            padding: 20px;
-            gap: 20px;
-            max-width: 100%;
-        }
-
-        .left-panel {
-            width: 280px;
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            height: fit-content;
-        }
-
-        .left-panel h2 {
-            font-size: 15px;
-            margin-bottom: 20px;
-            color: #333;
-            font-weight: 600;
-        }
-
-        .order-card {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: block;
-        }
-
-        .order-card:hover { border-color: #FFB84D; }
-        .order-card.active { border-color: #FFC864; background: #fffbf0; }
-
-        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .order-header h3 { font-size: 15px; color: #333; }
-
-        .badge-disajikan {
-            background: #28a745;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .order-code { color: #999; font-size: 13px; margin-bottom: 12px; }
-        .order-footer { display: flex; justify-content: space-between; align-items: center; }
-        .order-time { color: #666; font-size: 13px; }
-        .order-price { color: #333; font-weight: 600; font-size: 14px; }
-
-        .right-panel {
-            flex: 1;
-            background: white;
-            border-radius: 8px;
-            padding: 30px;
-            min-width: 0;
-        }
-
-        .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .form-title-section h1 { font-size: 18px; color: #333; margin-bottom: 5px; }
-        .form-meta { display: flex; gap: 10px; color: #666; font-size: 14px; }
-        .badge-bayar { background: #FFC864; color: #333; padding: 8px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; }
-
-        .items-section { margin-bottom: 25px; }
-        .item-row { display: flex; justify-content: space-between; padding: 12px 0; color: #333; }
-        .item-name { font-size: 15px; }
-        .item-price { font-weight: 600; font-size: 15px; }
-
-        .total-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 15px 0;
-            border-top: 1px solid #e0e0e0;
-            margin-bottom: 30px;
-        }
-
-        .total-label { font-size: 16px; color: #333; }
-        .total-amount { font-size: 24px; font-weight: 600; color: #FFC864; }
-
-        .payment-section h3 { font-size: 15px; margin-bottom: 15px; color: #333; }
-        .method-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 30px; }
-
-        .method-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: left;
-        }
-
-        .method-card:hover { border-color: #4A90E2; }
-        .method-card.selected { border-color: #4A90E2; background: #f0f7ff; }
-
-        .method-icon { font-size: 24px; margin-bottom: 8px; }
-        .method-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 3px; }
-        .method-desc { font-size: 13px; color: #666; }
-
-        .input-section { margin-bottom: 30px; }
-        .input-group { margin-bottom: 20px; }
-        .input-label { display: block; font-size: 14px; color: #333; margin-bottom: 8px; font-weight: 500; }
-        .input-field {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        .input-field:focus { outline: none; border-color: #4A90E2; }
-        .input-field:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
-        
-        .change-display {
-            background: #f0f7ff;
-            padding: 15px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .change-label { font-size: 14px; color: #666; }
-        .change-amount { font-size: 20px; font-weight: 600; color: #4A90E2; }
-
-        .action-buttons { display: flex; gap: 15px; flex-wrap: wrap; }
-        .btn-confirm {
-            flex: 1;
-            padding: 15px;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            background: #4A90E2;
-            color: white;
-            border: none;
-        }
-        .btn-confirm:hover { background: #357ABD; }
-        .btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
-
-        .empty-state { text-align: center; padding: 80px 20px; color: #999; }
-
-        .alert { padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-
-        .notification-popup {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideIn {
-            from { transform: scale(0.7); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .notification-content {
-            background: white;
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
-        }
-
-        .notification-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-        }
-
-        .notification-icon.success {
-            background: #d4edda;
-            color: #28a745;
-        }
-
-        .notification-icon.error {
-            background: #f8d7da;
-            color: #dc3545;
-        }
-
-        .notification-title {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .notification-title.success { color: #28a745; }
-        .notification-title.error { color: #dc3545; }
-
-        .notification-message {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 25px;
-            line-height: 1.5;
-        }
-
-        .notification-button {
-            background: #4A90E2;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 6px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .notification-button:hover {
-            background: #357ABD;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
-        }
-
-        .receipt-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .receipt-container {
-            background: white;
-            width: 350px;
-            max-height: 90vh;
-            overflow-y: auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        .receipt-content {
-            padding: 30px;
-            font-family: 'Courier New', monospace;
-        }
-        .receipt-header {
-            text-align: center;
-            margin-bottom: 20px;
-            border-bottom: 2px dashed #333;
-            padding-bottom: 15px;
-        }
-        .receipt-header h2 { font-size: 20px; margin-bottom: 5px; }
-        .receipt-header p { font-size: 12px; color: #666; margin: 2px 0; }
-        .receipt-info { margin-bottom: 15px; font-size: 13px; }
-        .receipt-info div { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .receipt-items { border-top: 1px dashed #333; border-bottom: 1px dashed #333; padding: 15px 0; margin-bottom: 15px; }
-        .receipt-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
-        .receipt-total { font-size: 16px; font-weight: bold; margin-bottom: 10px; }
-        .receipt-total, .receipt-paid, .receipt-change { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .receipt-footer { text-align: center; margin-top: 20px; padding-top: 15px; border-top: 2px dashed #333; font-size: 12px; color: #666; }
-        .receipt-buttons {
-            display: flex;
-            gap: 10px;
-            padding: 15px;
-            border-top: 1px solid #e0e0e0;
-        }
-        .receipt-buttons button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-print-receipt { background: #4A90E2; color: white; }
-        .btn-print-receipt:hover { background: #357ABD; }
-        .btn-close-receipt { background: #f5f5f5; color: #333; }
-        .btn-close-receipt:hover { background: #e0e0e0; }
-
-        @media print {
-            body * { visibility: hidden; }
-            .receipt-container, .receipt-container * { visibility: visible; }
-            .receipt-container { 
-                position: absolute; 
-                left: 0; 
-                top: 0; 
-                width: 100%;
-                box-shadow: none;
-                border-radius: 0;
-            }
-            .receipt-buttons { display: none; }
-        }
-        
-        @media (max-width: 1200px) {
-            .main-content {
-                margin-left: 80px;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .main-content {
-                margin-left: 0;
-            }
-            
-            .container {
-                flex-direction: column;
-                padding: 10px;
-            }
-            .left-panel {
-                width: 100%;
-                order: 2;
-            }
-            .right-panel {
-                width: 100%;
-                order: 1;
-                padding: 20px;
-            }
-            .method-grid {
-                grid-template-columns: 1fr;
-            }
-            .action-buttons {
-                flex-direction: column;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .form-title-section h1 {
-                font-size: 16px;
-            }
-            .badge-bayar {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
-            .total-amount {
-                font-size: 20px;
-            }
-            .btn-confirm {
-                font-size: 14px;
-                padding: 12px;
-            }
-            .receipt-container {
-                width: 90%;
-                max-width: 350px;
-            }
-        }
-    </style>
 </head>
 <body>
     <?php include '../../sidebar/sidebar_kasir.php'; ?>
@@ -621,17 +239,30 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
             </div>
             <h2 class="notification-title error">Pembayaran Gagal!</h2>
             <p class="notification-message"><?= htmlspecialchars($error_message) ?></p>
-            <button class="notification-button" onclick="closeNotification()">Tutup</button>
+            <button class="notification-button" onclick="closeNotification('notificationPopup')">Tutup</button>
         </div>
     </div>
     <?php endif; ?>
 
     <?php if ($print_data): ?>
-    <div class="receipt-overlay" id="receiptOverlay" style="display: flex;">
+    <div class="notification-popup" id="successPopup" style="display: none;">
+        <div class="notification-content">
+            <div class="notification-icon success">
+                ✓
+            </div>
+            <h2 class="notification-title success">Pembayaran Berhasil!</h2>
+            <p class="notification-message">
+                Lanjut Untuk Cetak Struk<br>
+            </p>
+            <button class="notification-button" onclick="showReceipt()">Cetak Struk</button>
+        </div>
+    </div>
+
+    <div class="receipt-overlay" id="receiptOverlay" style="display: none;">
         <div class="receipt-container">
             <div class="receipt-content" id="receiptContent">
                 <div class="receipt-header">
-                    <h2>WARUNG MAKAN</h2>
+                    <h2>Lesehan Tepi Sawah</h2>
                     <p>Jl. Contoh No. 123</p>
                     <p>Telp: 0812-3456-7890</p>
                 </div>
@@ -651,7 +282,7 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                     </div>
                     <div>
                         <span>Kasir:</span>
-                        <span>Admin</span>
+                        <span><?= htmlspecialchars($username) ?></span>
                     </div>
                 </div>
                 
@@ -681,88 +312,117 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                 
                 <div class="receipt-footer">
                     <p>Terima kasih atas kunjungan Anda!</p>
-                    <p>Selamat menikmati hidangan</p>
+                    <!-- <p>Selamat menikmati hidangan</p> -->
                 </div>
             </div>
             
             <div class="receipt-buttons">
-                <button class="btn-print-receipt" onclick="printReceipt()">🖨️ Cetak Struk</button>
-                <button class="btn-close-receipt" onclick="closeReceipt()">Tutup</button>
+                <button class="btn-print-receipt" id="printBtn" onclick="printReceipt()">🖨️ Cetak Struk</button>
+                <button class="btn-close-receipt" id="closeReceiptBtn" onclick="closeReceipt()" disabled>Tutup</button>
             </div>
-        </div>
-    </div>
-
-    <div class="notification-popup" id="successPopup" style="display: flex;">
-        <div class="notification-content">
-            <div class="notification-icon success">
-                ✓
-            </div>
-            <h2 class="notification-title success">Pembayaran Berhasil!</h2>
-            <p class="notification-message">
-                Pembayaran telah diproses dengan sukses.<br>
-                Struk akan dicetak otomatis.
-            </p>
-            <button class="notification-button" onclick="showReceipt()">Lihat Struk</button>
         </div>
     </div>
     <?php endif; ?>
 
 <script>
-    const totalTagihan = <?= $selected_pesanan ? $selected_pesanan['total_harga'] : 0 ?>;
-    
+    const totalTagihan = <?= $selected_pesanan ? (float)$selected_pesanan['total_harga'] : 0 ?>;
+    let isPrinted = false; // Status untuk mengontrol tombol Tutup
+
+    function formatRupiah(number) {
+        return 'Rp ' + Math.abs(number).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+
     function selectMethod(method, element) {
         document.querySelectorAll('.method-card').forEach(card => card.classList.remove('selected'));
         element.classList.add('selected');
         document.getElementById('metodeInput').value = method;
+        hitungKembalian(); 
     }
     
     function hitungKembalian() {
-        const jumlahBayar = parseFloat(document.getElementById('jumlahBayar').value) || 0;
+        const jumlahBayar = parseFloat(document.getElementById('jumlahBayar').value) || 0; 
         const kembalian = jumlahBayar - totalTagihan;
         
         const kembalianDisplay = document.getElementById('kembalianDisplay');
         const btnConfirm = document.getElementById('btnConfirm');
         
         if (kembalian >= 0) {
-            kembalianDisplay.textContent = 'Rp ' + kembalian.toLocaleString('id-ID');
+            kembalianDisplay.textContent = formatRupiah(kembalian);
             kembalianDisplay.style.color = '#4A90E2';
             btnConfirm.disabled = false;
-            document.getElementById('jumlahDibayarHidden').value = jumlahBayar;
+            document.getElementById('jumlahDibayarHidden').value = jumlahBayar; 
         } else {
-            kembalianDisplay.textContent = 'Rp ' + Math.abs(kembalian).toLocaleString('id-ID') + ' (Kurang)';
+            kembalianDisplay.textContent = formatRupiah(kembalian) + ' (Kurang)';
             kembalianDisplay.style.color = '#dc3545';
             btnConfirm.disabled = true;
+            document.getElementById('jumlahDibayarHidden').value = jumlahBayar; 
         }
     }
     
-    function closeNotification() {
-        document.getElementById('notificationPopup').style.display = 'none';
+    function closeNotification(id) {
+        document.getElementById(id).style.display = 'none';
     }
 
+    // Menampilkan overlay struk setelah notifikasi sukses
     function showReceipt() {
         document.getElementById('successPopup').style.display = 'none';
         document.getElementById('receiptOverlay').style.display = 'flex';
+        document.getElementById('closeReceiptBtn').disabled = !isPrinted; 
     }
     
+    // Fungsi mencetak struk
     function printReceipt() {
-        window.print();
+        const content = document.getElementById('receiptContent').innerHTML;
+        const printWindow = window.open('', '', 'height=600,width=400');
+        
+        printWindow.document.write('<html><head><title>Struk Pembayaran</title>');
+        
+        printWindow.document.write(`
+            <style>
+                @media print {
+                    body { font-family: 'Courier New', monospace; font-size: 10px; margin: 0; padding: 10px; }
+                    .receipt-content { width: 100%; max-width: 300px; margin: 0 auto; }
+                    .receipt-header, .receipt-footer { text-align: center; margin-bottom: 5px; }
+                    .receipt-header h2 { margin: 0; font-size: 14px; }
+                    .receipt-header p { margin: 0; font-size: 10px; }
+                    .receipt-info { margin: 5px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 5px 0; }
+                    .receipt-info div, .receipt-item, .receipt-total, .receipt-paid, .receipt-change { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                    .receipt-total, .receipt-paid, .receipt-change { font-weight: bold; }
+                    .receipt-items { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
+                    @page { margin: 0.5cm; }
+                }
+            </style>
+        `);
+        
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(content); 
+        printWindow.document.write('</body></html>');
+        
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+        
+        isPrinted = true;
+        document.getElementById('closeReceiptBtn').disabled = false;
+        document.getElementById('printBtn').textContent = "✅ Sudah Cetak";
+        document.getElementById('printBtn').disabled = true;
     }
     
     function closeReceipt() {
-        window.location.href = '<?= $_SERVER['PHP_SELF'] ?>';
+        if (isPrinted) {
+            window.location.href = '<?= $_SERVER['PHP_SELF'] ?>';
+        } else {
+            alert("Harap Cetak Struk terlebih dahulu!"); 
+        }
     }
     
     <?php if ($print_data): ?>
+    // Alur: Popup Sukses muncul saat halaman dimuat
     window.onload = function() {
         document.getElementById('successPopup').style.display = 'flex';
-        
-        setTimeout(function() {
-            showReceipt();
-            
-            setTimeout(function() {
-                window.print();
-            }, 500);
-        }, 2000);
     };
     <?php endif; ?>
 </script>
+</body>
+</html>
