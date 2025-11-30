@@ -1,10 +1,10 @@
 <?php
-require_once '../include/check_auth.php';
+require_once '../include/check_auth.php'; 
 
 $username = getUsername();
 $email = getUserEmail();
 $userId = getUserId();
-require '../../database/connect.php';
+require '../../database/connect.php'; 
 
 function generateRandomCode($length = 11) {
     $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -30,7 +30,7 @@ if ($result_meja && mysqli_num_rows($result_meja) > 0) {
     }
 }
 
-$query_menu = "SELECT * FROM menu ORDER BY kategori, nama_menu";
+$query_menu = "SELECT id_menu, nama_menu, harga, kategori, gambar FROM menu ORDER BY kategori, nama_menu";
 $result_menu = mysqli_query($conn, $query_menu);
 $menu_list = mysqli_fetch_all($result_menu, MYSQLI_ASSOC);
 
@@ -54,6 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $jenis_pesanan = $_POST['jenis_pesanan'];
         $metode_bayar = strtolower(trim(mysqli_real_escape_string($conn, $_POST['metode_bayar'] ?? '')));
         $id_meja = $jenis_pesanan === 'dine_in' ? $_POST['id_meja'] : null;
+        
+        $nominal_bayar = $_POST['nominal_bayar_hidden'] ?? 0;
+        $nominal_bayar = (float)$nominal_bayar; 
+        $nomor_meja = $_POST['nomor_meja_hidden'] ?? 'TAKE AWAY';
+
 
         if ($jenis_pesanan === 'take_away') {
             $qTA = mysqli_query($conn, "SELECT id_meja FROM meja WHERE kode_unik='TAKE_AWAY' LIMIT 1");
@@ -64,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cart_items = json_decode($_POST['cart_data'] ?? '[]', true);
 
         if (empty($cart_items)) throw new Exception("Keranjang masih kosong!");
-        if ($jenis_pesanan === 'dine_in' && !$id_meja) throw new Exception("Harap pilih meja!");
+        if ($jenis_pesanan === 'dine_in' && (!$id_meja || empty($_POST['id_meja']))) throw new Exception("Harap pilih meja!");
 
         $allowed_methods = ['qris', 'cash'];
         if (!in_array($metode_bayar, $allowed_methods)) throw new Exception("Metode bayar tidak valid!");
@@ -76,28 +81,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             VALUES ('$id_pesanan', '$id_meja', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
         ";
 
-        mysqli_query($conn, $query_pesanan);
+        if (!mysqli_query($conn, $query_pesanan)) {
+            throw new Exception("Gagal menyimpan pesanan utama. MySQL Error: " . mysqli_error($conn));
+        }
 
         $total_harga = 0;
+        $struk_items = []; 
 
         foreach ($cart_items as $item) {
             $id_detail = generateRandomCode(11);
             $id_menu = mysqli_real_escape_string($conn, $item['id_menu']);
-            $jumlah = $item['jumlah'];
+            $jumlah = (int)$item['jumlah'];
             $catatan = mysqli_real_escape_string($conn, $item['catatan']);
 
-            $harga_res = mysqli_query($conn, "SELECT harga FROM menu WHERE id_menu='$id_menu'");
+            $harga_res = mysqli_query($conn, "SELECT nama_menu, harga FROM menu WHERE id_menu='$id_menu'");
             $menu = mysqli_fetch_assoc($harga_res);
-            $harga = $menu['harga'];
+            if (!$menu) throw new Exception("Menu tidak ditemukan!");
+            
+            $nama_menu = $menu['nama_menu'];
+            $harga = $menu['harga']; 
 
             $subtotal = $harga * $jumlah;
             $total_harga += $subtotal;
 
-            mysqli_query($conn, "
+            $struk_items[] = [
+                'id_menu' => $id_menu,
+                'nama' => $nama_menu,
+                'jumlah' => $jumlah,
+                'harga_satuan' => $harga,
+                'subtotal' => $subtotal,
+                'catatan' => $catatan
+            ];
+
+
+            if (!mysqli_query($conn, "
                 INSERT INTO detail_pesanan (id_detail, id_pesanan, id_menu, jumlah, harga_satuan, subtotal, status_item, catatan_item)
                 VALUES ('$id_detail', '$id_pesanan', '$id_menu', '$jumlah', '$harga', '$subtotal', 'menunggu', '$catatan')
-            ");
+            ")) {
+                 throw new Exception("Gagal menyimpan detail pesanan. MySQL Error: " . mysqli_error($conn));
+            }
         }
+        
+        if ($metode_bayar === 'cash' && $nominal_bayar < $total_harga) {
+             throw new Exception("Nominal bayar kurang dari total harga! Nominal bayar: " . number_format($nominal_bayar) . ", Total: " . number_format($total_harga));
+        }
+        
+        $kembalian = $metode_bayar === 'cash' ? ($nominal_bayar - $total_harga) : 0;
+        $nominal_bayar_db = $metode_bayar === 'qris' ? $total_harga : $nominal_bayar;
 
         mysqli_query($conn, "UPDATE pesanan SET total_harga='$total_harga' WHERE id_pesanan='$id_pesanan'");
 
@@ -107,17 +137,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $id_pembayaran = generateRandomCode(11);
 
-        mysqli_query($conn, "
+        $insert_pembayaran_query = "
             INSERT INTO pembayaran 
-            (id_pembayaran, id_pesanan, metode, status, bukti_pembayaran, waktu_pembayaran)
+            (id_pembayaran, id_pesanan, metode, status, bukti_pembayaran, waktu_pembayaran, bayar, kembalian)
             VALUES 
-            ('$id_pembayaran', '$id_pesanan', '$metode_bayar', 'sudah_bayar', NULL, NOW())
-        ");
+            ('$id_pembayaran', '$id_pesanan', '$metode_bayar', 'sudah_bayar', NULL, NOW(), '$nominal_bayar_db', '$kembalian')
+        ";
 
+        if (!mysqli_query($conn, $insert_pembayaran_query)) {
+             throw new Exception("Gagal menyimpan data pembayaran. Pastikan kolom 'bayar' dan 'kembalian' ada di tabel pembayaran. MySQL Error: " . mysqli_error($conn));
+        }
+        
         mysqli_commit($conn);
         
         $_SESSION['success_message'] = "Pesanan berhasil dibuat! ID: $id_pesanan";
-        $_SESSION['order_id'] = $id_pesanan;
+        $_SESSION['order_data'] = [
+            'id_pesanan' => $id_pesanan,
+            'jenis_pesanan' => $jenis_pesanan === 'dine_in' ? 'Dine-In' : 'Take Away',
+            'meja' => $nomor_meja,
+            'tanggal' => date('Y-m-d H:i:s'),
+            'items' => $struk_items,
+            'total_harga' => $total_harga,
+            'metode_bayar' => $metode_bayar,
+            'nominal_bayar' => $nominal_bayar_db, 
+            'kembalian' => $kembalian
+        ];
         
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
@@ -132,11 +176,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $success_message = isset($_SESSION['success_message']) ? $_SESSION['success_message'] : null;
 $error_message = isset($_SESSION['error_message']) ? $_SESSION['error_message'] : null;
-$order_id = isset($_SESSION['order_id']) ? $_SESSION['order_id'] : null;
+$order_data = isset($_SESSION['order_data']) ? $_SESSION['order_data'] : null;
 
 unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
-unset($_SESSION['order_id']);
+unset($_SESSION['order_data']);
 ?>
 
 <!DOCTYPE html>
@@ -144,671 +188,9 @@ unset($_SESSION['order_id']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?php $version = filemtime('../../css/kasir/input-pesanan.css'); ?>
+    <link rel="stylesheet" type="text/css" href="../../css/kasir/input-pesanan.css?v=<?php echo $version; ?>">
     <title>Input Pesanan Baru</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #f5f5f5;
-        }
-        
-        .main-content {
-            margin-left: 300px;
-            padding: 20px;
-            transition: margin-left 0.3s ease;
-            min-height: 100vh;
-        }
-        
-        body.sidebar-collapsed .main-content {
-            margin-left: 70px;
-        }
-        
-        .container { 
-            max-width: 1400px;
-            margin: 0 auto; 
-            display: flex;
-            gap: 20px;
-            background: #ffffff;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-            border-radius: 10px;
-            padding: 20px;
-        }
-        .left-section { flex: 1; }
-        .right-section {
-            width: 350px;
-            transition: all 0.3s ease;
-        }
-        
-        .right-section.hidden {
-            opacity: 0;
-            pointer-events: none;
-            transform: translateX(20px);
-        }
-        
-        h2 { 
-            font-size: 24px; 
-            margin-bottom: 5px;
-            color: #333;
-        }
-        .subtitle { 
-            color: #999; 
-            font-size: 13px; 
-            margin-bottom: 25px;
-        }
-        
-        .section-box {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #666;
-        }
-        
-        .order-type-cards {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        
-        .type-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 30px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: white;
-        }
-        
-        .type-card:hover {
-            border-color: #FFA726;
-            background: #FFF8F0;
-        }
-        
-        .type-card.active {
-            border-color: #FFA726;
-            background: #FFF8F0;
-        }
-        
-        .type-card .icon {
-            font-size: 42px;
-            margin-bottom: 10px;
-        }
-        
-        .type-card .label {
-            font-weight: 600;
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        
-        .type-card .desc {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #666;
-            margin-bottom: 8px;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            background: #fafafa;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: #FFA726;
-            background: white;
-        }
-        
-        .search-box {
-            position: relative;
-            margin-bottom: 20px;
-        }
-        
-        .search-box input {
-            width: 100%;
-            padding: 12px 15px 12px 40px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-        
-        .search-box::before {
-            content: "🔍";
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 16px;
-        }
-        
-        .category-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-        
-        .tab-btn {
-            padding: 12px 20px;
-            background: none;
-            border: none;
-            font-size: 14px;
-            font-weight: 500;
-            color: #999;
-            cursor: pointer;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-        }
-        
-        .tab-btn.active {
-            color: #333;
-            border-bottom-color: #FFA726;
-        }
-        
-        .tab-btn .icon {
-            margin-right: 5px;
-        }
-        
-        .tab-btn .badge {
-            background: #f0f0f0;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            margin-left: 5px;
-        }
-        
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
-        
-        .menu-card {
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 15px;
-            background: white;
-            transition: all 0.2s;
-        }
-        
-        .menu-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-        
-        .menu-card .image {
-            width: 100%;
-            height: 100px;
-            background: #f5f5f5;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            color: #999;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .menu-card .image img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .menu-card .image .no-image-text {
-            position: absolute;
-            color: #999;
-            font-size: 11px;
-        }
-        
-        .menu-card .name {
-            font-weight: 600;
-            font-size: 14px;
-            color: #333;
-            margin-bottom: 5px;
-        }
-        
-        .menu-card .price {
-            color: #FFA726;
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 10px;
-        }
-        
-        .btn-tambah {
-            width: 100%;
-            padding: 8px;
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        
-        .btn-tambah:hover {
-            background: #1976D2;
-        }
-        
-        .cart-box {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .cart-header {
-            background: #FFF8F0;
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .cart-header .title {
-            font-weight: 600;
-            font-size: 16px;
-            color: #333;
-        }
-        
-        .cart-header .badge {
-            background: #FFA726;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .cart-header .clear {
-            color: #f44336;
-            font-size: 13px;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        
-        .cart-items {
-            padding: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        .cart-empty {
-            text-align: center;
-            padding: 40px 20px;
-            color: #999;
-            font-size: 14px;
-        }
-        
-        .cart-item {
-            background: #FFF8F0;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 12px;
-        }
-        
-        .cart-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 10px;
-        }
-        
-        .cart-item-name {
-            font-weight: 600;
-            font-size: 14px;
-            color: #333;
-        }
-        
-        .cart-item-note {
-            font-size: 12px;
-            color: #888;
-            font-style: italic;
-            margin-top: 4px;
-        }
-        
-        .cart-item-note-input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-top: 8px;
-            font-family: inherit;
-        }
-        
-        .cart-item-note-input:focus {
-            outline: none;
-            border-color: #FFA726;
-        }
-        
-        .cart-item-remove {
-            background: none;
-            border: none;
-            color: #f44336;
-            cursor: pointer;
-            font-size: 18px;
-            padding: 0;
-            width: 24px;
-            height: 24px;
-        }
-        
-        .cart-item-controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .qty-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .qty-btn {
-            width: 28px;
-            height: 28px;
-            border: 1px solid #e0e0e0;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .qty-btn:hover {
-            background: #f5f5f5;
-        }
-        
-        .qty-value {
-            font-weight: 600;
-            font-size: 14px;
-            min-width: 20px;
-            text-align: center;
-        }
-        
-        .item-price {
-            font-weight: 700;
-            color: #FFA726;
-            font-size: 14px;
-        }
-        
-        .cart-summary {
-            border-top: 2px solid #f0f0f0;
-            padding: 20px;
-        }
-        
-        .summary-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 14px;
-        }
-        
-        .summary-row.total {
-            font-weight: 700;
-            font-size: 18px;
-            color: #333;
-            padding-top: 12px;
-            border-top: 1px solid #f0f0f0;
-        }
-        
-        .summary-row.total .amount {
-            color: #FFA726;
-        }
-        
-        .payment-section {
-            margin-top: 20px;
-        }
-        
-        .payment-methods {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .payment-card {
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .payment-card:hover {
-            border-color: #FFA726;
-            background: #FFF8F0;
-        }
-        
-        .payment-card.active {
-            border-color: #FFA726;
-            background: #FFF8F0;
-        }
-        
-        .payment-card .icon {
-            font-size: 24px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-radius: 8px;
-        }
-        
-        .payment-card .info .name {
-            font-weight: 600;
-            font-size: 14px;
-            color: #333;
-        }
-        
-        .payment-card .info .desc {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .btn-submit {
-            width: 100%;
-            padding: 16px;
-            background: #FFA726;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-        
-        .btn-submit:hover {
-            background: #FF9800;
-        }
-        
-        .btn-submit:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        #mejaGroup {
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-        
-        #mejaGroup.hidden {
-            max-height: 0;
-            opacity: 0;
-            margin: 0;
-            padding: 0;
-        }
-        
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal-overlay.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            animation: modalSlideIn 0.3s ease;
-        }
-        
-        @keyframes modalSlideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-        
-        .modal-icon {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-        }
-        
-        .modal-icon.success {
-            background: #d4edda;
-            color: #28a745;
-        }
-        
-        .modal-icon.error {
-            background: #f8d7da;
-            color: #dc3545;
-        }
-        
-        .modal-title {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .modal-message {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-        
-        .modal-order-id {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-        }
-        
-        .modal-btn {
-            padding: 12px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .modal-btn.success {
-            background: #28a745;
-            color: white;
-        }
-        
-        .modal-btn.success:hover {
-            background: #218838;
-        }
-        
-        .modal-btn.error {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .modal-btn.error:hover {
-            background: #c82333;
-        }
-        
-        @media (max-width: 768px) {
-            .main-content {
-                margin-left: 0;
-                padding: 15px;
-            }
-            
-            body.sidebar-collapsed .main-content {
-                margin-left: 0;
-            }
-            
-            .container {
-                flex-direction: column;
-            }
-            .right-section {
-                width: 100%;
-            }
-            .right-section.hidden {
-                display: none;
-            }
-            .menu-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 <body>
     <?php include '../../sidebar/sidebar_kasir.php'; ?>
@@ -820,11 +202,17 @@ unset($_SESSION['order_id']);
             </div>
             <div class="modal-title" id="modalTitle"></div>
             <div class="modal-message" id="modalMessage"></div>
-            <div class="modal-order-id" id="modalOrderId" style="display: none;"></div>
-            <button class="modal-btn" id="modalBtn" onclick="closeModal()"></button>
+            <div id="receiptContent" style="display: none;"></div> 
+            
+            <div class="modal-actions">
+                <button class="modal-btn print-btn hidden" id="printBtn" onclick="printReceipt()">
+                    🖨️ Cetak Struk
+                </button>
+                <button class="modal-btn" id="modalBtn" onclick="closeModal()"></button>
+            </div>
         </div>
     </div>
-    
+
     <div class="main-content">
         <div class="container">
             <div class="left-section">
@@ -835,7 +223,9 @@ unset($_SESSION['order_id']);
                     <input type="hidden" name="cart_data" id="cart_data">
                     <input type="hidden" name="jenis_pesanan" id="jenis_pesanan" value="">
                     <input type="hidden" name="metode_bayar" id="metode_bayar" value="">
-                    
+                    <input type="hidden" name="nominal_bayar_hidden" id="nominal_bayar_hidden" value="">
+                    <input type="hidden" name="nomor_meja_hidden" id="nomor_meja_hidden" value="">
+
                     <div class="section-box">
                         <div class="section-title">Tipe Pesanan</div>
                         <div class="order-type-cards">
@@ -855,11 +245,11 @@ unset($_SESSION['order_id']);
                     <div class="section-box hidden" id="mejaGroup">
                         <div class="form-group">
                             <label>Pilih Meja</label>
-                            <select name="id_meja" id="selectMeja" class="form-control">
+                            <select name="id_meja" id="selectMeja" class="form-control" onchange="updateNomorMeja()">
                                 <option value="">Pilih nomor meja...</option>
                                 <?php if (!empty($meja_list)): ?>
                                     <?php foreach ($meja_list as $m): ?>
-                                        <option value="<?= htmlspecialchars($m['id_meja']); ?>">
+                                        <option value="<?= htmlspecialchars($m['id_meja']); ?>" data-nomor="<?= htmlspecialchars($m['nomor_meja']); ?>">
                                             Meja <?= htmlspecialchars($m['nomor_meja']); ?>
                                             <?php if (!empty($m['kode_unik'])): ?>
                                                 (<?= htmlspecialchars($m['kode_unik']); ?>)
@@ -878,7 +268,7 @@ unset($_SESSION['order_id']);
                         </div>
                     </div>
                     
-                    <div class="section-box">
+                    <div class="section-box hidden" id="menuSelectionGroup">
                         <div class="section-title">Pilih Menu</div>
                         
                         <div class="search-box">
@@ -901,56 +291,41 @@ unset($_SESSION['order_id']);
                         </div>
                         
                         <div class="menu-grid" id="menuContainer">
-                            <?php foreach ($menu_by_category['makanan'] as $menu): ?>
-                                <div class="menu-card" data-kategori="makanan">
-                                    <div class="image">
-                                        <?php if (!empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar'])): ?>
-                                            <img src="../../uploads/<?= htmlspecialchars($menu['gambar']); ?>" alt="<?= htmlspecialchars($menu['nama_menu']); ?>">
-                                        <?php else: ?>
-                                            <span class="no-image-text">No Image</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
-                                    <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                    <button type="button" class="btn-tambah" onclick="addToCart('<?= $menu['id_menu']; ?>', '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
-                                        + Tambah
-                                    </button>
-                                </div>
-                            <?php endforeach; ?>
-                            
-                            <?php foreach ($menu_by_category['minuman'] as $menu): ?>
-                                <div class="menu-card" data-kategori="minuman" style="display: none;">
-                                    <div class="image">
-                                        <?php if (!empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar'])): ?>
-                                            <img src="../../uploads/<?= htmlspecialchars($menu['gambar']); ?>" alt="<?= htmlspecialchars($menu['nama_menu']); ?>">
-                                        <?php else: ?>
-                                            <span class="no-image-text">No Image</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
-                                    <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                    <button type="button" class="btn-tambah" onclick="addToCart('<?= $menu['id_menu']; ?>', '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
-                                        + Tambah
-                                    </button>
-                                </div>
-                            <?php endforeach; ?>
-                            
-                            <?php foreach ($menu_by_category['cemilan'] as $menu): ?>
-                                <div class="menu-card" data-kategori="cemilan" style="display: none;">
-                                    <div class="image">
-                                        <?php if (!empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar'])): ?>
-                                            <img src="../../uploads/<?= htmlspecialchars($menu['gambar']); ?>" alt="<?= htmlspecialchars($menu['nama_menu']); ?>">
-                                        <?php else: ?>
-                                            <span class="no-image-text">No Image</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="name"><?= htmlspecialchars($menu['nama_menu']); ?></div>
-                                    <div class="price">Rp <?= number_format($menu['harga'], 0, ',', '.'); ?></div>
-                                    <button type="button" class="btn-tambah" onclick="addToCart('<?= $menu['id_menu']; ?>', '<?= addslashes($menu['nama_menu']); ?>', <?= $menu['harga']; ?>)">
-                                        + Tambah
-                                    </button>
-                                </div>
-                            <?php endforeach; ?>
+                            <?php 
+                                $all_menus_json = [];
+                                foreach (['makanan', 'minuman', 'cemilan'] as $cat) {
+                                    foreach ($menu_by_category[$cat] as $menu) {
+                                        $display = $cat === 'makanan' ? 'block' : 'none';
+                                        $image_path = !empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar']) ? '../../uploads/' . htmlspecialchars($menu['gambar']) : '';
+                                        $no_image_text = empty($image_path) ? '<span class="no-image-text">No Image</span>' : '';
+                                        $nama_menu_html = htmlspecialchars($menu['nama_menu']);
+                                        $menu_id_html = htmlspecialchars($menu['id_menu']);
+                                        $menu_harga = $menu['harga'];
+                                        $formatted_price = number_format($menu_harga, 0, ',', '.');
+                                        
+                                        $image_display_style = empty($no_image_text) ? 'block' : 'none'; 
+                                        
+                                        echo "<div class='menu-card' data-kategori='{$cat}' data-nama='{$nama_menu_html}' style='display: {$display};'>
+                                            <div class='image'>
+                                                {$no_image_text}
+                                                <img src='{$image_path}' alt='{$nama_menu_html}' style='display: {$image_display_style};'>
+                                            </div>
+                                            <div class='name'>{$nama_menu_html}</div>
+                                            <div class='price'>Rp {$formatted_price}</div>
+                                            <button type='button' class='btn-tambah' onclick=\"addToCart('{$menu_id_html}', '{$nama_menu_html}', {$menu_harga})\">
+                                                + Tambah
+                                            </button>
+                                        </div>";
+                                        
+                                        $all_menus_json[] = [
+                                            'id_menu' => $menu['id_menu'],
+                                            'nama_menu' => $menu['nama_menu'],
+                                            'harga' => $menu['harga'],
+                                            'kategori' => $cat
+                                        ];
+                                    }
+                                }
+                            ?>
                         </div>
                     </div>
                 </form>
@@ -998,6 +373,17 @@ unset($_SESSION['order_id']);
                             </div>
                         </div>
                         
+                        <div class="cash-calculator hidden" id="cashCalculator">
+                            <div class="form-group">
+                                <label for="nominalBayar">Nominal Bayar (Cash)</label>
+                                <input type="text" id="nominalBayar" class="form-control" placeholder="Rp 0" oninput="calculateChange()">
+                            </div>
+                            <div class="summary-row change-row">
+                                <span>Kembalian</span>
+                                <span class="amount" id="kembalian">Rp 0</span>
+                            </div>
+                        </div>
+
                         <button type="submit" form="formPesanan" class="btn-submit" id="btnSubmit" disabled>
                             Buat Pesanan
                         </button>
@@ -1008,8 +394,10 @@ unset($_SESSION['order_id']);
     </div>
     
     <script>
+        const allMenus = <?= json_encode($all_menus_json, JSON_NUMERIC_CHECK); ?>;
         let cart = [];
-        
+        let totalPesanan = 0;
+
         function checkSidebarState() {
             const sidebar = document.querySelector('.sidebar');
             if (sidebar) {
@@ -1037,49 +425,155 @@ unset($_SESSION['order_id']);
                 observer.observe(sidebar, { attributes: true });
             }
             
-            <?php if ($success_message): ?>
-                showModal('success', 'Pesanan Berhasil!', '<?= addslashes($success_message); ?>', '<?= $order_id; ?>');
+            <?php if ($order_data): ?>
+                showReceiptModal(<?= json_encode($order_data, JSON_NUMERIC_CHECK); ?>);
             <?php elseif ($error_message): ?>
                 showModal('error', 'Pesanan Gagal!', '<?= addslashes($error_message); ?>');
             <?php endif; ?>
         });
+
+        function formatRupiah(number) {
+            if (number === undefined || number === null) return "Rp 0";
+            return "Rp " + Math.abs(number).toLocaleString('id-ID');
+        }
         
-        function showModal(type, title, message, orderId = null) {
+        function formatNumber(number) {
+            if (number === undefined || number === null) return "0";
+            return Math.abs(number).toLocaleString('id-ID');
+        }
+
+        function showModal(type, title, message) {
             const modal = document.getElementById('modalOverlay');
             const modalIcon = document.getElementById('modalIcon');
             const modalIconText = document.getElementById('modalIconText');
             const modalTitle = document.getElementById('modalTitle');
             const modalMessage = document.getElementById('modalMessage');
-            const modalOrderId = document.getElementById('modalOrderId');
             const modalBtn = document.getElementById('modalBtn');
+            const receiptContent = document.getElementById('receiptContent');
+            const printBtn = document.getElementById('printBtn'); 
+
+            receiptContent.style.display = 'none';
+            modalMessage.style.display = 'block';
+            printBtn.classList.add('hidden'); 
             
             if (type === 'success') {
                 modalIcon.className = 'modal-icon success';
                 modalIconText.textContent = '✓';
                 modalBtn.className = 'modal-btn success';
                 modalBtn.textContent = 'OK';
-                
-                if (orderId) {
-                    modalOrderId.style.display = 'block';
-                    modalOrderId.textContent = 'ID: ' + orderId;
-                }
             } else {
                 modalIcon.className = 'modal-icon error';
                 modalIconText.textContent = '✕';
                 modalBtn.className = 'modal-btn error';
                 modalBtn.textContent = 'Tutup';
-                modalOrderId.style.display = 'none';
             }
             
             modalTitle.textContent = title;
             modalMessage.textContent = message;
             modal.classList.add('active');
         }
+
+        function showReceiptModal(data) {
+            const modal = document.getElementById('modalOverlay');
+            const modalIcon = document.getElementById('modalIcon');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalMessage = document.getElementById('modalMessage');
+            const modalBtn = document.getElementById('modalBtn');
+            const receiptContent = document.getElementById('receiptContent');
+            const printBtn = document.getElementById('printBtn'); 
+
+            modalIcon.className = 'modal-icon success';
+            modalIcon.innerHTML = '<span>🧾</span>'; 
+            modalTitle.textContent = 'Pesanan Berhasil!';
+            modalMessage.style.display = 'none';
+            modalBtn.className = 'modal-btn success';
+            modalBtn.textContent = 'Selesai';
+            receiptContent.style.display = 'block';
+            printBtn.classList.remove('hidden'); 
+            
+            let itemsHtml = data.items.map(item => `
+                <div class="receipt-item">
+                    <span>${item.nama} x${item.jumlah}</span>
+                    <span>${formatRupiah(item.subtotal)}</span>
+                </div>
+            `).join('');
+
+            let changeRow = '';
+            if (data.metode_bayar === 'cash') {
+                changeRow = `
+                    <div class="receipt-summary-row"><span>Bayar</span><span>${formatRupiah(data.nominal_bayar)}</span></div>
+                    <div class="receipt-summary-row"><span>Kembalian</span><span>${formatRupiah(data.kembalian)}</span></div>
+                `;
+            } else {
+                changeRow = `<div class="receipt-summary-row"><span>Metode Bayar</span><span>${data.metode_bayar.toUpperCase()}</span></div>`;
+            }
+
+            receiptContent.innerHTML = `
+                <div class="receipt-box printable-area">
+                    <div class="receipt-header">
+                        <h4>Lesehan Tepi Sawah</h4>
+                        <p>ID Pesanan: ${data.id_pesanan}</p>
+                        <p>Tipe: ${data.jenis_pesanan}</p>
+                        ${data.jenis_pesanan === 'Dine-In' ? `<p>Meja: ${data.meja}</p>` : ''}
+                        <p>Tanggal: ${data.tanggal}</p>
+                        <p>Kasir: <?php echo htmlspecialchars($username); ?></p>
+                    </div>
+                    <div class="receipt-items-list">${itemsHtml}</div>
+                    <div class="receipt-summary">
+                        <div class="receipt-summary-row total"><span>TOTAL</span><span>${formatRupiah(data.total_harga)}</span></div>
+                        ${changeRow}
+                    </div>
+                    <div class="receipt-footer">
+                        <p>Terima kasih atas kunjungan Anda!</p>
+                    </div>
+                </div>
+            `;
+            modal.classList.add('active');
+        }
         
         function closeModal() {
             const modal = document.getElementById('modalOverlay');
+            const printBtn = document.getElementById('printBtn');
+            
             modal.classList.remove('active');
+            printBtn.classList.add('hidden'); 
+            document.getElementById('receiptContent').style.display = 'none'; 
+            document.getElementById('modalIcon').innerHTML = '<span id="modalIconText"></span>';
         }
+
+        function printReceipt() {
+            const content = document.querySelector('.printable-area').innerHTML;
+            
+            const printWindow = window.open('', '', 'height=600,width=400');
+
+            printWindow.document.write('<html><head><title>Struk Pesanan</title>');
+            
+            printWindow.document.write(`
+                <style>
+                    @media print {
+                        body { font-family: 'Courier New', monospace; font-size: 10px; margin: 0; padding: 10px; }
+                        .receipt-box { width: 100%; }
+                        .receipt-header, .receipt-footer { text-align: center; margin-bottom: 5px; }
+                        .receipt-header h4 { margin: 0 0 5px 0; font-size: 12px; }
+                        .receipt-items-list { border-top: 1px dashed #000; padding-top: 5px; }
+                        .receipt-summary { border-top: 1px dashed #000; border-bottom: 1px dashed #000; margin: 5px 0; padding: 5px 0; }
+                        .receipt-item, .receipt-summary-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                        .receipt-summary-row.total span { font-weight: bold; font-size: 11px; }
+                        @page { margin: 0.5cm; }
+                    }
+                </style>
+            `);
+            
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(content); 
+            printWindow.document.write('</body></html>');
+            
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        }
+
         
         function selectOrderType(jenis, element) {
             document.querySelectorAll('.type-card').forEach(card => card.classList.remove('active'));
@@ -1087,12 +581,25 @@ unset($_SESSION['order_id']);
             document.getElementById('jenis_pesanan').value = jenis;
             
             const mejaGroup = document.getElementById('mejaGroup');
+            const menuSelectionGroup = document.getElementById('menuSelectionGroup');
+
             if (jenis === 'dine_in') {
                 mejaGroup.classList.remove('hidden');
+                document.getElementById('nomor_meja_hidden').value = '';
             } else {
                 mejaGroup.classList.add('hidden');
+                document.getElementById('selectMeja').value = ''; 
+                document.getElementById('nomor_meja_hidden').value = 'TAKE AWAY';
             }
             
+            menuSelectionGroup.classList.remove('hidden');
+            checkFormValidity();
+        }
+
+        function updateNomorMeja() {
+            const select = document.getElementById('selectMeja');
+            const selectedOption = select.options[select.selectedIndex];
+            document.getElementById('nomor_meja_hidden').value = selectedOption.getAttribute('data-nomor') || '';
             checkFormValidity();
         }
         
@@ -1101,8 +608,16 @@ unset($_SESSION['order_id']);
             button.classList.add('active');
             
             document.querySelectorAll('.menu-card').forEach(card => {
-                card.style.display = card.getAttribute('data-kategori') === kategori ? 'block' : 'none';
+                const isMatch = card.getAttribute('data-kategori') === kategori;
+                const isSearchActive = document.getElementById('searchMenu').value.trim() !== '';
+
+                if (isMatch && !isSearchActive) {
+                    card.style.display = 'block';
+                } else if (!isSearchActive) {
+                    card.style.display = 'none';
+                }
             });
+            document.getElementById('searchMenu').value = ''; 
         }
         
         function addToCart(id, nama, harga) {
@@ -1110,7 +625,7 @@ unset($_SESSION['order_id']);
             if (item) {
                 item.jumlah += 1;
             } else {
-                cart.push({ id_menu: id, nama, harga, jumlah: 1, catatan: "" });
+                cart.push({ id_menu: id, nama, harga: harga, jumlah: 1, catatan: "" });
             }
             renderCart();
         }
@@ -1124,12 +639,12 @@ unset($_SESSION['order_id']);
             renderCart();
         }
         
-        function updateCatatan(id, catatan) {
+        function updateCatatan(id, inputElement) {
             let item = cart.find(x => x.id_menu === id);
             if (item) {
-                item.catatan = catatan;
-                document.getElementById("cart_data").value = JSON.stringify(cart);
+                item.catatan = inputElement.value;
             }
+            renderCart(); 
         }
         
         function removeItem(id) {
@@ -1140,36 +655,41 @@ unset($_SESSION['order_id']);
         function clearCart() {
             if (confirm('Kosongkan keranjang?')) {
                 cart = [];
+                document.getElementById('nominalBayar').value = '';
+                calculateChange(); 
                 renderCart();
             }
         }
         
         function renderCart() {
             const cartList = document.getElementById("cartList");
-            const totalHarga = document.getElementById("totalHarga");
-            const subtotal = document.getElementById("subtotal");
+            const totalHargaEl = document.getElementById("totalHarga");
+            const subtotalEl = document.getElementById("subtotal");
             const cartBadge = document.getElementById("cartBadge");
             const clearBtn = document.getElementById("clearBtn");
             const cartSection = document.getElementById("cartSection");
             
+            totalPesanan = cart.reduce((sum, item) => sum + (item.harga * item.jumlah), 0);
+
             if (cart.length === 0) {
                 cartList.innerHTML = '<div class="cart-empty">Belum ada item.</div>';
-                totalHarga.textContent = "Rp 0";
-                subtotal.textContent = "Rp 0";
+                totalHargaEl.textContent = "Rp 0";
+                subtotalEl.textContent = "Rp 0";
                 cartBadge.textContent = "0";
                 clearBtn.style.display = "none";
                 cartSection.classList.add("hidden");
+                totalPesanan = 0;
+                calculateChange();
                 checkFormValidity();
                 return;
             }
 
             cartSection.classList.remove("hidden");
 
-            let total = 0;
             cartList.innerHTML = "";
             
             cart.forEach(item => {
-                total += item.harga * item.jumlah;
+                const subtotal = item.harga * item.jumlah;
                 cartList.innerHTML += `
                     <div class="cart-item">
                         <div class="cart-item-header">
@@ -1181,26 +701,55 @@ unset($_SESSION['order_id']);
                         </div>
                         <div class="cart-item-controls">
                             <div class="qty-controls">
-                                <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', -1)">−</button>
+                                <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', -1)" ${item.jumlah <= 1 ? 'disabled' : ''}>−</button>
                                 <span class="qty-value">${item.jumlah}</span>
                                 <button type="button" class="qty-btn" onclick="updateJumlah('${item.id_menu}', 1)">+</button>
                             </div>
-                            <div class="item-price">Rp ${(item.harga * item.jumlah).toLocaleString()}</div>
+                            <div class="item-price">${formatRupiah(subtotal)}</div>
                         </div>
                         <input type="text" 
                                class="cart-item-note-input" 
                                placeholder="Tambah catatan (opsional)..." 
                                value="${item.catatan || ''}"
-                               onchange="updateCatatan('${item.id_menu}', this.value)">
+                               onchange="updateCatatan('${item.id_menu}', this)">
                     </div>
                 `;
             });
             
-            totalHarga.textContent = "Rp " + total.toLocaleString();
-            subtotal.textContent = "Rp " + total.toLocaleString();
-            cartBadge.textContent = cart.length;
+            totalHargaEl.textContent = formatRupiah(totalPesanan);
+            subtotalEl.textContent = formatRupiah(totalPesanan);
+            cartBadge.textContent = cart.reduce((sum, item) => sum + item.jumlah, 0);
             clearBtn.style.display = "block";
             document.getElementById("cart_data").value = JSON.stringify(cart);
+
+            calculateChange();
+            checkFormValidity();
+        }
+
+        function calculateChange() {
+            const nominalBayarInput = document.getElementById('nominalBayar');
+            const kembalianEl = document.getElementById('kembalian');
+            
+            let value = nominalBayarInput.value.replace(/[^0-9]/g, '');
+            let nominalBayar = parseFloat(value) || 0;
+
+            if (value) {
+                nominalBayarInput.value = formatRupiah(nominalBayar);
+            } else {
+                nominalBayarInput.value = '';
+            }
+
+            const kembalian = nominalBayar - totalPesanan;
+
+            if (kembalian >= 0) {
+                kembalianEl.textContent = formatRupiah(kembalian);
+                kembalianEl.style.color = '#4CAF50'; 
+            } else {
+                kembalianEl.textContent = "-" + formatRupiah(kembalian);
+                kembalianEl.style.color = '#f44336'; 
+            }
+
+            document.getElementById('nominal_bayar_hidden').value = nominalBayar;
             checkFormValidity();
         }
         
@@ -1208,15 +757,39 @@ unset($_SESSION['order_id']);
             document.querySelectorAll('.payment-card').forEach(card => card.classList.remove('active'));
             element.classList.add('active');
             document.getElementById('metode_bayar').value = metode;
+            
+            const cashCalculator = document.getElementById('cashCalculator');
+            if (metode === 'cash') {
+                cashCalculator.classList.remove('hidden');
+                calculateChange(); 
+            } else {
+                cashCalculator.classList.add('hidden');
+                document.getElementById('nominalBayar').value = '';
+                document.getElementById('kembalian').textContent = 'Rp 0';
+                document.getElementById('nominal_bayar_hidden').value = totalPesanan; 
+            }
+
             checkFormValidity();
         }
         
         function checkFormValidity() {
             const jenisPesanan = document.getElementById('jenis_pesanan').value;
             const metodeBayar = document.getElementById('metode_bayar').value;
+            const idMeja = document.getElementById('selectMeja').value;
             const btnSubmit = document.getElementById('btnSubmit');
+            let isCashValid = true;
             
-            if (cart.length > 0 && jenisPesanan && metodeBayar) {
+            if (metodeBayar === 'cash') {
+                const nominalBayar = parseFloat(document.getElementById('nominal_bayar_hidden').value) || 0;
+                isCashValid = nominalBayar >= totalPesanan;
+            }
+
+            let isMejaValid = true;
+            if (jenisPesanan === 'dine_in' && idMeja === '') {
+                isMejaValid = false;
+            }
+
+            if (cart.length > 0 && jenisPesanan && metodeBayar && isMejaValid && isCashValid) {
                 btnSubmit.disabled = false;
             } else {
                 btnSubmit.disabled = true;
@@ -1225,20 +798,30 @@ unset($_SESSION['order_id']);
         
         document.getElementById('searchMenu').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase();
+            const activeCategoryElement = document.querySelector('.tab-btn.active');
+            
+            let activeCategory = 'makanan';
+            if (activeCategoryElement) {
+                const buttonText = activeCategoryElement.textContent.trim().toLowerCase();
+                if (buttonText.includes('minuman')) {
+                    activeCategory = 'minuman';
+                } else if (buttonText.includes('cemilan')) {
+                    activeCategory = 'cemilan';
+                }
+            }
+            
             document.querySelectorAll('.menu-card').forEach(card => {
-                const nama = card.querySelector('.name').textContent.toLowerCase();
+                const nama = card.getAttribute('data-nama').toLowerCase();
                 const currentCategory = card.getAttribute('data-kategori');
-                const activeCategory = document.querySelector('.tab-btn.active').textContent.toLowerCase();
                 
-                if (nama.includes(searchTerm) && activeCategory.includes(currentCategory)) {
-                    card.style.display = 'block';
-                } else if (searchTerm === '' && activeCategory.includes(currentCategory)) {
+                if (currentCategory === activeCategory && nama.includes(searchTerm)) {
                     card.style.display = 'block';
                 } else {
                     card.style.display = 'none';
                 }
             });
         });
+
     </script>
 </body>
 </html>
