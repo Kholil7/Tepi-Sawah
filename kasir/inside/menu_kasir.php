@@ -19,11 +19,6 @@ function clean($v) {
     return trim(htmlspecialchars($v ?? ''));
 }
 
-function generateMenuID() {
-    return 'MNU' . strtoupper(substr(str_shuffle('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8));
-}
-
-// Handle toggle status
 if (isset($_POST['action']) && $_POST['action'] === 'toggle_status') {
     $id_menu = clean($_POST['id_menu']);
     $current_status = clean($_POST['current_status']);
@@ -41,47 +36,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'toggle_status') {
     $stmt->close();
     exit;
 }
-
-if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
-    $id_menu = generateMenuID();
-    $nama = clean($_POST['nama_menu']);
-    $kategori = strtolower(clean($_POST['kategori']));
-    $harga = floatval($_POST['harga']);
-    $status_raw = $_POST['status_menu'] ?? null;
-    $status = ($status_raw === '1' || $status_raw === 'on' || strtolower($status_raw) === 'aktif' || strtolower($status_raw) === 'true') ? 'aktif' : 'nonaktif';
-    $gambar = $_FILES['gambar']['name'] ?? '';
-
-    if ($nama && $kategori && $harga && $gambar) {
-        $ext = strtolower(pathinfo($gambar, PATHINFO_EXTENSION));
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-        if (in_array($ext, $allowed)) {
-            $uploadDir = '../../assets/uploads/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-
-            $newName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', pathinfo($gambar, PATHINFO_FILENAME)) . '.' . $ext;
-            $uploadPath = $uploadDir . $newName;
-
-            if (move_uploaded_file($_FILES['gambar']['tmp_name'], $uploadPath)) {
-                $stmt = $conn->prepare("INSERT INTO menu (id_menu, nama_menu, kategori, harga, status_menu, gambar) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssiss", $id_menu, $nama, $kategori, $harga, $status, $newName);
-                if ($stmt->execute()) {
-                    echo "<script>alert('✅ Menu berhasil ditambahkan!'); window.location='tambah_menu.php';</script>";
-                } else {
-                    echo "<script>alert('❌ Gagal menyimpan ke database.');</script>";
-                }
-                $stmt->close();
-            } else {
-                echo "<script>alert('❌ Gagal mengunggah gambar.');</script>";
-            }
-        } else {
-            echo "<script>alert('❌ Format gambar tidak didukung! (jpg, jpeg, png, webp)');</script>";
-        }
-    } else {
-        echo "<script>alert('⚠️ Semua field wajib diisi!');</script>";
-    }
-    ob_end_flush();
-    exit;
-}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -91,157 +45,479 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
 <title>Daftar Menu | Resto Owner</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-/* === CSS DIPERBAIKI DENGAN TOGGLE SWITCH === */
-body{margin:0;font-family:'Segoe UI',sans-serif;background:#f9fafb;color:#333;display:flex;min-height:100vh;overflow-x:hidden;}
-aside{width:250px;background:#fff;border-right:1px solid #e5e7eb;transition:width .3s ease;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:1000;}
-main{flex-grow:1;margin-left:250px;transition:margin-left .3s ease;padding:90px 40px 60px;background:#f3f4f6;box-sizing:border-box;min-height:100vh;}
-aside.collapsed{width:70px;}
-aside.collapsed + main{margin-left:70px;}
-.content-wrapper{background:#fff;border-radius:20px;padding:30px;box-shadow:0 4px 14px rgba(0,0,0,0.08);}
-.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;background:linear-gradient(90deg,#e0e7ff,#f8fafc);padding:20px 30px;border-radius:14px;box-shadow:inset 0 2px 6px rgba(0,0,0,0.05);}
-.topbar h1{margin:0;font-size:26px;color:#1e3a8a;font-weight:700;}
-.topbar p{margin:4px 0 0;color:#475569;}
-.btn-tambah{background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;border:none;padding:10px 22px;border-radius:10px;cursor:pointer;font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 10px rgba(37,99,235,0.3);transition:.25s;}
-.btn-tambah:hover{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);transform:translateY(-2px);}
-.tab{background:#f1f5f9;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;color:#475569;font-size:14px;transition:.3s;margin-right:6px;}
-.tab.active{background-color:#2563eb;color:white;box-shadow:0 2px 6px rgba(37,99,235,0.3);}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px;margin-top:20px;}
-.card{background:#fff;border-radius:16px;box-shadow:0 3px 10px rgba(0,0,0,0.08);padding:16px;text-align:center;transition:.2s;position:relative;}
-.card:hover{transform:translateY(-3px);}
-.card img{width:100%;height:160px;object-fit:cover;border-radius:12px;}
-.card h3{margin:12px 0 4px;text-transform:capitalize;}
-.card .kategori{display:inline-block;background:#f1f5f9;padding:4px 10px;border-radius:12px;font-size:13px;color:#475569;}
-.card .harga{color:#f59e0b;font-weight:600;margin-top:6px;}
-.card .actions{margin-top:12px;display:flex;gap:8px;justify-content:center;}
+* {margin:0;padding:0;box-sizing:border-box;}
+body {
+    font-family:'Inter','Segoe UI',sans-serif;
+    min-height:100vh;
+    padding:0;
+    margin:0;
+    display:flex;
+    background: #f5f5f5;
+}
 
-/* Toggle Switch Modern */
-.toggle-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+aside {
+    width:250px;
+    flex-shrink:0;
+}
+
+main {
+    flex:1;
+    padding:20px;
+    margin-left:250px;
+    min-height:100vh;
+    transition:margin-left 0.3s ease;
+}
+
+aside.collapsed ~ main {
+    margin-left:70px;
+}
+
+.main-container {
+    max-width:100%;
+    background:#ffffff;
+    border-radius:30px;
+    overflow:hidden;
+    border:2px solid #fed7aa;
+}
+
+.header-section {
+    background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);
+    padding:40px 50px;
+    position:relative;
+    overflow:hidden;
+}
+
+.header-section::before {
+    content:'';
+    position:absolute;
+    top:-50%;
+    right:-10%;
+    width:500px;
+    height:500px;
+    background:rgba(255,255,255,0.1);
+    border-radius:50%;
+}
+
+.header-content {
+    position:relative;
+    z-index:2;
+}
+
+.header-title {
+    font-size:42px;
+    font-weight:800;
+    color:white;
+    margin-bottom:10px;
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.header-subtitle {
+    font-size:16px;
+    color:rgba(255,255,255,0.9);
+    font-weight:400;
+}
+
+.stats-bar {
+    display:flex;
+    gap:30px;
+    margin-top:30px;
+    padding-top:30px;
+    border-top:1px solid rgba(255,255,255,0.2);
+}
+
+.stat-item {
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.stat-icon {
+    width:50px;
+    height:50px;
+    background:rgba(255,255,255,0.2);
+    border-radius:15px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    color:white;
+}
+
+.stat-info h4 {
+    font-size:28px;
+    font-weight:700;
+    color:white;
+}
+
+.stat-info p {
+    font-size:13px;
+    color:rgba(255,255,255,0.8);
+    text-transform:uppercase;
+    letter-spacing:1px;
+}
+
+.control-panel {
+    padding:30px 50px;
+    background:#fff9f5;
+    border-bottom:3px solid #fed7aa;
+}
+
+.control-row {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+}
+
+.search-container {
+    flex:1;
+    max-width:500px;
+    position:relative;
+}
+
+.search-icon {
+    position:absolute;
+    left:20px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#f97316;
+    font-size:20px;
+}
+
+.search-input {
+    width:100%;
+    padding:16px 20px 16px 55px;
+    border:3px solid #fed7aa;
+    border-radius:20px;
+    font-size:16px;
+    transition:all 0.3s;
+    background:white;
+}
+
+.search-input:focus {
+    outline:none;
+    border-color:#f97316;
+}
+
+.filter-tabs {
+    display:flex;
+    gap:15px;
+    background:white;
+    padding:8px;
+    border-radius:20px;
+    border:2px solid #fed7aa;
+}
+
+.filter-btn {
+    padding:12px 28px;
+    border:none;
+    background:transparent;
+    color:#ea580c;
+    font-weight:600;
+    font-size:15px;
+    border-radius:14px;
+    cursor:pointer;
+    transition:all 0.3s;
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.filter-btn:hover {
+    background:#fff7ed;
+}
+
+.filter-btn.active {
+    background:linear-gradient(135deg,#f97316,#ea580c);
+    color:white;
+}
+
+.menu-section {
+    padding:40px 30px;
+}
+
+.menu-grid {
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+    gap:25px;
+}
+
+.menu-card {
+    background:white;
+    border-radius:20px;
+    overflow:hidden;
+    transition:all 0.3s;
+    border:2px solid #ffedd5;
+    display:flex;
+    position:relative;
+    width: 350px;
+}
+
+.menu-card:hover {
+    transform:translateY(-5px);
+    border-color:#f97316;
+}
+
+.card-image {
+    width:120px;
+    height:100%;
+    flex-shrink:0;
+    position:relative;
+}
+
+.card-image img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.status-badge {
+    position:absolute;
+    top:10px;
+    left:10px;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    border:2px solid white;
+}
+
+.status-badge.aktif {
+    background:#10b981;
+    animation:pulse 2s infinite;
+}
+
+.status-badge.nonaktif {
+    background:#ef4444;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity:1; }
+    50% { opacity:0.5; }
+}
+
+.card-content {
+    padding:16px;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+}
+
+.card-header {
+    margin-bottom:10px;
+}
+
+.card-title {
+    font-size:17px;
+    font-weight:700;
+    color:#7c2d12;
+    margin-bottom:6px;
+    line-height:1.3;
+}
+
+.card-category {
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    background:linear-gradient(135deg,#fff7ed,#ffedd5);
+    color:#c2410c;
+    padding:4px 10px;
+    border-radius:20px;
+    font-size:10px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    border:1px solid #fed7aa;
+}
+
+.card-footer {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:auto;
+    padding-top:12px;
+    border-top:1px solid #fed7aa;
+}
+
+.card-price {
+    font-size:20px;
+    font-weight:800;
+    color:#f97316;
+    display:flex;
+    align-items:center;
+    gap:5px;
+}
+
+.toggle-wrapper {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
 }
 
 .toggle-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #64748b;
-    margin-bottom: 4px;
+    font-size:10px;
+    font-weight:700;
+    color:#c2410c;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
 }
 
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 60px;
-    height: 30px;
+.switch {
+    position:relative;
+    width:50px;
+    height:26px;
 }
 
-.toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
+.switch input {
+    opacity:0;
+    width:0;
+    height:0;
 }
 
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #ef4444;
-    transition: .4s;
-    border-radius: 34px;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+.slider {
+    position:absolute;
+    cursor:pointer;
+    inset:0;
+    background:#ef4444;
+    transition:0.4s;
+    border-radius:26px;
 }
 
-.toggle-slider:before {
-    position: absolute;
-    content: "";
-    height: 22px;
-    width: 22px;
-    left: 4px;
-    bottom: 4px;
-    background: white;
-    transition: .4s;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+.slider:before {
+    position:absolute;
+    content:"";
+    height:18px;
+    width:18px;
+    left:4px;
+    bottom:4px;
+    background:white;
+    transition:0.4s;
+    border-radius:50%;
 }
 
-.toggle-switch input:checked + .toggle-slider {
-    background: #10b981;
+.switch input:checked + .slider {
+    background:linear-gradient(135deg,#10b981,#059669);
 }
 
-.toggle-switch input:checked + .toggle-slider:before {
-    transform: translateX(30px);
+.switch input:checked + .slider:before {
+    transform:translateX(24px);
 }
 
-.toggle-switch input:focus + .toggle-slider {
-    box-shadow: 0 0 1px #10b981;
+.empty-state {
+    text-align:center;
+    padding:80px 20px;
+    color:#c2410c;
 }
 
-/* Status text yang bergerak */
-.toggle-status {
-    font-size: 11px;
-    font-weight: 700;
-    color: white;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: .4s;
-    pointer-events: none;
+.empty-state i {
+    font-size:80px;
+    color:#fdba74;
+    margin-bottom:20px;
+    opacity:0.6;
 }
 
-.toggle-status.aktif {
-    left: 8px;
-    opacity: 0;
+.empty-state h3 {
+    font-size:24px;
+    margin-bottom:10px;
 }
 
-.toggle-status.nonaktif {
-    right: 8px;
-    opacity: 1;
+.empty-state p {
+    font-size:16px;
+    color:#9a3412;
 }
 
-.toggle-switch input:checked + .toggle-slider .toggle-status.aktif {
-    opacity: 1;
+@media (max-width:768px) {
+    .header-section {
+        padding:30px 25px;
+    }
+    
+    .header-title {
+        font-size:32px;
+    }
+    
+    .stats-bar {
+        flex-direction:column;
+        gap:15px;
+    }
+    
+    .control-panel {
+        padding:20px 25px;
+    }
+    
+    .control-row {
+        flex-direction:column;
+    }
+    
+    .filter-tabs {
+        width:100%;
+        overflow-x:auto;
+    }
+    
+    .menu-section {
+        padding:30px 25px;
+    }
+    
+    .menu-grid {
+        grid-template-columns:1fr;
+    }
+    
+    .menu-card {
+        flex-direction:column;
+    }
+    
+    .card-image {
+        width:100%;
+        height:180px;
+    }
 }
 
-.toggle-switch input:checked + .toggle-slider .toggle-status.nonaktif {
-    opacity: 0;
+.notification {
+    position:fixed;
+    top:30px;
+    right:30px;
+    padding:18px 28px;
+    border-radius:15px;
+    color:white;
+    font-weight:600;
+    font-size:15px;
+    z-index:10000;
+    animation:slideIn 0.4s ease;
+    display:flex;
+    align-items:center;
+    gap:12px;
 }
 
-.search-box{width:100%;border:1px solid #ddd;padding:12px 16px;border-radius:12px;font-size:15px;margin-top:20px;}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);justify-content:center;align-items:center;z-index:9999;padding:20px;opacity:0;transition:opacity .2s ease;}
-.modal.show{opacity:1;display:flex;}
-.modal-content{background:#fff;padding:24px;border-radius:16px;width:100%;max-width:500px;position:relative;animation:fadeIn .25s ease;}
-@keyframes fadeIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
-.close-btn{position:absolute;top:10px;right:16px;font-size:22px;color:#555;cursor:pointer;}
-.close-btn:hover{color:red;}
-.modal-content h2{text-align:center;color:#1e3a8a;margin-top:0;}
-.modal-content label{display:block;margin-top:10px;font-weight:600;}
-.modal-content input,.modal-content select{width:100%;padding:10px;margin-top:4px;border:1px solid #ccc;border-radius:6px;}
-.modal-content .actions{margin-top:16px;display:flex;justify-content:flex-end;gap:10px;}
-.modal-content button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;}
-.save{background:#2563eb;color:#fff;}
-
-/* Status indicator di card */
-.status-indicator {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+.notification.success {
+    background:linear-gradient(135deg,#10b981,#059669);
 }
 
-.status-indicator.aktif {
-    background: #10b981;
+.notification.error {
+    background:linear-gradient(135deg,#ef4444,#dc2626);
 }
 
-.status-indicator.nonaktif {
-    background: #ef4444;
+@keyframes slideIn {
+    from {
+        transform:translateX(400px);
+        opacity:0;
+    }
+    to {
+        transform:translateX(0);
+        opacity:1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform:translateX(0);
+        opacity:1;
+    }
+    to {
+        transform:translateX(400px);
+        opacity:0;
+    }
 }
 </style>
 </head>
@@ -249,161 +525,146 @@ aside.collapsed + main{margin-left:70px;}
 <?php include '../../sidebar/sidebar_kasir.php'; ?>
 
 <main>
-  <div class="content-wrapper">
-    <div class="topbar">
-      <div>
-        <h1>Daftar Menu</h1>
-        <p>Kelola menu makanan & minuman dengan mudah</p>
-      </div>
-      <button id="openModal" class="btn-tambah"><i class="fa fa-plus"></i> Tambah Menu</button>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-filter="semua">Semua</button>
-      <button class="tab" data-filter="makanan">Makanan</button>
-      <button class="tab" data-filter="minuman">Minuman</button>
-      <button class="tab" data-filter="cemilan">Cemilan</button>
-    </div>
-
-    <input type="text" id="searchMenu" class="search-box" placeholder="Cari menu...">
-
-    <div class="grid" id="menuGrid">
-      <?php
-      $menus = $conn->query("SELECT * FROM menu ORDER BY id_menu DESC");
-      if ($menus->num_rows > 0):
-        while($row = $menus->fetch_assoc()):
-          $is_checked = $row['status_menu'] === 'aktif' ? 'checked' : '';
-          $status_class = $row['status_menu'];
-      ?>
-        <div class="card" 
-          data-id="<?= $row['id_menu'] ?>" 
-          data-nama="<?= htmlspecialchars($row['nama_menu']) ?>" 
-          data-kategori="<?= htmlspecialchars($row['kategori']) ?>" 
-          data-harga="<?= htmlspecialchars($row['harga']) ?>" 
-          data-status="<?= htmlspecialchars($row['status_menu']) ?>">
-          
-          <!-- Status Indicator -->
-          <div class="status-indicator <?= $status_class ?>"></div>
-          
-          <img src="../../assets/uploads/<?= htmlspecialchars($row['gambar']) ?>" alt="<?= htmlspecialchars($row['nama_menu']) ?>">
-          <h3><?= htmlspecialchars($row['nama_menu']) ?></h3>
-          <span class="kategori"><?= ucfirst($row['kategori']) ?></span>
-          <div class="harga">Rp <?= number_format($row['harga'], 0, ',', '.') ?></div>
-          <div class="actions">
-            <!-- Toggle Switch -->
-            <div class="toggle-container">
-              <div class="toggle-label">Status</div>
-              <label class="toggle-switch" data-id="<?= $row['id_menu'] ?>" data-current-status="<?= $row['status_menu'] ?>">
-                <input type="checkbox" <?= $is_checked ?>>
-                <span class="toggle-slider">
-                  <span class="toggle-status aktif">ON</span>
-                  <span class="toggle-status nonaktif">OFF</span>
-                </span>
-              </label>
+<div class="main-container">
+    <div class="header-section">
+        <div class="header-content">
+            <h1 class="header-title">
+                Menu Tepi Sawah
+            </h1>
+            <p class="header-subtitle">Kelola menu saat ini.</p>
+            
+            <div class="stats-bar">
+                <?php
+                $total = $conn->query("SELECT COUNT(*) as total FROM menu")->fetch_assoc()['total'];
+                $aktif = $conn->query("SELECT COUNT(*) as total FROM menu WHERE status_menu='aktif'")->fetch_assoc()['total'];
+                $nonaktif = $total - $aktif;
+                ?>
+                <div class="stat-item">
+                    <div class="stat-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h4><?= $total ?></h4>
+                        <p>Total Menu</p>
+                    </div>
+                </div>
+                
+                <div class="stat-item">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h4><?= $aktif ?></h4>
+                        <p>Menu Aktif</p>
+                    </div>
+                </div>
+                
+                <div class="stat-item">
+                    <div class="stat-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h4><?= $nonaktif ?></h4>
+                        <p>Nonaktif</p>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      <?php 
-        endwhile; 
-      else: 
-      ?>
-        <p>Tidak ada menu. Tambahkan menu pertama!</p>
-      <?php endif; ?>
     </div>
-  </div>
+
+    <div class="control-panel">
+        <div class="control-row">
+            <div class="search-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchMenu" class="search-input" placeholder="Cari nama menu...">
+            </div>
+            
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="semua">
+                    <i class="fas fa-th"></i> Semua
+                </button>
+                <button class="filter-btn" data-filter="makanan">
+                    <i class="fas fa-pizza-slice"></i> Makanan
+                </button>
+                <button class="filter-btn" data-filter="minuman">
+                    <i class="fas fa-coffee"></i> Minuman
+                </button>
+                <button class="filter-btn" data-filter="cemilan">
+                    <i class="fas fa-cookie-bite"></i> Cemilan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="menu-section">
+        <div class="menu-grid" id="menuGrid">
+            <?php
+            $menus = $conn->query("SELECT * FROM menu ORDER BY status_menu DESC, id_menu DESC");
+            if ($menus->num_rows > 0):
+                while($row = $menus->fetch_assoc()):
+                    $is_checked = $row['status_menu'] === 'aktif' ? 'checked' : '';
+                    $status_class = $row['status_menu'];
+            ?>
+                <div class="menu-card" 
+                    data-id="<?= $row['id_menu'] ?>" 
+                    data-nama="<?= htmlspecialchars($row['nama_menu']) ?>" 
+                    data-kategori="<?= htmlspecialchars($row['kategori']) ?>" 
+                    data-status="<?= htmlspecialchars($row['status_menu']) ?>">
+                    
+                    <div class="card-image">
+                        <div class="status-badge <?= $status_class ?>"></div>
+                        <img src="../../assets/uploads/<?= htmlspecialchars($row['gambar']) ?>" alt="<?= htmlspecialchars($row['nama_menu']) ?>">
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="card-header">
+                            <h3 class="card-title"><?= htmlspecialchars($row['nama_menu']) ?></h3>
+                            <span class="card-category">
+                                <i class="fas fa-tag"></i>
+                                <?= ucfirst($row['kategori']) ?>
+                            </span>
+                        </div>
+                        
+                        <div class="card-footer">
+                            <div class="card-price">
+                                <i class="fas fa-coins"></i>
+                                Rp <?= number_format($row['harga'], 0, ',', '.') ?>
+                            </div>
+                            
+                            <div class="toggle-wrapper">
+                                <span class="toggle-label">Status</span>
+                                <label class="switch" data-id="<?= $row['id_menu'] ?>" data-current-status="<?= $row['status_menu'] ?>">
+                                    <input type="checkbox" <?= $is_checked ?>>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php 
+                endwhile; 
+            else: 
+            ?>
+                <div class="empty-state">
+                    <i class="fas fa-utensils"></i>
+                    <h3>Belum Ada Menu</h3>
+                    <p>Daftar menu masih kosong</p>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
 </main>
 
-<!-- Modal Tambah -->
-<div class="modal" id="addModal">
-  <div class="modal-content">
-    <span class="close-btn">&times;</span>
-    <h2>Tambah Menu</h2>
-    <form method="POST" enctype="multipart/form-data">
-      <input type="hidden" name="action" value="tambah">
-      <label>Nama Menu</label>
-      <input name="nama_menu" required>
-      <label>Kategori</label>
-      <select name="kategori" required>
-        <option value="">Pilih</option>
-        <option value="makanan">Makanan</option>
-        <option value="minuman">Minuman</option>
-        <option value="cemilan">Cemilan</option>
-      </select>
-      <label>Harga</label>
-      <input type="number" name="harga" min="0" required>
-      <label>Status Aktif</label>
-      <div class="toggle-container">
-        <div class="toggle-label">Status Awal</div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="add_status_toggle" checked>
-          <span class="toggle-slider">
-            <span class="toggle-status aktif">ON</span>
-            <span class="toggle-status nonaktif">OFF</span>
-          </span>
-        </label>
-      </div>
-      <input type="hidden" name="status_menu" id="add_status" value="aktif">
-      <label>Gambar</label>
-      <input type="file" name="gambar" accept="image/*" required>
-      <div class="actions">
-        <button type="submit" class="save">Simpan</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <script>
-// === JavaScript Lengkap & Diperbaiki ===
 document.addEventListener('DOMContentLoaded', function() {
-    // Toggle status untuk modal tambah
-    const addToggle = document.getElementById('add_status_toggle');
-    const addHidden = document.getElementById('add_status');
-    
-    addToggle.addEventListener('change', function() {
-        addHidden.value = this.checked ? 'aktif' : 'nonaktif';
-    });
-
-    // Modal
-    document.getElementById('openModal').onclick = () => openModal('addModal');
-    document.querySelectorAll('.close-btn').forEach(btn => {
-        btn.onclick = () => closeModal(btn.closest('.modal').id);
-    });
-
-    function openModal(id) {
-        const modal = document.getElementById(id);
-        modal.style.display = 'flex';
-        setTimeout(() => modal.classList.add('show'), 10);
-    }
-
-    function closeModal(id) {
-        const modal = document.getElementById(id);
-        modal.classList.remove('show');
-        setTimeout(() => {
-            modal.style.display = 'none';
-            const form = modal.querySelector('form');
-            if (form) form.reset();
-            if (id === 'addModal') {
-                addToggle.checked = true;
-                addHidden.value = 'aktif';
-            }
-        }, 200);
-    }
-
-    window.onclick = e => {
-        if (e.target.classList.contains('modal')) {
-            closeModal(e.target.id);
-        }
-    };
-
-    // Toggle Switch untuk status menu
-    document.querySelectorAll('.toggle-switch').forEach(toggle => {
+    document.querySelectorAll('.switch').forEach(toggle => {
         const checkbox = toggle.querySelector('input[type="checkbox"]');
         
         checkbox.addEventListener('change', function() {
             const id = toggle.dataset.id;
             const currentStatus = toggle.dataset.currentStatus;
             
-            // Kirim request AJAX untuk mengubah status
             const formData = new FormData();
             formData.append('action', 'toggle_status');
             formData.append('id_menu', id);
@@ -416,88 +677,61 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Update data attribute
                     toggle.dataset.currentStatus = data.new_status;
                     
-                    // Update status indicator
-                    const card = toggle.closest('.card');
+                    const card = toggle.closest('.menu-card');
                     card.dataset.status = data.new_status;
                     
-                    const statusIndicator = card.querySelector('.status-indicator');
-                    statusIndicator.className = `status-indicator ${data.new_status}`;
+                    const statusBadge = card.querySelector('.status-badge');
+                    statusBadge.className = `status-badge ${data.new_status}`;
                     
-                    // Tampilkan pesan sukses
-                    showNotification(`Status berhasil diubah menjadi ${data.new_status === 'aktif' ? 'AKTIF' : 'NONAKTIF'}`, 'success');
+                    showNotification(
+                        `<i class="fas fa-check-circle"></i> Status berhasil diubah menjadi ${data.new_status.toUpperCase()}`,
+                        'success'
+                    );
                 } else {
-                    // Kembalikan ke state semula jika gagal
                     this.checked = !this.checked;
-                    showNotification('Gagal mengubah status', 'error');
+                    showNotification('<i class="fas fa-exclamation-circle"></i> Gagal mengubah status', 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                // Kembalikan ke state semula jika error
                 this.checked = !this.checked;
-                showNotification('Terjadi kesalahan', 'error');
+                showNotification('<i class="fas fa-times-circle"></i> Terjadi kesalahan', 'error');
             });
         });
     });
 
-    // Fungsi untuk menampilkan notifikasi
     function showNotification(message, type) {
-        // Hapus notifikasi sebelumnya jika ada
         const existingNotification = document.querySelector('.notification');
-        if (existingNotification) {
-            existingNotification.remove();
-        }
+        if (existingNotification) existingNotification.remove();
         
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            z-index: 10000;
-            animation: slideIn 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        `;
-        
-        if (type === 'success') {
-            notification.style.background = '#10b981';
-        } else {
-            notification.style.background = '#ef4444';
-        }
-        
-        notification.textContent = message;
+        notification.innerHTML = message;
         document.body.appendChild(notification);
         
-        // Hapus notifikasi setelah 3 detik
         setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => notification.remove(), 300);
+            notification.style.animation = 'slideOut 0.4s ease';
+            setTimeout(() => notification.remove(), 400);
         }, 3000);
     }
 
-    // Filter & Search
-    const tabs = document.querySelectorAll('.tab');
-    const cards = document.querySelectorAll('.card');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const cards = document.querySelectorAll('.menu-card');
     const searchInput = document.getElementById('searchMenu');
 
-    tabs.forEach(tab => {
-        tab.onclick = () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            const filter = tab.dataset.filter;
+    filterBtns.forEach(btn => {
+        btn.onclick = () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
             filterCards(filter, searchInput.value);
         };
     });
 
     searchInput.addEventListener('input', function() {
-        const activeFilter = document.querySelector('.tab.active').dataset.filter;
+        const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
         filterCards(activeFilter, this.value);
     });
 
@@ -506,24 +740,10 @@ document.addEventListener('DOMContentLoaded', function() {
         cards.forEach(card => {
             const matchesCategory = (category === 'semua' || card.dataset.kategori === category);
             const matchesSearch = card.dataset.nama.toLowerCase().includes(lowerSearch);
-            card.style.display = (matchesCategory && matchesSearch) ? 'block' : 'none';
+            card.style.display = (matchesCategory && matchesSearch) ? 'flex' : 'none';
         });
     }
 });
-
-// Tambahkan CSS untuk animasi notifikasi
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
-    }
-`;
-document.head.appendChild(style);
 </script>
 </body>
 </html>
