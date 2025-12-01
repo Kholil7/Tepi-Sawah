@@ -28,8 +28,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
     $nama = clean($_POST['nama_menu']);
     $kategori = strtolower(clean($_POST['kategori']));
     $harga = floatval($_POST['harga']);
-    $status_raw = $_POST['status_menu'] ?? null;
-    $status = ($status_raw === '1' || $status_raw === 'on' || strtolower($status_raw) === 'aktif' || strtolower($status_raw) === 'true') ? 'aktif' : 'nonaktif';
     $gambar = $_FILES['gambar']['name'] ?? '';
 
     if ($nama && $kategori && $harga && $gambar) {
@@ -43,22 +41,24 @@ if (isset($_POST['action']) && $_POST['action'] === 'tambah') {
             $uploadPath = $uploadDir . $newName;
 
             if (move_uploaded_file($_FILES['gambar']['tmp_name'], $uploadPath)) {
-                $stmt = $conn->prepare("INSERT INTO menu (id_menu, nama_menu, kategori, harga, status_menu, gambar) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssiss", $id_menu, $nama, $kategori, $harga, $status, $newName);
+                $stmt = $conn->prepare("INSERT INTO menu (id_menu, nama_menu, kategori, harga, gambar) VALUES (?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssis", $id_menu, $nama, $kategori, $harga, $newName);
                 if ($stmt->execute()) {
-                    echo "<script>alert('✅ Menu berhasil ditambahkan!'); window.location='tambah_menu.php';</script>";
+                    $_SESSION['popup'] = ['type' => 'success', 'message' => 'Menu berhasil ditambahkan!'];
+                    header("Location: tambah_menu.php");
+                    exit;
                 } else {
-                    echo "<script>alert('❌ Gagal menyimpan ke database.');</script>";
+                    $_SESSION['popup'] = ['type' => 'error', 'message' => 'Gagal menyimpan ke database.'];
                 }
                 $stmt->close();
             } else {
-                echo "<script>alert('❌ Gagal mengunggah gambar.');</script>";
+                $_SESSION['popup'] = ['type' => 'error', 'message' => 'Gagal mengunggah gambar.'];
             }
         } else {
-            echo "<script>alert('❌ Format gambar tidak didukung! (jpg, jpeg, png, webp)');</script>";
+            $_SESSION['popup'] = ['type' => 'error', 'message' => 'Format gambar tidak didukung! (jpg, jpeg, png, webp)'];
         }
     } else {
-        echo "<script>alert('⚠️ Semua field wajib diisi!');</script>";
+        $_SESSION['popup'] = ['type' => 'error', 'message' => 'Semua field wajib diisi!'];
     }
     ob_end_flush();
     exit;
@@ -69,8 +69,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
     $nama = clean($_POST['nama_menu']);
     $kategori = strtolower(clean($_POST['kategori']));
     $harga = floatval($_POST['harga']);
-    $status_raw = $_POST['status_menu'] ?? null;
-    $status = ($status_raw === '1' || $status_raw === 'on' || strtolower($status_raw) === 'aktif' || strtolower($status_raw) === 'true') ? 'aktif' : 'nonaktif';
     $gambar = $_FILES['gambar']['name'] ?? '';
 
     if ($id && $nama && $kategori && $harga) {
@@ -84,11 +82,11 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
                 $newName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', pathinfo($gambar, PATHINFO_FILENAME)) . '.' . $ext;
                 $uploadPath = $uploadDir . $newName;
                 if (!move_uploaded_file($_FILES['gambar']['tmp_name'], $uploadPath)) {
-                    echo "<script>alert('❌ Gagal mengunggah gambar baru.');</script>";
+                    $_SESSION['popup'] = ['type' => 'error', 'message' => 'Gagal mengunggah gambar baru.'];
                     $newName = null;
                 }
             } else {
-                echo "<script>alert('❌ Format gambar tidak didukung!');</script>";
+                $_SESSION['popup'] = ['type' => 'error', 'message' => 'Format gambar tidak didukung!'];
                 $newName = null;
             }
         }
@@ -99,21 +97,23 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
                 unlink($uploadDir . $old);
             }
 
-            $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, status_menu=?, gambar=? WHERE id_menu=?");
-            $stmt->bind_param("ssdsss", $nama, $kategori, $harga, $status, $newName, $id);
+            $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, gambar=? WHERE id_menu=?");
+            $stmt->bind_param("ssdss", $nama, $kategori, $harga, $newName, $id);
         } else {
-            $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=?, status_menu=? WHERE id_menu=?");
-            $stmt->bind_param("ssdss", $nama, $kategori, $harga, $status, $id);
+            $stmt = $conn->prepare("UPDATE menu SET nama_menu=?, kategori=?, harga=? WHERE id_menu=?");
+            $stmt->bind_param("ssds", $nama, $kategori, $harga, $id);
         }
 
         if ($stmt->execute()) {
-            echo "<script>alert('✅ Menu berhasil diperbarui!'); window.location='tambah_menu.php';</script>";
+            $_SESSION['popup'] = ['type' => 'success', 'message' => 'Menu berhasil diperbarui!'];
+            header("Location: tambah_menu.php");
+            exit;
         } else {
-            echo "<script>alert('❌ Gagal memperbarui menu.');</script>";
+            $_SESSION['popup'] = ['type' => 'error', 'message' => 'Gagal memperbarui menu.'];
         }
         $stmt->close();
     } else {
-        echo "<script>alert('⚠️ Field belum lengkap!');</script>";
+        $_SESSION['popup'] = ['type' => 'error', 'message' => 'Field belum lengkap!'];
     }
     ob_end_flush();
     exit;
@@ -127,7 +127,6 @@ if (isset($_POST['action']) && $_POST['action'] === 'edit') {
 <title>Daftar Menu | Resto Owner</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-/* === CSS SAMA SEPERTI SEBELUMNYA, TAPI DIPERBAIKI === */
 body{margin:0;font-family:'Segoe UI',sans-serif;background:#f9fafb;color:#333;display:flex;min-height:100vh;overflow-x:hidden;}
 aside{width:250px;background:#fff;border-right:1px solid #e5e7eb;transition:width .3s ease;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:1000;}
 main{flex-grow:1;margin-left:250px;transition:margin-left .3s ease;padding:90px 40px 60px;background:#f3f4f6;box-sizing:border-box;min-height:100vh;}
@@ -163,18 +162,37 @@ aside.collapsed + main{margin-left:70px;}
 .modal-content .actions{margin-top:16px;display:flex;justify-content:flex-end;gap:10px;}
 .modal-content button{padding:10px 14px;border:none;border-radius:6px;cursor:pointer;font-weight:600;}
 .save{background:#2563eb;color:#fff;}
-.switch{position:relative;display:inline-block;width:50px;height:28px;}
-.switch input{display:none;}
-.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#ccc;transition:.3s;border-radius:34px;}
-.slider:before{position:absolute;content:"";height:20px;width:20px;left:4px;bottom:4px;background-color:white;transition:.3s;border-radius:50%;}
-input:checked + .slider{background-color:#2563eb;}
-input:checked + .slider:before{transform:translateX(22px);}
-.toggle-container{display:flex;align-items:center;gap:10px;margin-top:6px;}
-.status-badge{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:600;}
+.popup{position:fixed;top:20px;right:20px;background:#fff;padding:20px 24px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:10000;min-width:300px;max-width:400px;display:none;animation:slideIn .4s ease;}
+@keyframes slideIn{from{transform:translateX(400px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.popup.show{display:block;}
+.popup.success{border-left:4px solid blue;}
+.popup.error{border-left:4px solid #ef4444;}
+.popup-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.popup-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.popup.success .popup-icon{background:#d1fae5;color:#10b981;}
+.popup.error .popup-icon{background:#fee2e2;color:#ef4444;}
+.popup-title{font-weight:700;font-size:16px;margin:0;}
+.popup.success .popup-title{color:#10b981;}
+.popup.error .popup-title{color:#ef4444;}
+.popup-message{color:#6b7280;font-size:14px;margin:0;line-height:1.5;}
+.popup-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;color:#9ca3af;cursor:pointer;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+.popup-close:hover{color:#374151;}
 </style>
 </head>
 <body>
 <?php include '../../sidebar/sidebar.php'; ?>
+
+<!-- Popup Notification -->
+<div id="popup" class="popup">
+  <button class="popup-close" onclick="closePopup()">&times;</button>
+  <div class="popup-header">
+    <div class="popup-icon">
+      <i id="popup-icon-el"></i>
+    </div>
+    <h3 class="popup-title" id="popup-title"></h3>
+  </div>
+  <p class="popup-message" id="popup-message"></p>
+</div>
 
 <main>
   <div class="content-wrapper">
@@ -205,11 +223,7 @@ input:checked + .slider:before{transform:translateX(22px);}
           data-id="<?= $row['id_menu'] ?>" 
           data-nama="<?= htmlspecialchars($row['nama_menu']) ?>" 
           data-kategori="<?= htmlspecialchars($row['kategori']) ?>" 
-          data-harga="<?= htmlspecialchars($row['harga']) ?>" 
-          data-status="<?= htmlspecialchars($row['status_menu']) ?>">
-          <?php if($row['status_menu'] === 'nonaktif'): ?>
-            <div class="status-badge">Nonaktif</div>
-          <?php endif; ?>
+          data-harga="<?= htmlspecialchars($row['harga']) ?>">
           <img src="../../assets/uploads/<?= htmlspecialchars($row['gambar']) ?>" alt="<?= htmlspecialchars($row['nama_menu']) ?>">
           <h3><?= htmlspecialchars($row['nama_menu']) ?></h3>
           <span class="kategori"><?= ucfirst($row['kategori']) ?></span>
@@ -244,15 +258,6 @@ input:checked + .slider:before{transform:translateX(22px);}
       </select>
       <label>Harga</label>
       <input type="number" name="harga" min="0" required>
-      <label>Status Aktif</label>
-      <div class="toggle-container">
-        <label class="switch">
-          <input type="checkbox" id="add_status_toggle" checked>
-          <span class="slider round"></span>
-        </label>
-        <span id="add_status_text">Aktif</span>
-      </div>
-      <input type="hidden" name="status_menu" id="add_status" value="aktif">
       <label>Gambar</label>
       <input type="file" name="gambar" accept="image/*" required>
       <div class="actions">
@@ -280,15 +285,6 @@ input:checked + .slider:before{transform:translateX(22px);}
       </select>
       <label>Harga</label>
       <input type="number" name="harga" id="edit_harga" min="0" required>
-      <label>Status Aktif</label>
-      <div class="toggle-container">
-        <label class="switch">
-          <input type="checkbox" id="edit_status_toggle">
-          <span class="slider round"></span>
-        </label>
-        <span id="edit_status_text">Nonaktif</span>
-      </div>
-      <input type="hidden" name="status_menu" id="edit_status" value="nonaktif">
       <label>Ganti Gambar (Opsional)</label>
       <input type="file" name="gambar" accept="image/*">
       <div class="actions">
@@ -299,24 +295,41 @@ input:checked + .slider:before{transform:translateX(22px);}
 </div>
 
 <script>
-// === JavaScript Lengkap & Diperbaiki ===
+// Popup System
+function showPopup(type, message) {
+    const popup = document.getElementById('popup');
+    const title = document.getElementById('popup-title');
+    const msg = document.getElementById('popup-message');
+    const icon = document.getElementById('popup-icon-el');
+    
+    popup.className = 'popup ' + type;
+    
+    if (type === 'success') {
+        title.textContent = 'Berhasil!';
+        icon.className = 'fa fa-check';
+    } else {
+        title.textContent = 'Gagal!';
+        icon.className = 'fa fa-times';
+    }
+    
+    msg.textContent = message;
+    popup.classList.add('show');
+    
+    setTimeout(() => closePopup(), 5000);
+}
+
+function closePopup() {
+    const popup = document.getElementById('popup');
+    popup.classList.remove('show');
+}
+
+// Check for popup from PHP
+<?php if (isset($_SESSION['popup'])): ?>
+    showPopup('<?= $_SESSION['popup']['type'] ?>', '<?= addslashes($_SESSION['popup']['message']) ?>');
+    <?php unset($_SESSION['popup']); ?>
+<?php endif; ?>
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Toggle status teks
-    const updateToggleText = (toggle, textEl, hiddenEl) => {
-        textEl.textContent = toggle.checked ? 'Aktif' : 'Nonaktif';
-        hiddenEl.value = toggle.checked ? 'aktif' : 'nonaktif';
-    };
-
-    const addToggle = document.getElementById('add_status_toggle');
-    const addText = document.getElementById('add_status_text');
-    const addHidden = document.getElementById('add_status');
-    addToggle.addEventListener('change', () => updateToggleText(addToggle, addText, addHidden));
-
-    const editToggle = document.getElementById('edit_status_toggle');
-    const editText = document.getElementById('edit_status_text');
-    const editHidden = document.getElementById('edit_status');
-    editToggle.addEventListener('change', () => updateToggleText(editToggle, editText, editHidden));
-
     // Modal
     document.getElementById('openModal').onclick = () => openModal('addModal');
     document.querySelectorAll('.close-btn').forEach(btn => {
@@ -336,10 +349,6 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.style.display = 'none';
             const form = modal.querySelector('form');
             if (form) form.reset();
-            if (id === 'addModal') {
-                addToggle.checked = true;
-                updateToggleText(addToggle, addText, addHidden);
-            }
         }, 200);
     }
 
@@ -357,11 +366,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('edit_nama').value = card.dataset.nama;
             document.getElementById('edit_kategori').value = card.dataset.kategori;
             document.getElementById('edit_harga').value = card.dataset.harga;
-
-            const status = card.dataset.status;
-            editToggle.checked = (status === 'aktif');
-            updateToggleText(editToggle, editText, editHidden);
-
             openModal('editModal');
         };
     });
