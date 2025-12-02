@@ -149,10 +149,8 @@ try {
         id_menu,
         jumlah,
         harga_satuan,
-        subtotal,
-        status_item,
-        catatan_item
-    ) VALUES (?, ?, ?, ?, ?, ?, 'menunggu', NULL)";
+        subtotal
+    ) VALUES (?, ?, ?, ?, ?, ?)";
     
     $stmt_detail = $conn->prepare($query_detail);
     
