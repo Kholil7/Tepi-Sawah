@@ -25,15 +25,15 @@ public function getAktif() {
                p.catatan,
                m.nomor_meja,
                pb.bukti_pembayaran,
-               pb.status as status_pembayaran,
-               pb.metode as metode_pembayaran_pb,
+               pb.status AS status_pembayaran,
+               pb.metode AS metode_pembayaran_pb,
                pb.waktu_pembayaran,
                (SELECT COUNT(*) FROM detail_pesanan d WHERE d.id_pesanan = p.id_pesanan) AS jumlah_item
         FROM pesanan p
         LEFT JOIN meja m ON p.id_meja = m.id_meja
         LEFT JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
-        WHERE p.status_pesanan != 'selesai' 
-        AND p.status_pesanan != 'dibatalkan'
+        WHERE p.status_pesanan IN ('menunggu', 'diterima', 'dimasak', 'disajikan')
+        AND p.status_pesanan NOT IN ('selesai', 'dibayar', 'dibatalkan', 'ditolak')
         ORDER BY p.waktu_pesan DESC
     ";
     
@@ -2128,38 +2128,38 @@ function closePreview() {
 }
 
 // LIHAT DETAIL (Placeholder)
-function lihatDetail(orderId) {
-    console.log('Lihat detail pesanan:', orderId);
+// function lihatDetail(orderId) {
+//     console.log('Lihat detail pesanan:', orderId);
     
-    // Tampilkan modal dengan loading
-    document.getElementById('detailModal').style.display = 'flex';
-    document.getElementById('detailContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Memuat data...</div>';
+//     // Tampilkan modal dengan loading
+//     document.getElementById('detailModal').style.display = 'flex';
+//     document.getElementById('detailContent').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Memuat data...</div>';
     
-    // Fetch detail pesanan
-    fetch('../include/get_detail_pesanan.php?id=' + orderId)
-        .then(response => response.text())
-        .then(text => {
-            console.log('Response:', text);
-            try {
-                const data = JSON.parse(text);
-                if (data.success) {
-                    showDetailContent(data.pesanan);
-                } else {
-                    document.getElementById('detailContent').innerHTML = 
-                        '<div class="loading"><i class="fas fa-exclamation-circle"></i> ' + data.message + '</div>';
-                }
-            } catch (e) {
-                console.error('Parse error:', e);
-                document.getElementById('detailContent').innerHTML = 
-                    '<div class="loading"><i class="fas fa-exclamation-circle"></i> Error memuat data</div>';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('detailContent').innerHTML = 
-                '<div class="loading"><i class="fas fa-exclamation-circle"></i> Terjadi kesalahan</div>';
-        });
-}
+//     // Fetch detail pesanan
+//     fetch('../include/get_detail_pesanan.php?id=' + orderId)
+//         .then(response => response.text())
+//         .then(text => {
+//             console.log('Response:', text);
+//             try {
+//                 const data = JSON.parse(text);
+//                 if (data.success) {
+//                     showDetailContent(data.pesanan);
+//                 } else {
+//                     document.getElementById('detailContent').innerHTML = 
+//                         '<div class="loading"><i class="fas fa-exclamation-circle"></i> ' + data.message + '</div>';
+//                 }
+//             } catch (e) {
+//                 console.error('Parse error:', e);
+//                 document.getElementById('detailContent').innerHTML = 
+//                     '<div class="loading"><i class="fas fa-exclamation-circle"></i> Error memuat data</div>';
+//             }
+//         })
+//         .catch(error => {
+//             console.error('Error:', error);
+//             document.getElementById('detailContent').innerHTML = 
+//                 '<div class="loading"><i class="fas fa-exclamation-circle"></i> Terjadi kesalahan</div>';
+//         });
+// }
 
 function showDetailContent(pesanan) {
     // Format status
