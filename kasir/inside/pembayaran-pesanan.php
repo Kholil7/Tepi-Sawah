@@ -6,15 +6,20 @@ $email = getUserEmail();
 $userId = getUserId();
 require '../../database/connect.php';
 
-$query_pesanan = "SELECT p.*, m.nomor_meja, m.kode_unik,
-                 (SELECT COUNT(*) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) as total_item
-                 FROM pesanan p
-                 JOIN meja m ON p.id_meja = m.id_meja
-                 JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
-                 WHERE p.status_pesanan = 'disajikan' 
-                 AND pb.metode = 'cash'
-                 AND pb.status = 'belum_bayar'
-                 ORDER BY p.waktu_pesan DESC";
+$error_message = null;
+
+$query_pesanan = "
+    SELECT p.*, m.nomor_meja, m.kode_unik,
+    (SELECT COUNT(*) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) as total_item
+    FROM pesanan p
+    JOIN meja m ON p.id_meja = m.id_meja
+    JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
+    WHERE p.aktif = 1
+    AND p.status_pesanan IN ('disajikan')
+    AND pb.metode = 'cash'
+    AND pb.status = 'belum_bayar'
+    ORDER BY p.waktu_pesan DESC
+";
 $result_pesanan = mysqli_query($conn, $query_pesanan);
 $pesanan_list = mysqli_fetch_all($result_pesanan, MYSQLI_ASSOC);
 
@@ -24,32 +29,50 @@ $selected_pesanan = null;
 if (isset($_GET['id_pesanan'])) {
     $id_pesanan = mysqli_real_escape_string($conn, $_GET['id_pesanan']);
     
-    $query_selected = "SELECT p.*, m.nomor_meja, m.kode_unik
-                       FROM pesanan p
-                       JOIN meja m ON p.id_meja = m.id_meja
-                       WHERE p.id_pesanan = '$id_pesanan'";
-    $result_selected = mysqli_query($conn, $query_selected);
-    $selected_pesanan = mysqli_fetch_assoc($result_selected);
+    $stmt_selected = $conn->prepare("
+        SELECT p.*, m.nomor_meja, m.kode_unik
+        FROM pesanan p
+        JOIN meja m ON p.id_meja = m.id_meja
+        WHERE p.id_pesanan = ?
+    ");
+    $stmt_selected->bind_param('s', $id_pesanan);
+    $stmt_selected->execute();
+    $result_selected = $stmt_selected->get_result();
+    $selected_pesanan = $result_selected->fetch_assoc();
+    $stmt_selected->close();
     
-    $query_detail = "SELECT dp.*, m.nama_menu
-                     FROM detail_pesanan dp
-                     JOIN menu m ON dp.id_menu = m.id_menu
-                     WHERE dp.id_pesanan = '$id_pesanan'";
-    $result_detail = mysqli_query($conn, $query_detail);
-    $detail_pesanan = mysqli_fetch_all($result_detail, MYSQLI_ASSOC);
+    $stmt_detail = $conn->prepare("
+        SELECT dp.*, m.nama_menu
+        FROM detail_pesanan dp
+        JOIN menu m ON dp.id_menu = m.id_menu
+        WHERE dp.id_pesanan = ?
+    ");
+    $stmt_detail->bind_param('s', $id_pesanan);
+    $stmt_detail->execute();
+    $result_detail = $stmt_detail->get_result();
+    $detail_pesanan = $result_detail->fetch_all(MYSQLI_ASSOC);
+    $stmt_detail->close();
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     mysqli_begin_transaction($conn);
     
     try {
-        $id_pesanan = mysqli_real_escape_string($conn, $_POST['id_pesanan']);
-        $metode = mysqli_real_escape_string($conn, $_POST['metode']);
-        $jumlah_dibayar = (float)mysqli_real_escape_string($conn, $_POST['jumlah_dibayar']); 
+        $id_pesanan = $_POST['id_pesanan'];
+        $metode = $_POST['metode'];
+        $jumlah_dibayar = (float)$_POST['jumlah_dibayar']; 
+
+        $stmt_total = $conn->prepare("SELECT total_harga, id_meja FROM pesanan WHERE id_pesanan = ?");
+        $stmt_total->bind_param('s', $id_pesanan);
+        $stmt_total->execute();
+        $result_total = $stmt_total->get_result();
+        $pesanan = $result_total->fetch_assoc();
+        $stmt_total->close();
+
+        if (!$pesanan) {
+            throw new Exception("Pesanan tidak ditemukan.");
+        }
         
-        $query_total = "SELECT total_harga, id_meja FROM pesanan WHERE id_pesanan = '$id_pesanan'";
-        $result_total = mysqli_query($conn, $query_total);
-        $pesanan = mysqli_fetch_assoc($result_total);
         $total_harga = (float)$pesanan['total_harga'];
         $id_meja = $pesanan['id_meja'];
         
@@ -63,25 +86,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $query_update_pesanan = "UPDATE pesanan 
                                  SET status_pesanan = 'selesai',
-                                     metode_bayar = '$metode',
-                                     total_harga = '$total_harga'
-                                 WHERE id_pesanan = '$id_pesanan'";
-        mysqli_query($conn, $query_update_pesanan);
+                                     metode_bayar = ?,
+                                     total_harga = ?,
+                                     aktif = 0
+                                 WHERE id_pesanan = ?";
+        $stmt_update_pesanan = $conn->prepare($query_update_pesanan);
+        $stmt_update_pesanan->bind_param('sds', $metode, $total_harga, $id_pesanan);
+        if (!$stmt_update_pesanan->execute()) {
+             throw new Exception("Gagal update pesanan: " . $stmt_update_pesanan->error);
+        }
+        $stmt_update_pesanan->close();
         
-        $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = '$id_meja'";
-        mysqli_query($conn, $query_meja);
+        $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = ?";
+        $stmt_meja = $conn->prepare($query_meja);
+        $stmt_meja->bind_param('s', $id_meja);
+        if (!$stmt_meja->execute()) {
+             throw new Exception("Gagal update meja: " . $stmt_meja->error);
+        }
+        $stmt_meja->close();
         
         $query_pembayaran = "UPDATE pembayaran 
                              SET status = 'sudah_bayar',
-                                 metode = '$metode',
-                                 waktu_pembayaran = '$waktu_bayar',
-                                 bayar = '$jumlah_dibayar', 
-                                 kembalian = '$kembalian' 
-                             WHERE id_pesanan = '$id_pesanan'";
+                                 metode = ?,
+                                 waktu_pembayaran = ?,
+                                 bayar = ?, 
+                                 kembalian = ? 
+                             WHERE id_pesanan = ?";
         
-        if (!mysqli_query($conn, $query_pembayaran)) {
-             throw new Exception("Gagal menyimpan data pembayaran. Pastikan kolom 'bayar' dan 'kembalian' ada di tabel pembayaran. MySQL Error: " . mysqli_error($conn));
+        $stmt_pembayaran = $conn->prepare($query_pembayaran);
+        $stmt_pembayaran->bind_param('ssdds', $metode, $waktu_bayar, $jumlah_dibayar, $kembalian, $id_pesanan);
+        
+        if (!$stmt_pembayaran->execute()) {
+             throw new Exception("Gagal menyimpan data pembayaran. MySQL Error: " . $stmt_pembayaran->error);
         }
+        $stmt_pembayaran->close();
         
         mysqli_commit($conn);
         
@@ -100,9 +138,9 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     $id_pesanan = mysqli_real_escape_string($conn, $_GET['id_pesanan']);
     
     $query_print = "SELECT p.*, m.nomor_meja, m.kode_unik
-                    FROM pesanan p
-                    JOIN meja m ON p.id_meja = m.id_meja
-                    WHERE p.id_pesanan = '$id_pesanan'";
+                     FROM pesanan p
+                     JOIN meja m ON p.id_meja = m.id_meja
+                     WHERE p.id_pesanan = '$id_pesanan'";
     $result_print = mysqli_query($conn, $query_print);
     $print_data = mysqli_fetch_assoc($result_print);
     
@@ -312,7 +350,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
                 
                 <div class="receipt-footer">
                     <p>Terima kasih atas kunjungan Anda!</p>
-                    <!-- <p>Selamat menikmati hidangan</p> -->
                 </div>
             </div>
             
@@ -326,7 +363,7 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
 
 <script>
     const totalTagihan = <?= $selected_pesanan ? (float)$selected_pesanan['total_harga'] : 0 ?>;
-    let isPrinted = false; // Status untuk mengontrol tombol Tutup
+    let isPrinted = false;
 
     function formatRupiah(number) {
         return 'Rp ' + Math.abs(number).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -363,14 +400,12 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
         document.getElementById(id).style.display = 'none';
     }
 
-    // Menampilkan overlay struk setelah notifikasi sukses
     function showReceipt() {
         document.getElementById('successPopup').style.display = 'none';
         document.getElementById('receiptOverlay').style.display = 'flex';
         document.getElementById('closeReceiptBtn').disabled = !isPrinted; 
     }
     
-    // Fungsi mencetak struk
     function printReceipt() {
         const content = document.getElementById('receiptContent').innerHTML;
         const printWindow = window.open('', '', 'height=600,width=400');
@@ -418,7 +453,6 @@ if (isset($_GET['print']) && isset($_GET['id_pesanan'])) {
     }
     
     <?php if ($print_data): ?>
-    // Alur: Popup Sukses muncul saat halaman dimuat
     window.onload = function() {
         document.getElementById('successPopup').style.display = 'flex';
     };

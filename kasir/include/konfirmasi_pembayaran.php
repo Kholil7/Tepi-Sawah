@@ -10,9 +10,8 @@ ini_set('log_errors', 1);
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-error_log("Konfirmasi pembayaran - Received data: " . print_r($data, true));
-
 if (!isset($data['id_pesanan']) || empty($data['id_pesanan'])) {
+    http_response_code(400); 
     echo json_encode([
         'success' => false,
         'message' => 'ID Pesanan tidak valid'
@@ -21,33 +20,53 @@ if (!isset($data['id_pesanan']) || empty($data['id_pesanan'])) {
 }
 
 $id_pesanan = $data['id_pesanan'];
+$status_pembayaran_lunas = 'sudah_bayar'; 
+$status_pesanan_selesai = 'dibayar'; 
 
-// Ubah status dari frontend ke 'sudah_bayar'
-$status = 'sudah_bayar';
+$conn->begin_transaction();
 
 try {
-    $query = "UPDATE pembayaran SET status = ? WHERE id_pesanan = ?";
-    $stmt = $conn->prepare($query);
+    $query_pembayaran = "UPDATE pembayaran SET status = ? WHERE id_pesanan = ?";
+    $stmt_pembayaran = $conn->prepare($query_pembayaran);
     
-    if (!$stmt) {
-        throw new Exception('Prepare statement gagal: ' . $conn->error);
+    if (!$stmt_pembayaran) {
+        throw new Exception('Prepare pembayaran gagal: ' . $conn->error);
     }
     
-    $stmt->bind_param('ss', $status, $id_pesanan);
+    $stmt_pembayaran->bind_param('ss', $status_pembayaran_lunas, $id_pesanan);
     
-    if ($stmt->execute()) {
-        echo json_encode([
-            'success' => true,
-            'message' => 'Status pembayaran berhasil diupdate'
-        ]);
-    } else {
-        throw new Exception($stmt->error);
+    if (!$stmt_pembayaran->execute()) {
+        throw new Exception('Eksekusi update pembayaran gagal: ' . $stmt_pembayaran->error);
     }
     
-    $stmt->close();
+    $stmt_pembayaran->close();
+
+    $query_pesanan = "UPDATE pesanan SET status_pesanan = ?, aktif = 0 WHERE id_pesanan = ?";
+    $stmt_pesanan = $conn->prepare($query_pesanan);
+    
+    if (!$stmt_pesanan) {
+        throw new Exception('Prepare pesanan gagal: ' . $conn->error);
+    }
+    
+    $stmt_pesanan->bind_param('ss', $status_pesanan_selesai, $id_pesanan);
+    
+    if (!$stmt_pesanan->execute()) {
+        throw new Exception('Eksekusi update pesanan gagal: ' . $stmt_pesanan->error);
+    }
+    
+    $stmt_pesanan->close();
+
+    $conn->commit();
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Pembayaran berhasil dikonfirmasi dan pesanan dinon-aktifkan.'
+    ]);
+    
 } catch (Exception $e) {
-    error_log("Konfirmasi pembayaran error: " . $e->getMessage());
+    $conn->rollback();
     
+    http_response_code(500); 
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
