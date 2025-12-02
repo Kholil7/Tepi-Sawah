@@ -4,79 +4,34 @@ require_once '../../database/connect.php';
 
 $action = $_POST['action'] ?? '';
 
+if (!function_exists('setFlashMessage')) {
+    function setFlashMessage($message, $type = 'error') {
+        $color = $type === 'success' ? '#FF9500' : '#FF9500'; 
+        $title = $type === 'success' ? 'Berhasil!' : 'Perhatian!';
+        
+        $_SESSION['flash_message'] = [
+            'message' => $message,
+            'type' => $type,
+            'color' => $color,
+            'title' => $title
+        ];
+    }
+}
+
+function redirectWithFlash($message, $redirect, $type = 'error') {
+    setFlashMessage($message, $type);
+    header("Location: " . $redirect);
+    exit;
+}
+
 function generateKasirId() {
     $prefix = 'KSR';
     $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $randomString = '';
     for ($i = 0; $i < 8; $i++) {
-        $randomString .= $characters[random_int(0, strlen($characters) - 1)];
+        $randomString .= $characters[mt_rand(0, strlen($characters) - 1)];
     }
     return $prefix . $randomString;
-}
-
-function showPopup($message, $redirect) {
-    echo "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: rgba(0,0,0,0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-            }
-            .popup {
-                background: white;
-                padding: 30px 40px;
-                border-radius: 10px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-                text-align: center;
-                animation: slideIn 0.3s ease;
-            }
-            @keyframes slideIn {
-                from { transform: translateY(-50px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
-            }
-            .popup h2 {
-                color: " . (strpos($message, 'berhasil') !== false ? '#27ae60' : '#FF0000') . ";
-                margin-bottom: 15px;
-                font-size: 24px;
-            }
-            .popup p {
-                color: #555;
-                margin-bottom: 25px;
-                font-size: 16px;
-            }
-            .popup button {
-                background: #FF9500;
-                color: white;
-                border: none;
-                padding: 12px 30px;
-                border-radius: 5px;
-                font-size: 16px;
-                cursor: pointer;
-                font-weight: 600;
-            }
-            .popup button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-            }
-        </style>
-    </head>
-    <body>
-        <div class='popup'>
-            <h2>" . (strpos($message, 'berhasil') !== false ? '✓ Berhasil!' : '✗ Gagal!') . "</h2>
-            <p>{$message}</p>
-            <button onclick='window.location.href=\"{$redirect}\"'>OK</button>
-        </div>
-    </body>
-    </html>
-    ";
-    exit;
 }
 
 if ($action === 'register') {
@@ -85,8 +40,12 @@ if ($action === 'register') {
     $password = $_POST['password'];
     $confirm = $_POST['confirm_password'];
 
+    if (empty($fullname) || empty($email) || empty($password) || empty($confirm)) {
+        redirectWithFlash('Semua kolom wajib diisi!', '../auth/register.php', 'error');
+    }
+
     if ($password !== $confirm) {
-        showPopup('Kata sandi tidak sama!', '../auth/register.php');
+        redirectWithFlash('Kata sandi tidak sama!', '../auth/register.php', 'error');
     }
 
     $check = $conn->prepare("SELECT * FROM pengguna WHERE email = ?");
@@ -95,7 +54,7 @@ if ($action === 'register') {
     $result = $check->get_result();
 
     if ($result->num_rows > 0) {
-        showPopup('Email sudah terdaftar!', '../auth/register.php');
+        redirectWithFlash('Email sudah terdaftar!', '../auth/register.php', 'error');
     }
 
     do {
@@ -112,14 +71,18 @@ if ($action === 'register') {
     $stmt->bind_param("sssss", $id_pengguna, $fullname, $email, $hashed, $role);
 
     if ($stmt->execute()) {
-        showPopup('Registrasi berhasil! Silakan login.', '../auth/register.php');
+        redirectWithFlash('Registrasi berhasil! Silakan login.', '../auth/register.php', 'success');
     } else {
-        showPopup('Gagal menyimpan data!', '../auth/register.php');
+        redirectWithFlash('Gagal menyimpan data!', '../auth/register.php', 'error');
     }
 
 } elseif ($action === 'login') {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
+
+    if (empty($email) || empty($password)) {
+        redirectWithFlash('Email dan kata sandi wajib diisi!', '../auth/register.php', 'error');
+    }
 
     $stmt = $conn->prepare("SELECT * FROM pengguna WHERE email = ? AND role = 'kasir'");
     $stmt->bind_param("s", $email);
@@ -135,30 +98,37 @@ if ($action === 'register') {
                 'email' => $user['email'],
                 'role' => $user['role']
             ]);
-            showPopup('Login berhasil! Selamat datang.', '../inside/dashboard_kasir.php');
+            
+            header('Location: ../inside/dashboard_kasir.php');
+            exit;
         } else {
-            showPopup('Kata sandi salah!', '../auth/register.php');
+            redirectWithFlash('Kata sandi salah!', '../auth/register.php', 'error');
         }
     } else {
-        showPopup('Email tidak ditemukan!', '../auth/register.php');
+        redirectWithFlash('Email tidak ditemukan atau bukan akun kasir!', '../auth/register.php', 'error');
     }
 
 } elseif ($action === 'change_password') {
+    header('Content-Type: application/json'); 
+    
     $email = trim($_POST['email'] ?? '');
     $old_password = $_POST['old_password'] ?? '';
     $new_password = $_POST['new_password'] ?? '';
     $confirm_new_password = $_POST['confirm_new_password'] ?? '';
 
     if (empty($email) || empty($old_password) || empty($new_password) || empty($confirm_new_password)) {
-        exit("Error: Semua kolom wajib diisi."); 
+        echo json_encode(['success' => false, 'message' => 'Semua kolom wajib diisi.']);
+        exit;
     }
 
     if ($new_password !== $confirm_new_password) {
-        exit("Error: Konfirmasi kata sandi baru tidak cocok.");
+        echo json_encode(['success' => false, 'message' => 'Konfirmasi kata sandi baru tidak cocok.']);
+        exit;
     }
     
     if (strlen($new_password) < 8) {
-        exit("Error: Kata sandi baru minimal 8 karakter.");
+        echo json_encode(['success' => false, 'message' => 'Kata sandi baru minimal 8 karakter.']);
+        exit;
     }
 
     try {
@@ -175,21 +145,22 @@ if ($action === 'register') {
                 $update_stmt->bind_param("ss", $hashed_new_password, $user['id_pengguna']);
                 
                 if ($update_stmt->execute()) {
-                    exit("Success: Kata sandi Anda berhasil diubah! Silakan login kembali."); 
+                    echo json_encode(['success' => true, 'message' => 'Kata sandi Anda berhasil diubah! Silakan login kembali.']); 
                 } else {
-                    exit("Error: Gagal menyimpan perubahan ke database. Kode: " . $update_stmt->error);
+                    echo json_encode(['success' => false, 'message' => 'Gagal menyimpan perubahan ke database.']);
                 }
             } else {
-                exit("Error: Kata sandi lama salah.");
+                echo json_encode(['success' => false, 'message' => 'Kata sandi lama salah.']);
             }
         } else {
-            exit("Error: Email tidak ditemukan atau peran tidak valid.");
+            echo json_encode(['success' => false, 'message' => 'Email tidak ditemukan atau peran tidak valid.']);
         }
 
     } catch (Exception $e) {
-        exit("Error: Terjadi kesalahan server database. Detail: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan server database.']);
     }
 
 } else {
-    showPopup('Aksi tidak dikenali.', '../auth/register.php');
+    redirectWithFlash('Aksi tidak dikenali.', '../auth/register.php', 'error');
 }
+?>

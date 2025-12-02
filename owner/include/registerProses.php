@@ -2,68 +2,24 @@
 require_once '../../config/session.php';
 require_once '../../database/connect.php';
 
-function showPopup($message, $redirect) {
-    echo "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: rgba(0,0,0,0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-            }
-            .popup {
-                background: white;
-                padding: 30px 40px;
-                border-radius: 10px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-                text-align: center;
-                animation: slideIn 0.3s ease;
-            }
-            @keyframes slideIn {
-                from { transform: translateY(-50px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
-            }
-            .popup h2 {
-                color: #27ae60;
-                margin-bottom: 15px;
-                font-size: 24px;
-            }
-            .popup p {
-                color: #555;
-                margin-bottom: 25px;
-                font-size: 16px;
-            }
-            .popup button {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: none;
-                padding: 12px 30px;
-                border-radius: 5px;
-                font-size: 16px;
-                cursor: pointer;
-                font-weight: 600;
-            }
-            .popup button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-            }
-        </style>
-    </head>
-    <body>
-        <div class='popup'>
-            <h2>✓ Berhasil!</h2>
-            <p>{$message}</p>
-            <button onclick='window.location.href=\"{$redirect}\"'>OK</button>
-        </div>
-    </body>
-    </html>
-    ";
+if (!function_exists('setFlashMessage')) {
+    function setFlashMessage($message, $type = 'error') {
+        // Nuansa Biru Baru
+        $color = $type === 'success' ? '#2980b9' : '#3498db'; // Biru sukses: Biru Tua; Biru error: Biru Sedang
+        $title = $type === 'success' ? 'Berhasil!' : 'Perhatian!';
+        
+        $_SESSION['flash_message'] = [
+            'message' => $message,
+            'type' => $type,
+            'color' => $color,
+            'title' => $title
+        ];
+    }
+}
+
+function redirectWithFlash($message, $redirect, $type = 'success') {
+    setFlashMessage($message, $type);
+    header("Location: " . $redirect);
     exit;
 }
 
@@ -74,7 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password    = trim($_POST['password']);
 
     if (empty($nama) || empty($email) || empty($password)) {
-        showPopup('Semua field wajib diisi!', '../auth/register.php');
+        redirectWithFlash('Semua field wajib diisi!', '../auth/register.php', 'error');
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        redirectWithFlash('Format email tidak valid!', '../auth/register.php', 'error');
     }
 
     $check = $conn->prepare("SELECT id_pengguna FROM pengguna WHERE email = ?");
@@ -83,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $check->store_result();
 
     if ($check->num_rows > 0) {
-        showPopup('Email sudah terdaftar!', '../auth/register.php');
+        redirectWithFlash('Email sudah terdaftar!', '../auth/register.php', 'error');
     }
 
     $check->close();
@@ -95,9 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("sssss", $id_pengguna, $nama, $email, $hashedPassword, $role);
 
     if ($stmt->execute()) {
-        showPopup('Registrasi Owner berhasil! Silakan login.', '../auth/login.php');
+        redirectWithFlash('Registrasi Owner berhasil! Silakan login.', '../auth/login.php', 'success');
     } else {
-        showPopup('Terjadi kesalahan: ' . $conn->error, '../auth/register.php');
+        redirectWithFlash('Registrasi gagal. Silakan coba lagi.', '../auth/register.php', 'error');
     }
 
     $stmt->close();

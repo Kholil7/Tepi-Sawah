@@ -1,6 +1,13 @@
 <?php
 require_once '../../config/session.php';
 redirectIfLoggedIn();
+
+$flash_data = null; 
+
+if (isset($_SESSION['flash_message'])) {
+    $flash_data = $_SESSION['flash_message'];
+    unset($_SESSION['flash_message']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -10,6 +17,10 @@ redirectIfLoggedIn();
     <title>Lesehan Tepi Sawah - Admin</title>
     <?php $version = filemtime('../../css/kasir/register.css'); ?>
     <link rel="stylesheet" type="text/css" href="../../css/kasir/register.css?v=<?php echo $version; ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
 .modal {
     display: none; 
@@ -61,69 +72,47 @@ redirectIfLoggedIn();
     cursor: pointer;
 }
 
-.popup {
-    display: none;
+.custom-popup {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6);
-    z-index: 2000;
-    justify-content: center;
-    align-items: center;
+    top: 20px;
+    right: 20px;
+    background: white;
+    padding: 20px 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    max-width: 350px;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transform: translateX(400px);
+    transition: all 0.3s ease;
+    font-family: 'Poppins', sans-serif;
 }
-.popup.show {
-    display: flex;
+.custom-popup.show {
     opacity: 1;
+    transform: translateX(0);
 }
-.popup-content {
-    background-color: #4CAF50;
-    color: white;
-    padding: 30px;
-    border-radius: 8px;
-    text-align: center;
-    max-width: 300px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transform: scale(0.9);
-    transition: transform 0.3s ease;
+.custom-popup h3 {
+    margin: 0 0 10px 0; 
+    font-size: 18px; 
+    font-weight: 600;
 }
-.popup.show .popup-content {
-    transform: scale(1);
+.custom-popup p {
+    color: #7f8c8d; 
+    margin: 0; 
+    font-size: 14px; 
+    line-height: 1.5;
 }
-.popup-content.error {
-    background-color: #F44336;
-}
-.popup-content p {
-    margin-bottom: 20px;
-    font-size: 1.1em;
-}
-.popup-content .btn-primary {
-    background-color: white;
-    color: #4CAF50;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-weight: bold;
-}
-.popup-content.error .btn-primary {
-    color: #F44336;
-}
-.popup-content .btn-primary:hover {
-    background-color: #f0f0f0;
+.custom-popup .btn-primary {
+    display: none; 
 }
 
-/* Gaya untuk Toggle Password */
 .password-wrapper {
     position: relative;
     display: flex;
     align-items: center;
 }
 .password-wrapper input {
-    padding-right: 40px; /* Ruang untuk ikon */
+    padding-right: 40px; 
     width: 100%;
 }
 .toggle-password {
@@ -138,21 +127,27 @@ redirectIfLoggedIn();
 .toggle-password:hover {
     color: #333;
 }
+
+.form-container .btn-primary,
+.modal-content .btn-primary {
+    background-color: #FF9500;
+    transition: background-color 0.2s ease;
+}
+
+.form-container .btn-primary:hover,
+.modal-content .btn-primary:hover {
+    background-color: #e68600; 
+}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo-section">
             <div class="logo">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/>
-                    <path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/>
-                    <path d="m2.1 21.8 6.4-6.3"/>
-                    <path d="m19 5-7 7"/>
-                </svg>
+                <i class="fas fa-utensils"></i>
             </div>
             <h1>Lesehan Tepi Sawah</h1>
-            <p class="subtitle">Panel Admin</p>
+            <p class="subtitle">Kasir</p>
         </div>
 
         <div class="form-container">
@@ -288,14 +283,30 @@ redirectIfLoggedIn();
         </div>
     </div>
 
-    <div id="statusPopup" class="popup">
-        <div id="popupContent" class="popup-content">
-            <p id="popupMessage"></p>
-            <button type="button" class="btn-primary" onclick="closePopup()">Tutup</button>
-        </div>
-    </div>
+    <div id="statusPopup" class="custom-popup"></div>
 
     <script>
+        function showCustomPopup(data) {
+            const popup = document.getElementById('statusPopup');
+            
+            popup.className = 'custom-popup'; 
+            
+            const title = data.title || 'Pesan';
+            const message = data.message || 'Pesan notifikasi.';
+            const color = data.color || '#FF9500'; 
+            
+            popup.innerHTML = `
+                <h3 style="color: ${color};">${title}</h3>
+                <p>${message}</p>
+            `;
+
+            popup.classList.add('show');
+            
+            setTimeout(() => {
+                popup.classList.remove('show');
+            }, 5000); 
+        }
+
         function switchForm(formType) {
             const loginForm = document.getElementById('loginForm');
             const registerForm = document.getElementById('registerForm');
@@ -317,41 +328,24 @@ redirectIfLoggedIn();
             document.getElementById(modalId).style.display = 'none';
         }
 
-        function openPopup(message, isSuccess) {
-            const popupContent = document.getElementById('popupContent');
-            document.getElementById('popupMessage').innerText = message;
-            
-            if (isSuccess) {
-                popupContent.classList.remove('error');
-            } else {
-                popupContent.classList.add('error');
-            }
-            
-            document.getElementById('statusPopup').classList.add('show');
-        }
-
-        function closePopup() {
-            document.getElementById('statusPopup').classList.remove('show');
-        }
-
         document.querySelector('.forgot-link').addEventListener('click', function(e) {
             e.preventDefault();
             openModal('forgotPasswordModal');
         });
 
-        // Fungsi Baru: Toggle Password Visibility
         function togglePasswordVisibility(inputId, iconElement) {
             const input = document.getElementById(inputId);
             const isPassword = input.type === 'password';
             
+            const eyeOpen = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+            const eyeClosed = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye-off"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.91 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-3.32a3 3 0 1 1-4.24-4.24"/></svg>';
+
             if (isPassword) {
                 input.type = 'text';
-                // Ganti icon ke mata terbuka
-                iconElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+                iconElement.innerHTML = eyeOpen;
             } else {
                 input.type = 'password';
-                // Ganti icon ke mata tertutup
-                iconElement.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye-off"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.91 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-3.32a3 3 0 1 1-4.24-4.24"/></svg>';
+                iconElement.innerHTML = eyeClosed;
             }
         }
         
@@ -360,7 +354,6 @@ redirectIfLoggedIn();
             
             const form = e.target;
             const formData = new FormData(form);
-            
             const url = form.getAttribute('action'); 
             
             try {
@@ -369,24 +362,31 @@ redirectIfLoggedIn();
                     body: formData
                 });
                 
-                const result = await response.text();
+                const result = await response.json(); 
                 
-                if (result.startsWith("Success:")) {
-                    const message = result.substring(9).trim();
-                    closeModal('forgotPasswordModal');
-                    openPopup(message, true); 
+                closeModal('forgotPasswordModal');
+                
+                const popupData = {
+                    message: result.message,
+                    type: result.success ? 'success' : 'error',
+                    title: result.success ? 'Berhasil!' : 'Perhatian!',
+                    color: result.success ? '#FF9500' : '#FF9500'
+                };
+                
+                showCustomPopup(popupData); 
+                
+                if (result.success) {
                     form.reset();
-                } else if (result.startsWith("Error:")) {
-                    const message = result.substring(6).trim();
-                    closeModal('forgotPasswordModal');
-                    openPopup(message, false); 
-                } else {
-                    closeModal('forgotPasswordModal');
-                    openPopup("Terjadi kesalahan tak terduga. Respons server tidak valid. Cek log PHP Anda.", false);
                 }
+
             } catch (error) {
                 closeModal('forgotPasswordModal');
-                openPopup("Terjadi kesalahan jaringan. Periksa koneksi atau URL tujuan.", false);
+                showCustomPopup({
+                    message: "Terjadi kesalahan jaringan atau respons server tidak valid.",
+                    type: 'error',
+                    title: 'Kesalahan!',
+                    color: '#FF9500' 
+                });
             }
         });
         
@@ -395,6 +395,18 @@ redirectIfLoggedIn();
             if (event.target == modal) {
                 closeModal('forgotPasswordModal');
             }
+        }
+
+        const flashData = <?php echo json_encode($flash_data); ?>;
+
+        if (flashData) {
+            document.addEventListener('DOMContentLoaded', function() {
+                showCustomPopup(flashData); 
+                
+                if (flashData.type === 'success' && flashData.message.includes('Registrasi berhasil')) {
+                    switchForm('login');
+                }
+            });
         }
     </script>
 </body>

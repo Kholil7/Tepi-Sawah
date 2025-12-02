@@ -2,68 +2,18 @@
 require_once '../../config/session.php';
 require_once '../../database/connect.php';
 
-function showPopup($message, $redirect) {
-    echo "
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: rgba(0,0,0,0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-            }
-            .popup {
-                background: white;
-                padding: 30px 40px;
-                border-radius: 10px;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-                text-align: center;
-                animation: slideIn 0.3s ease;
-            }
-            @keyframes slideIn {
-                from { transform: translateY(-50px); opacity: 0; }
-                to { transform: translateY(0); opacity: 1; }
-            }
-            .popup h2 {
-                color: #27ae60;
-                margin-bottom: 15px;
-                font-size: 24px;
-            }
-            .popup p {
-                color: #555;
-                margin-bottom: 25px;
-                font-size: 16px;
-            }
-            .popup button {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: none;
-                padding: 12px 30px;
-                border-radius: 5px;
-                font-size: 16px;
-                cursor: pointer;
-                font-weight: 600;
-            }
-            .popup button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-            }
-        </style>
-    </head>
-    <body>
-        <div class='popup'>
-            <h2>✓ Berhasil!</h2>
-            <p>{$message}</p>
-            <button onclick='window.location.href=\"{$redirect}\"'>OK</button>
-        </div>
-    </body>
-    </html>
-    ";
+if (!function_exists('setFlashMessage')) {
+    function setFlashMessage($message, $type = 'error') {
+        $_SESSION['flash_message'] = [
+            'message' => $message,
+            'type' => $type
+        ];
+    }
+}
+
+function redirectWithError($message, $redirect) {
+    setFlashMessage($message, 'error');
+    header("Location: " . $redirect);
     exit;
 }
 
@@ -73,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = trim($_POST['password']);
 
     if (empty($nama) || empty($email) || empty($password)) {
-        showPopup('Semua field wajib diisi!', '../auth/login.php');
+        redirectWithError('Semua field wajib diisi!', '../auth/login.php');
     }
 
     $sql = "SELECT * FROM pengguna WHERE email = ? AND role = 'owner'";
@@ -92,12 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $user['email'],
                 'role' => $user['role']
             ]);
-            showPopup('Login berhasil! Selamat datang.', '../inside/dashboard.php');
+            
+            header('Location: ../inside/dashboard.php');
+            exit;
         } else {
-            showPopup('Password salah!', '../auth/login.php');
+            redirectWithError('Password yang Anda masukkan salah!', '../auth/login.php');
         }
     } else {
-        showPopup('Data pengguna tidak ditemukan!', '../auth/login.php');
+        redirectWithError('Email tidak terdaftar atau bukan akun owner!', '../auth/login.php');
     }
 
     $stmt->close();
