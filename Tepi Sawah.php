@@ -119,7 +119,7 @@ body {
     box-shadow: 0 5px 15px rgba(255, 107, 53, 0.4);
 }
 
-/* Hero Section */
+
 .hero {
     height: 100vh;
     background: url('asset/LendingPage/bacground.jpg') center/cover no-repeat;
@@ -826,16 +826,44 @@ body {
                         </div>
                     </div>
                 </div>
-                <div class="kontak-form-container">
-                    <h3>Kirim Pesan</h3>
-                    <form class="kontak-form">
-                        <input type="text" placeholder="Nama" required>
-                        <input type="email" placeholder="Email" required>
-                        <input type="tel" placeholder="Telepon" required>
-                        <textarea placeholder="Pesan Anda" rows="5" required></textarea>
-                        <button type="submit" class="btn-submit">Kirim Pesan</button>
-                    </form>
-                </div>
+       <div class="kontak-form-container">
+    <h3>Kirim Pesan</h3>
+
+    <form class="kontak-form" onsubmit="kirimWhatsapp(event)">
+        <input type="text" id="nama" placeholder="Nama" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="tel" id="telepon" placeholder="Telepon" required>
+        <textarea id="pesan" placeholder="Pesan Anda" rows="5" required></textarea>
+
+        <button type="submit" class="btn-submit">Kirim Pesan</button>
+    </form>
+</div>
+
+<script>
+function kirimWhatsapp(e) {
+    e.preventDefault(); 
+
+    const nama = document.getElementById("nama").value;
+    const email = document.getElementById("email").value;
+    const telepon = document.getElementById("telepon").value;
+    const pesan = document.getElementById("pesan").value;
+
+    const nomorTujuan = "6285812215646"; 
+
+    const text = 
+        "Halo, saya ingin mengirim pesan:\n\n" +
+        "Nama: " + nama + "\n" +
+        "Email: " + email + "\n" +
+        "Telepon: " + telepon + "\n" +
+        "Pesan: " + pesan;
+
+    const url = "https://api.whatsapp.com/send?phone=" + nomorTujuan + "&text=" + encodeURIComponent(text);
+
+    window.open(url, "_blank");
+}
+</script>
+
+
             </div>
         </div>
     </section>
