@@ -13,38 +13,33 @@ class Pesanan {
         $this->conn = $conn; 
     }
 
-    // GET PESANAN AKTIF (BELUM SELESAI) - DIPERBAIKI
-    public function getAktif() {
-        $sql = "
-            SELECT p.*, 
-                   m.nomor_meja,
-                   pb.bukti_pembayaran,
-                   pb.status as status_pembayaran,
-                   pb.metode as metode_pembayaran_pb,
-                   pb.waktu_pembayaran,
-                   (SELECT COUNT(*) FROM detail_pesanan d WHERE d.id_pesanan = p.id_pesanan) AS jumlah_item
-            FROM pesanan p
-            LEFT JOIN meja m ON p.id_meja = m.id_meja
-            LEFT JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
-            WHERE p.status_pesanan != 'selesai' AND p.status_pesanan != 'dibatalkan'
-            ORDER BY 
-                CASE p.status_pesanan
-                    WHEN 'disajikan' THEN 1
-                    WHEN 'dimasak' THEN 2
-                    WHEN 'diterima' THEN 3
-                    WHEN 'menunggu' THEN 4
-                    ELSE 5
-                END,
-                p.waktu_pesan DESC
-        ";
-        
-        $result = $this->conn->query($sql);
-        if (!$result) {
-            error_log("Query Error: " . $this->conn->error);
-            return false;
-        }
-        return $result;
-    }
+public function getAktif() {
+    $sql = "
+        SELECT p.id_pesanan, 
+               p.id_meja, 
+               p.waktu_pesan, 
+               p.jenis_pesanan, 
+               p.status_pesanan, 
+               p.metode_bayar, 
+               p.total_harga, 
+               p.catatan,
+               m.nomor_meja,
+               pb.bukti_pembayaran,
+               pb.status as status_pembayaran,
+               pb.metode as metode_pembayaran_pb,
+               pb.waktu_pembayaran,
+               (SELECT COUNT(*) FROM detail_pesanan d WHERE d.id_pesanan = p.id_pesanan) AS jumlah_item
+        FROM pesanan p
+        LEFT JOIN meja m ON p.id_meja = m.id_meja
+        LEFT JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
+        WHERE p.status_pesanan != 'selesai' 
+        AND p.status_pesanan != 'dibatalkan'
+        ORDER BY p.waktu_pesan DESC
+    ";
+    
+    $result = $this->conn->query($sql);
+    return $result;
+}
 
     // GET PESANAN SELESAI HARI INI UNTUK DITAMPILKAN
     public function getSelesaiHariIni() {
@@ -112,17 +107,26 @@ class Pesanan {
         return $data;
     }
 
-    public function getDetailPesanan($id) {
-        $id = intval($id);
-        $sql = "
-            SELECT d.*, mn.nama_menu
-            FROM detail_pesanan d
-            LEFT JOIN menu mn ON d.id_menu = mn.id_menu
-            WHERE d.id_pesanan = $id
-        ";
-        $result = $this->conn->query($sql);
-        return ($result && $result->num_rows > 0) ? $result->fetch_all(MYSQLI_ASSOC) : [];
-    }
+public function getDetailPesanan($id) {
+    $id = intval($id);
+    $sql = "
+        SELECT d.id_detail,
+               d.id_pesanan,
+               d.id_menu,
+               d.jumlah,
+               d.harga_satuan,
+               d.subtotal,
+               d.catatan_item,
+               mn.nama_menu
+        FROM detail_pesanan d
+        LEFT JOIN menu mn ON d.id_menu = mn.id_menu
+        WHERE d.id_pesanan = " . $id . "
+    ";
+    $result = $this->conn->query($sql);
+    return ($result && $result->num_rows > 0) ? $result->fetch_all(MYSQLI_ASSOC) : [];
+}
+
+
 
     // FUNGSI UNTUK MENGECEK STATUS PEMBAYARAN - DIPERBAIKI
     public function isPembayaranLunas($pesanan) {
@@ -1413,19 +1417,11 @@ body {
 
         <div class="items-list">
           <?php if (!empty($details)): ?>
-            <?php foreach ($details as $item): 
-                $isPendingButPaid = ($item['status_item'] == 'menunggu' && $statusPembayaran['status'] == 'lunas');
-            ?>
+            <?php foreach ($details as $item): ?>
             <div class="item-row">
               <div>
                 <span class="item-name"><?= htmlspecialchars($item['nama_menu'] ?? '-') ?></span> × <?= $item['jumlah'] ?>
-                <?php if ($isPendingButPaid): ?>
-                  <span class="pending-notice">Menunggu diproses</span>
-                <?php endif; ?>
               </div>
-              <span class="item-status <?= htmlspecialchars($item['status_item']) ?>">
-                <?= htmlspecialchars($item['status_item']) ?>
-              </span>
             </div>
             <?php endforeach; ?>
           <?php endif; ?>
