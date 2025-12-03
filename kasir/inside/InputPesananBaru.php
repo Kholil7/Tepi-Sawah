@@ -1,10 +1,10 @@
 <?php
 require_once '../include/check_auth.php'; 
+require_once '../../database/connect.php'; 
 
 $username = getUsername();
 $email = getUserEmail();
 $userId = getUserId();
-require '../../database/connect.php'; 
 
 function generateRandomCode($length = 11) {
     $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -16,9 +16,9 @@ function generateRandomCode($length = 11) {
 }
 
 $query_meja = "SELECT id_meja, nomor_meja, kode_unik, status_meja 
-               FROM meja 
-               WHERE status_meja = 'kosong' AND kode_unik != 'TAKE_AWAY'
-               ORDER BY CAST(nomor_meja AS UNSIGNED), nomor_meja";
+                FROM meja 
+                WHERE status_meja = 'kosong' AND kode_unik != 'TAKE_AWAY'
+                ORDER BY CAST(nomor_meja AS UNSIGNED), nomor_meja";
 $result_meja = mysqli_query($conn, $query_meja);
 
 $meja_list = [];
@@ -77,8 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_pesanan = generateRandomCode(11);
 
         $query_pesanan = "
-            INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, total_harga, metode_bayar)
-            VALUES ('$id_pesanan', '$id_meja', NOW(), '$jenis_pesanan', 0, '$metode_bayar')
+            INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, total_harga, metode_bayar, aktif)
+            VALUES ('$id_pesanan', '$id_meja', NOW(), '$jenis_pesanan', 0, '$metode_bayar', 1)
         ";
 
         if (!mysqli_query($conn, $query_pesanan)) {
@@ -115,8 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
             if (!mysqli_query($conn, "
-                INSERT INTO detail_pesanan (id_detail, id_pesanan, id_menu, jumlah, harga_satuan, subtotal, status_item, catatan_item)
-                VALUES ('$id_detail', '$id_pesanan', '$id_menu', '$jumlah', '$harga', '$subtotal', 'menunggu', '$catatan')
+                INSERT INTO detail_pesanan (id_detail, id_pesanan, id_menu, jumlah, harga_satuan, subtotal, catatan_item)
+                VALUES ('$id_detail', '$id_pesanan', '$id_menu', '$jumlah', '$harga', '$subtotal', '$catatan')
             ")) {
                  throw new Exception("Gagal menyimpan detail pesanan. MySQL Error: " . mysqli_error($conn));
             }
@@ -182,7 +182,6 @@ unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
 unset($_SESSION['order_data']);
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
