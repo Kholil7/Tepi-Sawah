@@ -108,17 +108,30 @@ public function getAktif() {
         return $data;
     }
 
-    public function getDetailPesanan($id) {
-        $id = intval($id);
-        $sql = "
-            SELECT d.*, mn.nama_menu
-            FROM detail_pesanan d
-            LEFT JOIN menu mn ON d.id_menu = mn.id_menu
-            WHERE d.id_pesanan = $id
-        ";
-        $result = $this->conn->query($sql);
-        return ($result && $result->num_rows > 0) ? $result->fetch_all(MYSQLI_ASSOC) : [];
+public function getDetailPesanan($id) {
+    $id = $this->conn->real_escape_string($id);
+    $sql = "
+        SELECT d.id_detail,
+               d.id_pesanan,
+               d.id_menu,
+               d.jumlah,
+               d.harga_satuan,
+               d.subtotal,
+               d.catatan_item,
+               mn.nama_menu
+        FROM detail_pesanan d
+        LEFT JOIN menu mn ON d.id_menu = mn.id_menu
+        WHERE d.id_pesanan = '$id'
+    ";
+    $result = $this->conn->query($sql);
+    
+    if (!$result) {
+        error_log("Error getDetailPesanan: " . $this->conn->error);
+        return [];
     }
+    
+    return ($result->num_rows > 0) ? $result->fetch_all(MYSQLI_ASSOC) : [];
+}
 
     // FUNGSI UNTUK MENGECEK STATUS PEMBAYARAN - DIPERBAIKI
     public function isPembayaranLunas($pesanan) {
