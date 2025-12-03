@@ -34,8 +34,7 @@ $id_meja = $data['id_meja'];
 try {
     $conn->begin_transaction();
     
-    // Update status pesanan menjadi selesai
-    $query_pesanan = "UPDATE pesanan SET status_pesanan = 'selesai' WHERE id_pesanan = ?";
+    $query_pesanan = "UPDATE pesanan SET status_pesanan = 'selesai', aktif = 0 WHERE id_pesanan = ?";
     $stmt_pesanan = $conn->prepare($query_pesanan);
     
     if (!$stmt_pesanan) {
@@ -50,7 +49,6 @@ try {
     
     $stmt_pesanan->close();
     
-    // Update status meja menjadi kosong
     $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = ?";
     $stmt_meja = $conn->prepare($query_meja);
     
@@ -68,7 +66,7 @@ try {
     
     $conn->commit();
     
-    error_log("Pesanan selesai - Order: $id_pesanan, Meja: $id_meja dikosongkan");
+    error_log("Pesanan selesai - Order: $id_pesanan, Meja: $id_meja dikosongkan, aktif = 0");
     
     echo json_encode([
         'success' => true,
