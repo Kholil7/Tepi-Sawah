@@ -34,7 +34,6 @@ $id_meja = $data['id_meja'];
 try {
     $conn->begin_transaction();
     
-    // Hapus detail pesanan terlebih dahulu (foreign key)
     $query_detail = "DELETE FROM detail_pesanan WHERE id_pesanan = ?";
     $stmt_detail = $conn->prepare($query_detail);
     
@@ -51,7 +50,6 @@ try {
     $stmt_detail->close();
     error_log("Detail pesanan dihapus untuk: " . $id_pesanan);
     
-    // Hapus pembayaran
     $query_pembayaran = "DELETE FROM pembayaran WHERE id_pesanan = ?";
     $stmt_pembayaran = $conn->prepare($query_pembayaran);
     
@@ -68,7 +66,6 @@ try {
     $stmt_pembayaran->close();
     error_log("Pembayaran dihapus untuk: " . $id_pesanan);
     
-    // Hapus pesanan
     $query_pesanan = "DELETE FROM pesanan WHERE id_pesanan = ?";
     $stmt_pesanan = $conn->prepare($query_pesanan);
     
@@ -85,7 +82,6 @@ try {
     $stmt_pesanan->close();
     error_log("Pesanan dihapus: " . $id_pesanan);
     
-    // Update status meja menjadi kosong
     $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = ?";
     $stmt_meja = $conn->prepare($query_meja);
     
