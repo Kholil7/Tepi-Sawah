@@ -21,7 +21,7 @@ if (!isset($data['id_pesanan']) || empty($data['id_pesanan'])) {
 
 $id_pesanan = $data['id_pesanan'];
 $status_pembayaran_lunas = 'sudah_bayar'; 
-$status_pesanan_selesai = 'dibayar'; 
+$status_pesanan_diterima = 'diterima';
 
 $conn->begin_transaction();
 
@@ -41,14 +41,14 @@ try {
     
     $stmt_pembayaran->close();
 
-    $query_pesanan = "UPDATE pesanan SET status_pesanan = ?, aktif = 0 WHERE id_pesanan = ?";
+    $query_pesanan = "UPDATE pesanan SET status_pesanan = ? WHERE id_pesanan = ?";
     $stmt_pesanan = $conn->prepare($query_pesanan);
     
     if (!$stmt_pesanan) {
         throw new Exception('Prepare pesanan gagal: ' . $conn->error);
     }
     
-    $stmt_pesanan->bind_param('ss', $status_pesanan_selesai, $id_pesanan);
+    $stmt_pesanan->bind_param('ss', $status_pesanan_diterima, $id_pesanan);
     
     if (!$stmt_pesanan->execute()) {
         throw new Exception('Eksekusi update pesanan gagal: ' . $stmt_pesanan->error);
@@ -60,7 +60,7 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Pembayaran berhasil dikonfirmasi dan pesanan dinon-aktifkan.'
+        'message' => 'Pembayaran berhasil dikonfirmasi dan pesanan diterima.'
     ]);
     
 } catch (Exception $e) {
