@@ -12,97 +12,82 @@ $data = json_decode($json, true);
 
 error_log("Tolak pesanan - Received data: " . print_r($data, true));
 
+// Validasi Input
 if (!isset($data['id_pesanan']) || empty($data['id_pesanan'])) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'ID Pesanan tidak valid'
-    ]);
+    echo json_encode(['success' => false, 'message' => 'ID Pesanan tidak valid']);
     exit;
 }
-
 if (!isset($data['id_meja']) || empty($data['id_meja'])) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'ID Meja tidak valid'
-    ]);
+    echo json_encode(['success' => false, 'message' => 'ID Meja tidak valid']);
+    exit;
+}
+if (!isset($data['alasan']) || empty($data['alasan'])) {
+    echo json_encode(['success' => false, 'message' => 'Alasan wajib diisi']);
     exit;
 }
 
 $id_pesanan = $data['id_pesanan'];
 $id_meja = $data['id_meja'];
+$alasan = $data['alasan'];
 
 try {
     $conn->begin_transaction();
+
+    // 1. Generate ID Batal (Format: BTL + Random Angka)
+    $id_batal = 'BTL' . rand(10000000, 99999999); 
+    $id_batal = substr($id_batal, 0, 11);
+
+    // 2. Insert ke tabel pembatalan_pesanan
+    $query_insert_batal = "INSERT INTO pembatalan_pesanan 
+                          (id_batal, id_pesanan, alasan, dibatalkan_oleh, waktu_batal) 
+                          VALUES (?, ?, ?, 'kasir', NOW())";
     
-    $query_detail = "DELETE FROM detail_pesanan WHERE id_pesanan = ?";
-    $stmt_detail = $conn->prepare($query_detail);
+    $stmt_batal = $conn->prepare($query_insert_batal);
+    if (!$stmt_batal) { throw new Exception('Prepare insert batal gagal: ' . $conn->error); }
     
-    if (!$stmt_detail) {
-        throw new Exception('Prepare statement detail pesanan gagal: ' . $conn->error);
-    }
+    $stmt_batal->bind_param('sss', $id_batal, $id_pesanan, $alasan);
+    if (!$stmt_batal->execute()) { throw new Exception('Gagal menyimpan data pembatalan: ' . $stmt_batal->error); }
+    $stmt_batal->close();
+
+
+    // 3. Update status pesanan menjadi 'dibatalkan'
+    $query_update_status = "UPDATE pesanan SET status_pesanan = 'dibatalkan' WHERE id_pesanan = ?";
+    $stmt_update_status = $conn->prepare($query_update_status);
     
-    $stmt_detail->bind_param('s', $id_pesanan);
+    if (!$stmt_update_status) { throw new Exception('Prepare update status pesanan gagal: ' . $conn->error); }
     
-    if (!$stmt_detail->execute()) {
-        throw new Exception('Hapus detail pesanan gagal: ' . $stmt_detail->error);
-    }
+    $stmt_update_status->bind_param('s', $id_pesanan);
+    if (!$stmt_update_status->execute()) { throw new Exception('Gagal update status pesanan: ' . $stmt_update_status->error); }
+    $stmt_update_status->close();
+
+
+    // 4. Update field 'aktif' menjadi 0 (untuk menyembunyikan dari list aktif) <-- TAMBAHAN KODE
+    $query_update_aktif = "UPDATE pesanan SET aktif = 0 WHERE id_pesanan = ?";
+    $stmt_update_aktif = $conn->prepare($query_update_aktif);
     
-    $stmt_detail->close();
-    error_log("Detail pesanan dihapus untuk: " . $id_pesanan);
+    if (!$stmt_update_aktif) { throw new Exception('Prepare update aktif gagal: ' . $conn->error); }
     
-    $query_pembayaran = "DELETE FROM pembayaran WHERE id_pesanan = ?";
-    $stmt_pembayaran = $conn->prepare($query_pembayaran);
-    
-    if (!$stmt_pembayaran) {
-        throw new Exception('Prepare statement pembayaran gagal: ' . $conn->error);
-    }
-    
-    $stmt_pembayaran->bind_param('s', $id_pesanan);
-    
-    if (!$stmt_pembayaran->execute()) {
-        throw new Exception('Hapus pembayaran gagal: ' . $stmt_pembayaran->error);
-    }
-    
-    $stmt_pembayaran->close();
-    error_log("Pembayaran dihapus untuk: " . $id_pesanan);
-    
-    $query_pesanan = "DELETE FROM pesanan WHERE id_pesanan = ?";
-    $stmt_pesanan = $conn->prepare($query_pesanan);
-    
-    if (!$stmt_pesanan) {
-        throw new Exception('Prepare statement pesanan gagal: ' . $conn->error);
-    }
-    
-    $stmt_pesanan->bind_param('s', $id_pesanan);
-    
-    if (!$stmt_pesanan->execute()) {
-        throw new Exception('Hapus pesanan gagal: ' . $stmt_pesanan->error);
-    }
-    
-    $stmt_pesanan->close();
-    error_log("Pesanan dihapus: " . $id_pesanan);
-    
+    $stmt_update_aktif->bind_param('s', $id_pesanan);
+    if (!$stmt_update_aktif->execute()) { throw new Exception('Gagal update field aktif: ' . $stmt_update_aktif->error); }
+    $stmt_update_aktif->close();
+
+
+    // 5. Update status meja menjadi 'kosong'
     $query_meja = "UPDATE meja SET status_meja = 'kosong' WHERE id_meja = ?";
     $stmt_meja = $conn->prepare($query_meja);
     
-    if (!$stmt_meja) {
-        throw new Exception('Prepare statement meja gagal: ' . $conn->error);
-    }
+    if (!$stmt_meja) { throw new Exception('Prepare update meja gagal: ' . $conn->error); }
     
     $stmt_meja->bind_param('s', $id_meja);
-    
-    if (!$stmt_meja->execute()) {
-        throw new Exception('Update meja gagal: ' . $stmt_meja->error);
-    }
-    
+    if (!$stmt_meja->execute()) { throw new Exception('Gagal mengosongkan meja: ' . $stmt_meja->error); }
     $stmt_meja->close();
-    error_log("Meja dikosongkan: " . $id_meja);
-    
+
+    // Commit Transaksi
     $conn->commit();
     
     echo json_encode([
         'success' => true,
-        'message' => 'Pesanan ditolak dan data dihapus. Meja sudah dikosongkan.'
+        'message' => 'Pesanan berhasil ditolak, data diarsipkan, dan meja dikosongkan.'
     ]);
     
 } catch (Exception $e) {
