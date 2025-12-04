@@ -20,16 +20,10 @@ try {
               WHERE p.id_pesanan = ?";
     
     $stmt = $conn->prepare($query);
-    
-    if (!$stmt) {
-        throw new Exception('Prepare statement gagal: ' . $conn->error);
-    }
+    if (!$stmt) { throw new Exception('Kesalahan server'); }
     
     $stmt->bind_param('s', $order_id);
-    
-    if (!$stmt->execute()) {
-        throw new Exception('Execute query gagal: ' . $stmt->error);
-    }
+    if (!$stmt->execute()) { throw new Exception('Kesalahan server'); }
     
     $result = $stmt->get_result();
     $payment = $result->fetch_assoc();
@@ -58,11 +52,9 @@ try {
     ]);
     
 } catch (Exception $e) {
-    error_log("Check payment status error: " . $e->getMessage());
-    
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => 'Kesalahan server'
     ]);
 }
 

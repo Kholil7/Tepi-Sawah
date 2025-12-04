@@ -1662,3 +1662,7 @@
     margin-top: 10px;
     font-weight: 500;
 }
+
+#qrisContinueBtn {
+    display: none !important;
+}

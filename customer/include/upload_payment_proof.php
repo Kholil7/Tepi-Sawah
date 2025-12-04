@@ -3,10 +3,6 @@ require '../../database/connect.php';
 
 header('Content-Type: application/json');
 
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ini_set('log_errors', 1);
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         'success' => false,
@@ -24,7 +20,6 @@ if (!isset($_POST['order_id']) || empty($_POST['order_id'])) {
 }
 
 $order_id = $_POST['order_id'];
-error_log("Upload payment proof - Order ID: " . $order_id);
 
 if (!isset($_FILES['payment_proof']) || $_FILES['payment_proof']['error'] !== UPLOAD_ERR_OK) {
     echo json_encode([
@@ -42,83 +37,73 @@ $file_type = mime_content_type($file['tmp_name']);
 if (!in_array($file_type, $allowed_types)) {
     echo json_encode([
         'success' => false,
-        'message' => 'Tipe file tidak diperbolehkan. Hanya JPG, PNG, dan GIF yang diizinkan.'
+        'message' => 'Tipe file tidak diperbolehkan'
     ]);
     exit;
 }
 
-$max_size = 5 * 1024 * 1024;
-if ($file['size'] > $max_size) {
+if ($file['size'] > 5 * 1024 * 1024) {
     echo json_encode([
         'success' => false,
-        'message' => 'Ukuran file terlalu besar. Maksimal 5MB.'
+        'message' => 'Ukuran file terlalu besar'
     ]);
     exit;
 }
 
 try {
-    // Cek apakah order_id ada di database
-    $check_query = "SELECT id_pesanan, status FROM pembayaran WHERE id_pesanan = ?";
-    $check_stmt = $conn->prepare($check_query);
-    $check_stmt->bind_param('s', $order_id);
-    $check_stmt->execute();
-    $check_result = $check_stmt->get_result();
-    
-    if ($check_result->num_rows === 0) {
-        throw new Exception('Order ID tidak ditemukan di database: ' . $order_id);
+    $check = $conn->prepare("SELECT id_pesanan FROM pembayaran WHERE id_pesanan = ?");
+    $check->bind_param('s', $order_id);
+    $check->execute();
+    $has = $check->get_result();
+    if ($has->num_rows === 0) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Order ID tidak ditemukan'
+        ]);
+        exit;
     }
-    
-    $payment_data = $check_result->fetch_assoc();
-    error_log("Current payment status: " . $payment_data['status']);
-    $check_stmt->close();
+    $check->close();
 
-    $file_extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $new_filename = 'bukti_' . $order_id . '_' . time() . '.' . $file_extension;
-    $upload_path = '../../assets/uploads/' . $new_filename;
+    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $new_name = 'bukti_' . $order_id . '_' . time() . '.' . $ext;
+    $path = '../../assets/uploads/' . $new_name;
 
     if (!file_exists('../../assets/uploads/')) {
         mkdir('../../assets/uploads/', 0755, true);
     }
 
-    if (!move_uploaded_file($file['tmp_name'], $upload_path)) {
-        throw new Exception('Gagal memindahkan file ke folder upload');
+    if (!move_uploaded_file($file['tmp_name'], $path)) {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Gagal upload file'
+        ]);
+        exit;
     }
 
-    $query = "UPDATE pembayaran SET bukti_pembayaran = ? WHERE id_pesanan = ?";
-    $stmt = $conn->prepare($query);
-    
-    if (!$stmt) {
-        unlink($upload_path);
-        throw new Exception('Prepare statement gagal: ' . $conn->error);
-    }
-    
-    $stmt->bind_param('ss', $new_filename, $order_id);
-    
-    if (!$stmt->execute()) {
-        unlink($upload_path);
-        throw new Exception('Gagal menyimpan data ke database: ' . $stmt->error);
-    }
-    
-    $affected_rows = $stmt->affected_rows;
-    error_log("Rows affected by update: " . $affected_rows);
-    
-    if ($affected_rows === 0) {
-        error_log("WARNING: Update executed but no rows affected for order: " . $order_id);
+    $upd = $conn->prepare("UPDATE pembayaran SET bukti_pembayaran = ? WHERE id_pesanan = ?");
+    $upd->bind_param('ss', $new_name, $order_id);
+    $upd->execute();
+
+    if ($upd->affected_rows === 0) {
+        unlink($path);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Gagal menyimpan data'
+        ]);
+        exit;
     }
 
     echo json_encode([
         'success' => true,
         'message' => 'Bukti pembayaran berhasil diupload',
-        'filename' => $new_filename,
+        'filename' => $new_name,
         'order_id' => $order_id
     ]);
 
 } catch (Exception $e) {
-    error_log("Upload payment proof error: " . $e->getMessage());
-    
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => 'Terjadi kesalahan server'
     ]);
 }
 

@@ -1,26 +1,16 @@
 <?php
 require '../../database/connect.php';
-
-/**
- * Ambil data meja berdasarkan kode unik
- */
+$param_meja_id = isset($_GET['meja']) ? (int)$_GET['meja'] : null;
+$param_kode     = isset($_GET['kode']) ? $_GET['kode'] : (isset($_GET['kode_unik']) ? $_GET['kode_unik'] : null);
+$kategori       = isset($_GET['kategori']) ? $_GET['kategori'] : 'semua';
 function getMejaByKode($kode_unik, $conn) {
     if (empty($kode_unik)) return null;
-
     $stmt = $conn->prepare("SELECT * FROM meja WHERE kode_unik = ?");
     $stmt->bind_param("s", $kode_unik);
     $stmt->execute();
     $result = $stmt->get_result();
-
     return $result->fetch_assoc();
 }
-
-// === Ambil parameter dari URL (mendukung beberapa nama param: kode, kode_unik, meja) ===
-$param_meja_id = isset($_GET['meja']) ? (int)$_GET['meja'] : null;
-$param_kode     = isset($_GET['kode']) ? $_GET['kode'] : (isset($_GET['kode_unik']) ? $_GET['kode_unik'] : null);
-$kategori       = isset($_GET['kategori']) ? $_GET['kategori'] : 'semua';
-
-// === Ambil data meja berdasarkan parameter yang tersedia ===
 $mejaData = null;
 try {
     if (!empty($param_kode)) {
@@ -35,8 +25,6 @@ try {
 } catch (Exception $e) {
     $mejaData = null;
 }
-
-// Tentukan nilai tampilan meja dan juga nilai parameter yang akan dipakai pada link
 if ($mejaData) {
     $nomor_meja = isset($mejaData['nomor_meja']) ? $mejaData['nomor_meja'] : (isset($mejaData['nama_meja']) ? $mejaData['nama_meja'] : 'Meja');
     $id_meja    = isset($mejaData['id_meja']) ? $mejaData['id_meja'] : null;
@@ -46,8 +34,6 @@ if ($mejaData) {
     $id_meja    = $param_meja_id ?: null;
     $kode_param = $param_kode ?: null;
 }
-
-// === Ambil data menu berdasarkan kategori ===
 try {
     if ($kategori === 'semua') {
         $query = "SELECT * FROM menu ORDER BY nama_menu ASC";
@@ -57,7 +43,6 @@ try {
         $stmt = $conn->prepare($query);
         $stmt->bind_param('s', $kategori);
     }
-
     $stmt->execute();
     $result = $stmt->get_result();
     $menus = $result->fetch_all(MYSQLI_ASSOC);
@@ -65,8 +50,6 @@ try {
 } catch (Exception $e) {
     $menus = [];
 }
-
-// Helper: buat link kategori
 function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
     $params = [];
     if (!empty($kode_param)) {
@@ -77,7 +60,6 @@ function buildKategoriLink($kategoriValue, $id_meja, $kode_param) {
     $params[] = "kategori=" . urlencode($kategoriValue);
     return '?' . implode('&', $params);
 }
-
 $sql_qris = "SELECT nilai_pengaturan FROM pengaturan WHERE nama_pengaturan = 'qris_image_path'";
 $result_qris = mysqli_query($conn, $sql_qris);
 $data_qris = mysqli_fetch_assoc($result_qris);
@@ -154,13 +136,11 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
             </div>
         </div>
 
-        <!-- Cart Float Button -->
         <button class="cart-float-btn" id="cartFloatBtn" onclick="openCheckout()">
             🛒
             <span class="cart-float-badge" id="cartFloatBadge">0</span>
         </button>
 
-        <!-- Checkout Modal -->
         <div class="modal-overlay" id="checkoutModal">
             <div class="checkout-modal">
                 <div class="checkout-header">
@@ -225,7 +205,6 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
             </div>
         </div>
 
-        <!-- Success Modal (Cash) -->
         <div class="modal-overlay" id="successModal">
             <div class="checkout-modal">
                 <div class="checkout-header">
@@ -269,12 +248,10 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
             </div>
         </div>
 
-        <!-- QRIS Payment Modal -->
         <div class="modal-overlay" id="qrisModal">
             <div class="checkout-modal">
                 <div class="checkout-header">
                     <h2>Pembayaran QRIS</h2>
-                    <!-- <button class="close-modal" onclick="cancelQrisPayment()">×</button> -->
                 </div>
                 <div class="checkout-content">
                     <div class="qris-container">
@@ -286,7 +263,6 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
                         <p>QRIS belum tersedia</p>
                     <?php endif; ?>
                 </div>
-                        
                         <div class="qris-amount">
                             <span>Total Pembayaran:</span>
                             <strong id="qrisTotalAmount">Rp 0</strong>
@@ -327,7 +303,6 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
             </div>
         </div>
 
-        <!-- QRIS Success Modal -->
         <div class="modal-overlay" id="qrisSuccessModal">
             <div class="checkout-modal">
                 <div class="checkout-header">
@@ -390,12 +365,10 @@ function addToCart(menu) {
     }
     updateCartButton();
 }
-
 function updateCartButton() {
     const cartFloatBtn = document.getElementById('cartFloatBtn');
     const cartFloatBadge = document.getElementById('cartFloatBadge');
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    
     if (totalItems > 0) {
         cartFloatBtn.classList.add('active');
         cartFloatBadge.textContent = totalItems;
@@ -404,7 +377,6 @@ function updateCartButton() {
         closeCheckout();
     }
 }
-
 function openCheckout() {
     if (cart.length === 0) {
         alert('Keranjang kosong! Silakan pilih menu terlebih dahulu.');
@@ -413,7 +385,6 @@ function openCheckout() {
     document.getElementById('checkoutModal').classList.add('active');
     updateCheckoutModal();
 }
-
 function closeCheckout() {
     document.getElementById('checkoutModal').classList.remove('active');
 }
@@ -421,13 +392,11 @@ function updateCheckoutModal() {
     const checkoutItems = document.getElementById('checkoutItems');
     let totalItems = 0;
     let subtotal = 0;
-
     checkoutItems.innerHTML = cart.map(item => {
         totalItems += item.quantity;
         const itemTotal = item.harga * item.quantity;
         subtotal += itemTotal;
         const imagePath = item.gambar ? `../../assets/uploads/${item.gambar}` : '';
-        
         return `
             <div class="order-item">
                 <div class="order-item-image">
@@ -447,13 +416,11 @@ function updateCheckoutModal() {
                 </div>
             </div>`;
     }).join('');
-
     document.getElementById('checkoutSubtotal').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
     document.getElementById('checkoutTotalItems').textContent = totalItems + ' item';
     document.getElementById('checkoutTotal').textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
     updateCartButton();
 }
-
 function increaseQuantity(menuId) {
     const item = cart.find(i => i.id === menuId);
     if (item) {
@@ -461,7 +428,6 @@ function increaseQuantity(menuId) {
         updateCheckoutModal();
     }
 }
-
 function decreaseQuantity(menuId) {
     const itemIndex = cart.findIndex(i => i.id === menuId);
     if (itemIndex !== -1) {
@@ -475,40 +441,33 @@ function decreaseQuantity(menuId) {
         updateCheckoutModal();
     }
 }
-
 function selectPayment(method) {
     selectedPayment = method;
     document.querySelectorAll('.payment-option').forEach(option => {
         option.classList.remove('selected');
     });
     document.querySelector(`[data-payment="${method}"]`).classList.add('selected');
-    
     const submitBtn = document.getElementById('submitOrderBtn');
     submitBtn.disabled = false;
     submitBtn.textContent = method === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
 }
-
 function submitOrder() {
     if (!selectedPayment) {
         alert('Silakan pilih metode pembayaran terlebih dahulu!');
         return;
     }
-
     if (checkPaymentInterval) {
         clearInterval(checkPaymentInterval);
         checkPaymentInterval = null;
     }
     currentOrderId = null;
     selectedProofFile = null;
-
     const notes = document.getElementById('orderNotes').value;
     const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
     const submitBtn = document.getElementById('submitOrderBtn');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Memproses pesanan...';
-
     const orderData = {
         meja: mejaNumber,
         id_meja: <?php echo json_encode($id_meja); ?>,
@@ -519,56 +478,39 @@ function submitOrder() {
         total_amount: totalAmount,
         total_items: totalItems
     };
-
-    console.log('Sending order data:', orderData);
-
     fetch('../include/pesanan_f.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(orderData)
     })
-    .then(response => {
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-        return response.text();
-    })
+    .then(response => response.text())
     .then(text => {
-        console.log('Response text:', text);
         try {
             const data = JSON.parse(text);
-            console.log('Parsed data:', data);
-            
             if (data.success) {
                 currentOrderId = data.order_id;
-                console.log('Order created successfully with ID:', currentOrderId);
-                
                 if (selectedPayment === 'cash') {
                     showSuccessModal(data.order_id, totalAmount, totalItems);
                 } else if (selectedPayment === 'qris') {
                     showQrisModal(data.order_id, totalAmount);
                 }
             } else {
-                console.error('Order failed:', data);
                 alert('Gagal memproses pesanan: ' + (data.message || 'Terjadi kesalahan'));
                 submitBtn.disabled = false;
                 submitBtn.textContent = selectedPayment === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
             }
         } catch (parseError) {
-            console.error('JSON parse error:', parseError);
-            console.error('Received text:', text);
             alert('Terjadi kesalahan saat memproses respons server. Silakan coba lagi.');
             submitBtn.disabled = false;
             submitBtn.textContent = selectedPayment === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
         }
     })
     .catch(error => {
-        console.error('Fetch error:', error);
         alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
         submitBtn.disabled = false;
         submitBtn.textContent = selectedPayment === 'cash' ? 'Konfirmasi Pesanan - Bayar di Kasir' : 'Lanjut ke Pembayaran QRIS';
     });
 }
-
 function showSuccessModal(orderId, totalAmount, totalItems) {
     closeCheckout();
     document.getElementById('successOrderId').textContent = orderId;
@@ -577,65 +519,49 @@ function showSuccessModal(orderId, totalAmount, totalItems) {
     document.getElementById('successTotalItems').textContent = totalItems + ' item';
     document.getElementById('successModal').classList.add('active');
 }
-
 function closeSuccessModal() {
     document.getElementById('successModal').classList.remove('active');
     resetOrder();
 }
-
 function showQrisModal(orderId, totalAmount) {
     closeCheckout();
-    
     currentOrderId = orderId;
-    
     document.getElementById('qrisTotalAmount').textContent = 'Rp ' + totalAmount.toLocaleString('id-ID');
     document.getElementById('qrisModal').classList.add('active');
-    
     selectedProofFile = null;
     document.getElementById('paymentProof').value = '';
     document.getElementById('fileUploadText').textContent = '📷 Pilih File Gambar';
     document.getElementById('imagePreview').innerHTML = '';
-    
     const uploadBtn = document.getElementById('uploadProofBtn');
     uploadBtn.disabled = true;
     uploadBtn.textContent = 'Upload Bukti Pembayaran';
     uploadBtn.style.background = '#FF6B00';
-    
     const continueBtn = document.getElementById('qrisContinueBtn');
     continueBtn.disabled = true;
     continueBtn.style.display = 'none';
-    
-    // Reset status section
     const statusSection = document.getElementById('qrisStatusSection');
     const statusIcon = document.getElementById('qrisStatusIcon');
     const statusText = document.getElementById('qrisStatusText');
-    
     statusSection.style.display = 'none';
-    
     if (statusIcon) {
         statusIcon.className = 'loading-spinner';
         statusIcon.innerHTML = '';
     }
-    
     if (statusText) {
         statusText.textContent = 'Menunggu konfirmasi kasir...';
         statusText.style.color = '#666';
     }
-    
     if (checkPaymentInterval) {
         clearInterval(checkPaymentInterval);
         checkPaymentInterval = null;
     }
 }
-
 function previewPaymentProof(input) {
     const uploadBtn = document.getElementById('uploadProofBtn');
     const preview = document.getElementById('imagePreview');
     const fileText = document.getElementById('fileUploadText');
-    
     if (input.files && input.files[0]) {
         selectedProofFile = input.files[0];
-        
         if (!selectedProofFile.type.match('image.*')) {
             alert('Hanya file gambar yang diperbolehkan!');
             input.value = '';
@@ -643,7 +569,6 @@ function previewPaymentProof(input) {
             uploadBtn.disabled = true;
             return;
         }
-        
         if (selectedProofFile.size > 5 * 1024 * 1024) {
             alert('Ukuran file maksimal 5MB!');
             input.value = '';
@@ -651,7 +576,6 @@ function previewPaymentProof(input) {
             uploadBtn.disabled = true;
             return;
         }
-        
         const reader = new FileReader();
         reader.onload = function(e) {
             preview.innerHTML = `<img src="${e.target.result}" alt="Preview Bukti Pembayaran">`;
@@ -666,56 +590,30 @@ function previewPaymentProof(input) {
         uploadBtn.disabled = true;
     }
 }
-
 function uploadPaymentProof() {
     if (!selectedProofFile) {
         alert('Silakan pilih file bukti pembayaran terlebih dahulu!');
         return;
     }
-
-    console.log('=== UPLOAD PAYMENT PROOF ===');
-    console.log('Current Order ID:', currentOrderId);
-    console.log('Selected File:', selectedProofFile.name);
-
     const uploadBtn = document.getElementById('uploadProofBtn');
     uploadBtn.disabled = true;
     uploadBtn.textContent = 'Mengupload...';
-
     const formData = new FormData();
     formData.append('payment_proof', selectedProofFile);
     formData.append('order_id', currentOrderId);
-
     fetch('../include/upload_payment_proof.php', {
         method: 'POST',
         body: formData
     })
-    .then(response => {
-        console.log('Upload response status:', response.status);
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        console.log('Upload response data:', data);
-        
         if (data.success) {
             uploadBtn.textContent = '✓ Bukti Berhasil Diupload';
             uploadBtn.style.background = '#28a745';
-            
             document.getElementById('qrisStatusSection').style.display = 'block';
             document.getElementById('qrisContinueBtn').style.display = 'block';
-            
-            console.log('About to call startPaymentStatusCheck with order:', currentOrderId);
-            
-            const orderIdToCheck = currentOrderId;
-            console.log('Order ID to check:', orderIdToCheck);
-            
-            if (typeof startPaymentStatusCheck === 'function') {
-                console.log('startPaymentStatusCheck function exists');
-                startPaymentStatusCheck(orderIdToCheck);
-            } else {
-                console.error('startPaymentStatusCheck function NOT FOUND!');
-            }
+            startPaymentStatusCheck(currentOrderId);
         } else {
-            console.error('Upload failed:', data.message);
             alert('Gagal mengupload bukti pembayaran: ' + (data.message || 'Terjadi kesalahan'));
             uploadBtn.disabled = false;
             uploadBtn.textContent = 'Upload Bukti Pembayaran';
@@ -723,7 +621,6 @@ function uploadPaymentProof() {
         }
     })
     .catch(error => {
-        console.error('Upload error:', error);
         alert('Terjadi kesalahan saat mengupload. Silakan coba lagi.');
         uploadBtn.disabled = false;
         uploadBtn.textContent = 'Upload Bukti Pembayaran';
@@ -731,103 +628,66 @@ function uploadPaymentProof() {
     });
 }
 function startPaymentStatusCheck(orderId) {
-    try {
-        console.log('=== STARTING PAYMENT STATUS CHECK ===');
-        console.log('Order ID for checking:', orderId);
-        
-        if (checkPaymentInterval) {
-            console.log('Clearing old interval');
-            clearInterval(checkPaymentInterval);
-            checkPaymentInterval = null;
-        }
-        
-        // Reset status display
-        const statusIcon = document.getElementById('qrisStatusIcon');
-        const statusText = document.getElementById('qrisStatusText');
-        
-        if (statusIcon) {
-            statusIcon.className = 'loading-spinner';
-            statusIcon.innerHTML = '';
-        }
-        
-        if (statusText) {
-            statusText.textContent = 'Menunggu konfirmasi kasir...';
-            statusText.style.color = '#666';
-        }
-        
-        checkPaymentInterval = setInterval(function() {
-            console.log('=== CHECKING PAYMENT STATUS ===');
-            console.log('Time:', new Date().toLocaleTimeString());
-            console.log('Checking for order:', orderId);
-            
-            fetch(`../include/check_payment_status.php?order_id=${orderId}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Check status response:', data);
-                    
-                    if (data.success) {
-                        if (data.status === 'confirmed') {
-                            console.log('✓ PAYMENT CONFIRMED!');
-                            clearInterval(checkPaymentInterval);
-                            checkPaymentInterval = null;
-                            
-                            const statusIconNow = document.getElementById('qrisStatusIcon');
-                            const statusTextNow = document.getElementById('qrisStatusText');
-                            const continueBtnNow = document.getElementById('qrisContinueBtn');
-                            
-                            if (statusIconNow) {
-                                statusIconNow.className = 'success-check';
-                                statusIconNow.innerHTML = '✓';
-                            }
-                            
-                            if (statusTextNow) {
-                                statusTextNow.textContent = 'Pembayaran dikonfirmasi!';
-                                statusTextNow.style.color = '#28a745';
-                            }
-                            
-                            if (continueBtnNow) {
-                                continueBtnNow.disabled = false;
-                                console.log('Continue button enabled');
-                            }
-                            
-                        } else if (data.status === 'rejected') {
-                            console.log('✗ PAYMENT REJECTED!');
-                            clearInterval(checkPaymentInterval);
-                            checkPaymentInterval = null;
-                            
-                            const statusIconNow = document.getElementById('qrisStatusIcon');
-                            const statusTextNow = document.getElementById('qrisStatusText');
-                            
-                            if (statusIconNow) {
-                                statusIconNow.className = 'error-mark';
-                                statusIconNow.innerHTML = '✗';
-                            }
-                            
-                            if (statusTextNow) {
-                                statusTextNow.textContent = 'Pembayaran ditolak oleh kasir';
-                                statusTextNow.style.color = '#dc3545';
-                            }
-                            
-                            setTimeout(() => {
-                                document.getElementById('qrisModal').classList.remove('active');
-                                alert('Pembayaran ditolak oleh kasir. Silakan coba lagi atau hubungi kasir.');
-                                resetOrder();
-                            }, 2000);
-                        } else {
-                            console.log('Status still pending');
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking payment status:', error);
-                });
-        }, 3000);
-        
-        console.log('Interval started');
-        
-    } catch (error) {
-        console.error('ERROR in startPaymentStatusCheck:', error);
+    if (checkPaymentInterval) {
+        clearInterval(checkPaymentInterval);
+        checkPaymentInterval = null;
     }
+    const statusIcon = document.getElementById('qrisStatusIcon');
+    const statusText = document.getElementById('qrisStatusText');
+    if (statusIcon) {
+        statusIcon.className = 'loading-spinner';
+        statusIcon.innerHTML = '';
+    }
+    if (statusText) {
+        statusText.textContent = 'Menunggu konfirmasi kasir...';
+        statusText.style.color = '#666';
+    }
+    checkPaymentInterval = setInterval(function() {
+        fetch(`../include/check_payment_status.php?order_id=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.status === 'confirmed') {
+                        clearInterval(checkPaymentInterval);
+                        checkPaymentInterval = null;
+                        const statusIconNow = document.getElementById('qrisStatusIcon');
+                        const statusTextNow = document.getElementById('qrisStatusText');
+                        if (statusIconNow) {
+                            statusIconNow.className = 'success-check';
+                            statusIconNow.innerHTML = '✓';
+                        }
+                        if (statusTextNow) {
+                            statusTextNow.textContent = 'Pembayaran dikonfirmasi!';
+                            statusTextNow.style.color = '#28a745';
+                        }
+                        completeQrisPayment();
+                        setTimeout(() => {
+                            downloadReceipt();
+                        }, 500);
+                    } else if (data.status === 'rejected') {
+                        clearInterval(checkPaymentInterval);
+                        checkPaymentInterval = null;
+                        const statusIconNow = document.getElementById('qrisStatusIcon');
+                        const statusTextNow = document.getElementById('qrisStatusText');
+                        if (statusIconNow) {
+                            statusIconNow.className = 'error-mark';
+                            statusIconNow.innerHTML = '✗';
+                        }
+                        if (statusTextNow) {
+                            statusTextNow.textContent = 'Pembayaran ditolak oleh kasir';
+                            statusTextNow.style.color = '#dc3545';
+                        }
+                        setTimeout(() => {
+                            document.getElementById('qrisModal').classList.remove('active');
+                            alert('Pembayaran ditolak oleh kasir. Silakan coba lagi atau hubungi kasir.');
+                            resetOrder();
+                        }, 2000);
+                    }
+                }
+            })
+            .catch(error => {
+            });
+    }, 3000);
 }
 function cancelQrisPayment() {
     if (checkPaymentInterval) {
@@ -835,37 +695,28 @@ function cancelQrisPayment() {
         checkPaymentInterval = null;
     }
     document.getElementById('qrisModal').classList.remove('active');
-    
     const submitBtn = document.getElementById('submitOrderBtn');
     submitBtn.disabled = false;
     submitBtn.textContent = 'Lanjut ke Pembayaran QRIS';
 }
-
 function completeQrisPayment() {
     if (checkPaymentInterval) {
         clearInterval(checkPaymentInterval);
         checkPaymentInterval = null;
     }
-    
     document.getElementById('qrisModal').classList.remove('active');
-    
     const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
-    
     document.getElementById('qrisSuccessOrderId').textContent = currentOrderId;
     document.getElementById('qrisSuccessTableNumber').textContent = mejaNumber;
     document.getElementById('qrisSuccessTotalAmount').textContent = 'Rp ' + totalAmount.toLocaleString('id-ID');
-    
     receiptDownloaded = false;
     document.getElementById('closeQrisSuccessBtn').disabled = true;
     document.getElementById('closeQrisSuccessBtn').textContent = 'Download Struk Terlebih Dahulu';
-    
     document.getElementById('qrisSuccessModal').classList.add('active');
 }
-
 function downloadReceipt() {
     const totalAmount = cart.reduce((sum, item) => sum + (item.harga * item.quantity), 0);
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    
     let receiptContent = `
 =========================================
            STRUK PEMBAYARAN
@@ -879,13 +730,11 @@ Tanggal: ${new Date().toLocaleString('id-ID')}
 DETAIL PESANAN:
 -----------------------------------------
 `;
-
     cart.forEach(item => {
         const itemTotal = item.harga * item.quantity;
         receiptContent += `${item.nama}\n`;
         receiptContent += `  ${item.quantity} x Rp ${item.harga.toLocaleString('id-ID')} = Rp ${itemTotal.toLocaleString('id-ID')}\n\n`;
     });
-
     receiptContent += `-----------------------------------------
 Total Item: ${totalItems}
 Total Pembayaran: Rp ${totalAmount.toLocaleString('id-ID')}
@@ -898,7 +747,6 @@ Status: LUNAS
   Tunjukkan struk ini ke kasir
 =========================================
 `;
-
     const blob = new Blob([receiptContent], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -908,72 +756,58 @@ Status: LUNAS
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
-    
     receiptDownloaded = true;
-    
     const closeBtn = document.getElementById('closeQrisSuccessBtn');
     closeBtn.disabled = false;
     closeBtn.textContent = 'Selesai';
-    
     const downloadBtn = document.getElementById('downloadReceiptBtn');
     downloadBtn.textContent = '✓ Struk Sudah Didownload';
     downloadBtn.style.background = '#28a745';
 }
-
 function attemptCloseQrisSuccess() {
     if (!receiptDownloaded) {
         alert('Anda harus mendownload struk terlebih dahulu sebelum menutup!');
         return;
     }
-    
     document.getElementById('qrisSuccessModal').classList.remove('active');
     resetOrder();
 }
-
 function resetOrder() {
     if (checkPaymentInterval) {
         clearInterval(checkPaymentInterval);
         checkPaymentInterval = null;
     }
-    
     cart = [];
     selectedPayment = null;
     currentOrderId = null;
     receiptDownloaded = false;
     selectedProofFile = null;
-    
     document.getElementById('orderNotes').value = '';
     document.querySelectorAll('.payment-option').forEach(option => {
         option.classList.remove('selected');
     });
-    
     const submitBtn = document.getElementById('submitOrderBtn');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Pilih Metode Pembayaran';
-    
     const uploadBtn = document.getElementById('uploadProofBtn');
     if (uploadBtn) {
         uploadBtn.disabled = true;
         uploadBtn.textContent = 'Upload Bukti Pembayaran';
         uploadBtn.style.background = '#FF6B00';
     }
-    
     const continueBtn = document.getElementById('qrisContinueBtn');
     if (continueBtn) {
         continueBtn.disabled = true;
         continueBtn.style.display = 'none';
     }
-    
     const downloadBtn = document.getElementById('downloadReceiptBtn');
     if (downloadBtn) {
         downloadBtn.textContent = 'Download Struk Pembayaran';
         downloadBtn.style.background = '#FF6B00';
     }
-    
     closeCheckout();
     updateCartButton();
 }
-
 document.getElementById('checkoutModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeCheckout();
