@@ -11,18 +11,15 @@ require '../../database/connect.php';
 function clean($v){ return trim(htmlspecialchars($v ?? '')); }
 function rupiah($v){ return 'Rp '.number_format((float)$v,0,',','.'); }
 
-// === Ambil filter tanggal dari GET (validasi sederhana) ===
 $start_input = $_GET['start'] ?? date('Y-m-d');
 $end_input   = $_GET['end']   ?? date('Y-m-d');
 
-// Validasi format YYYY-MM-DD sederhana
 $start_valid = DateTime::createFromFormat('Y-m-d', $start_input) !== false;
 $end_valid   = DateTime::createFromFormat('Y-m-d', $end_input) !== false;
 
 if (!$start_valid) { $start_input = date('Y-m-d'); }
 if (!$end_valid)   { $end_input   = date('Y-m-d'); }
 
-// Pastikan start <= end; jika tidak, swap
 $start_dt = new DateTime($start_input);
 $end_dt   = new DateTime($end_input);
 if ($start_dt > $end_dt) {
@@ -34,10 +31,8 @@ if ($start_dt > $end_dt) {
 $start_sql = $start_dt->format('Y-m-d') . " 00:00:00";
 $end_sql   = $end_dt->format('Y-m-d') . " 23:59:59";
 
-// Label untuk ditampilkan (mis. "01-11-2025 s/d 20-11-2025")
 $label_range = $start_dt->format('d-m-Y') . ' s/d ' . $end_dt->format('d-m-Y');
 
-// === Penjualan ===
 $sql = "SELECT d.id_pesanan, 
                GROUP_CONCAT(CONCAT(COALESCE(m.nama_menu,'Item'),' x', d.jumlah) SEPARATOR ', ') AS items,
                SUM(d.subtotal) AS total,
@@ -46,6 +41,8 @@ $sql = "SELECT d.id_pesanan,
         JOIN pesanan p ON d.id_pesanan = p.id_pesanan
         LEFT JOIN menu m ON d.id_menu = m.id_menu
         WHERE p.waktu_pesan BETWEEN ? AND ?
+          AND p.status_pesanan != 'dibatalkan'
+          AND p.id_pesanan NOT IN (SELECT id_pesanan FROM pembatalan_pesanan)
         GROUP BY d.id_pesanan
         ORDER BY p.waktu_pesan ASC";
 $stmt = $conn->prepare($sql);
@@ -57,7 +54,6 @@ $stmt->execute();
 $sales = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// === Pengeluaran ===
 $sql2 = "SELECT id_beli, tanggal_beli, nama_bahan, harga 
           FROM pembelian_bahan 
           WHERE tanggal_beli BETWEEN ? AND ? 
@@ -71,7 +67,6 @@ $stmt->execute();
 $expenses = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Hitung total
 $total_sales = array_sum(array_column($sales,'total'));
 $total_expenses = array_sum(array_column($expenses,'harga'));
 $profit = $total_sales - $total_expenses;
@@ -80,17 +75,14 @@ $is_profit = $profit >= 0;
 $status_text = $is_profit ? 'Untung' : 'Rugi';
 $status_color_class = $is_profit ? 'status-untung' : 'status-rugi';
 
-// === EXPORT CSV ===
 if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=laporan_keuangan_'.$start_dt->format('Ymd').'_to_'.$end_dt->format('Ymd').'.csv');
     $output = fopen('php://output', 'w');
 
-    // Judul
     fputcsv($output, ['Laporan Keuangan - Periode: '.$label_range]);
     fputcsv($output, []);
 
-    // Penjualan
     fputcsv($output, ['Rekap Penjualan']);
     fputcsv($output, ['No Pesanan', 'Item', 'Waktu', 'Total']);
     if (!empty($sales)) {
@@ -132,7 +124,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     exit;
 }
 
-// Data chart (satu titik: periode yang dipilih)
 $chart_label = $label_range;
 $chart_data_array = [
     ['Tipe', 'Pendapatan', 'Pengeluaran'],
@@ -158,7 +149,6 @@ $chart_data_json = json_encode($chart_data_array);
   --bg:#f3f4f6;
 }
 
-/* ======== Layout Utama ======== */
 body{
   margin:0;
   font-family:Inter,'Segoe UI',sans-serif;
@@ -201,7 +191,6 @@ h1{margin:0;font-size:24px;color:#111827;}
 .btn.ghost{background:#fff;color:var(--blue);border:1px solid #cbd5e1;}
 .actions{display:flex;gap:8px;}
 @media print{.print-hide{display:none}}
-/* Simple responsive table for small screens */
 @media (max-width:600px){
   .summary-cards{grid-template-columns:repeat(2,1fr);}
   .table th:nth-child(3), .table td:nth-child(3),
@@ -227,7 +216,6 @@ h1{margin:0;font-size:24px;color:#111827;}
         </div>
       </div>
 
-      <!-- FORM FILTER TANGGAL -->
       <form method="GET" class="print-hide" style="margin:20px 0; display:flex; gap:10px; align-items:center;">
           <input type="date" name="start" value="<?= $start_dt->format('Y-m-d') ?>" 
                  style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;">
@@ -354,7 +342,6 @@ function drawChart(){
 }
 window.addEventListener('resize',drawChart);
 
-// Tabs
 const tabs=document.querySelectorAll('.tab');
 const contents=document.querySelectorAll('.tab-content');
 tabs.forEach(tab=>{
