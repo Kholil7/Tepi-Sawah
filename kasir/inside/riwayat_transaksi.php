@@ -9,7 +9,7 @@ $userId = getUserId();
 if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pesanan'])) {
     $id_pesanan = $_GET['id_pesanan'];
     $query = "
-        SELECT d.*, mn.nama_menu, m.nomor_meja, p.metode, p.waktu_pembayaran
+        SELECT d.*, mn.nama_menu, m.nomor_meja, p.metode, p.waktu_pembayaran, p.bayar, p.kembalian
         FROM detail_pesanan d
         JOIN menu mn ON mn.id_menu = d.id_menu
         JOIN pembayaran p ON p.id_pesanan = d.id_pesanan
@@ -49,8 +49,21 @@ if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pes
             <tr class='table-secondary'>
                 <td colspan='3' class='text-end'><strong>Total:</strong></td>
                 <td><strong>Rp " . number_format($total, 0, ',', '.') . "</strong></td>
-            </tr>
-          </tfoot>
+            </tr>";
+    
+    // Tambahkan baris Bayar dan Kembalian untuk metode cash
+    if ($first_row['metode'] == 'cash') {
+        echo "<tr>
+                <td colspan='3' class='text-end'><strong>Bayar:</strong></td>
+                <td><strong>Rp " . number_format($first_row['bayar'], 0, ',', '.') . "</strong></td>
+              </tr>
+              <tr>
+                <td colspan='3' class='text-end'><strong>Kembalian:</strong></td>
+                <td><strong>Rp " . number_format($first_row['kembalian'], 0, ',', '.') . "</strong></td>
+              </tr>";
+    }
+    
+    echo "</tfoot>
           </table>";
     exit;
 }
@@ -172,6 +185,18 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
 
     <hr>
     <h4>Total: Rp <?= number_format($total_print, 0, ',', '.') ?></h4>
+    <?php if ($transaksi['metode'] == 'cash'): ?>
+    <table style="width: 100%;">
+        <tr>
+            <td>Bayar:</td>
+            <td align="right">Rp <?= number_format($transaksi['bayar'], 0, ',', '.') ?></td>
+        </tr>
+        <tr>
+            <td>Kembalian:</td>
+            <td align="right">Rp <?= number_format($transaksi['kembalian'], 0, ',', '.') ?></td>
+        </tr>
+    </table>
+    <?php endif; ?>
     <hr>
     <div class="text-center">Terima kasih telah berkunjung!</div>
 
