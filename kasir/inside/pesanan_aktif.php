@@ -2151,60 +2151,60 @@ function toggleSelesai() {
 }
 
 // UPDATE STATUS PESANAN
-// function updateStatus(orderId, status) {
-//     console.log('=== UPDATE STATUS CALLED ===');
-//     console.log('Order ID:', orderId);
-//     console.log('Status:', status);
+function updateStatus(orderId, status) {
+    console.log('=== UPDATE STATUS CALLED ===');
+    console.log('Order ID:', orderId);
+    console.log('Status:', status);
     
-//     if (!orderId || orderId === '' || orderId === 'undefined') {
-//         alert('Order ID tidak valid!');
-//         return;
-//     }
+    if (!orderId || orderId === '' || orderId === 'undefined') {
+        alert('Order ID tidak valid!');
+        return;
+    }
     
-//     if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
-//         return;
-//     }
+    if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
+        return;
+    }
     
-//     const requestData = {
-//         id_pesanan: orderId,
-//         status: status
-//     };
+    const requestData = {
+        id_pesanan: orderId,
+        status: status
+    };
     
-//     console.log('Sending data:', requestData);
+    console.log('Sending data:', requestData);
     
-//     fetch('../include/update_status_pesanan.php', {
-//         method: 'POST',
-//         headers: {
-//             'Content-Type': 'application/json'
-//         },
-//         body: JSON.stringify(requestData)
-//     })
-//     .then(response => {
-//         console.log('Response status:', response.status);
-//         return response.text();
-//     })
-//     .then(text => {
-//         console.log('Response text:', text);
-//         try {
-//             const data = JSON.parse(text);
-//             console.log('Parsed data:', data);
+    fetch('../include/update_status_pesanan.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        return response.text();
+    })
+    .then(text => {
+        console.log('Response text:', text);
+        try {
+            const data = JSON.parse(text);
+            console.log('Parsed data:', data);
             
-//             if (data.success) {
-//                 alert('Status pesanan berhasil diupdate!');
-//                 location.reload();
-//             } else {
-//                 alert('Gagal mengupdate status: ' + (data.message || 'Terjadi kesalahan'));
-//             }
-//         } catch (e) {
-//             console.error('JSON parse error:', e);
-//             alert('Error: Response tidak valid');
-//         }
-//     })
-//     .catch(error => {
-//         console.error('Fetch error:', error);
-//         alert('Terjadi kesalahan saat mengupdate status');
-//     });
-// }
+            if (data.success) {
+                alert('Status pesanan berhasil diupdate!');
+                location.reload();
+            } else {
+                alert('Gagal mengupdate status: ' + (data.message || 'Terjadi kesalahan'));
+            }
+        } catch (e) {
+            console.error('JSON parse error:', e);
+            alert('Error: Response tidak valid');
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        alert('Terjadi kesalahan saat mengupdate status');
+    });
+}
 
 // TANDAI SELESAI
 function tandaiSelesai(id) {
@@ -3189,7 +3189,10 @@ document.addEventListener('click', function(e) {
 
 // ========== UPDATE SEMUA FUNGSI ==========
 
-// function updateStatus(orderId, status) {
+// function updateStatus(orderId, status, idMeja = null) {
+//     // ID div card pesanan yang akan diupdate
+//     const cardId = `order-card-${orderId}`; 
+    
 //     showConfirm(
 //         `Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`,
 //         function() {
@@ -3198,20 +3201,36 @@ document.addEventListener('click', function(e) {
 //                 headers: { 'Content-Type': 'application/json' },
 //                 body: JSON.stringify({
 //                     id_pesanan: orderId,
-//                     status: status
+//                     status: status,
+//                     id_meja: idMeja
 //                 })
 //             })
-//             .then(response => response.text())
-//             .then(text => {
-//                 try {
-//                     const data = JSON.parse(text);
-//                     if (data.success) {
-//                         showSuccess('Status pesanan berhasil diupdate!');
-//                     } else {
-//                         showError('Gagal: ' + data.message);
+//             .then(response => response.json())
+//             .then(data => {
+//                 if (data.success) {
+//                     showSuccess('Status pesanan berhasil diupdate!');
+//                     const card = document.getElementById(cardId);
+//                     if (card) {
+//                         const statusBadge = card.querySelector('.status-badge');
+//                         if (statusBadge) {
+//                             statusBadge.textContent = status.toUpperCase();
+//                             statusBadge.className = 'status-badge badge-processing'; 
+//                         }
+                        
+//                         const actionContainer = card.querySelector('.order-actions');
+//                         if (actionContainer) {
+//                             actionContainer.innerHTML = `
+//                                 <button onclick="updateStatus('${orderId}', 'selesai', '${idMeja}')" class="btn btn-success">
+//                                     <i class="fas fa-check"></i> Sajikan
+//                                 </button>
+//                                 <button onclick="updateStatus('${orderId}', 'bayar', '${idMeja}')" class="btn btn-info">
+//                                     <i class="fas fa-money-bill"></i> Bayar
+//                                 </button>
+//                             `;
+//                         }
 //                     }
-//                 } catch (e) {
-//                     showError('Error: Response tidak valid');
+//                 } else {
+//                     showError('Gagal: ' + data.message);
 //                 }
 //             })
 //             .catch(error => {
@@ -3221,39 +3240,79 @@ document.addEventListener('click', function(e) {
 //     );
 // }
 
-// function tolakPesanan(orderId, mejaId, status) {
-//     showConfirm(
-//         'Apakah Anda yakin ingin menolak pesanan ini? Data pesanan akan dihapus dan meja dikosongkan.',
-//         function() {
-//             fetch('../include/tolak_pesanan.php', {
-//                 method: 'POST',
-//                 headers: { 'Content-Type': 'application/json' },
-//                 body: JSON.stringify({
-//                     id_pesanan: orderId,
-//                     id_meja: mejaId,
-//                     status: status
-//                 })
-//             })
-//             .then(response => response.text())
-//             .then(text => {
-//                 try {
-//                     const data = JSON.parse(text);
-//                     if (data.success) {
-//                         showSuccess('Pesanan ditolak dan data dihapus. Meja sudah dikosongkan.');
-//                     } else {
-//                         showError('Gagal: ' + data.message);
-//                     }
-//                 } catch (e) {
-//                     showError('Error: Response tidak valid');
-//                 }
-//             })
-//             .catch(error => {
-//                 showError('Terjadi kesalahan');
-//             });
-//         },
-//         'Tolak Pesanan'
-//     );
-// }
+function showInput(titleText, callbackFunction, confirmText = 'Kirim') {
+    Swal.fire({
+        title: titleText,
+        input: 'text',
+        inputAttributes: {
+            autocapitalize: 'off',
+            placeholder: 'Masukkan alasan pembatalan...'
+        },
+        showCancelButton: true,
+        confirmButtonText: confirmText,
+        showLoaderOnConfirm: true,
+        preConfirm: (alasan) => {
+            if (!alasan) {
+                Swal.showValidationMessage('Alasan wajib diisi.');
+                return false;
+            }
+            return alasan;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            callbackFunction(result.value);
+        }
+    });
+}
+
+function showSuccess(message) {
+    Swal.fire('Berhasil!', message, 'success').then(() => {
+    });
+}
+
+function showError(message) {
+    Swal.fire('Gagal!', message, 'error');
+}
+
+
+function tolakPesanan(orderId, mejaId) {
+    showInput(
+        'Masukkan alasan penolakan/pembatalan pesanan:',
+        function(alasan) {
+            if (!alasan) {
+                showError('Alasan pembatalan wajib diisi.');
+                return;
+            }
+            fetch('../include/tolak_pesanan.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId,
+                    id_meja: mejaId,
+                    alasan: alasan
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Pesanan berhasil dibatalkan, data diarsipkan, dan meja dikosongkan.');
+                        location.reload(); 
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                showError('Terjadi kesalahan');
+            });
+        },
+        'Tolak Pesanan'
+    );
+}
 
 function tandaiSelesai(orderId, mejaId) {
     showConfirm(
