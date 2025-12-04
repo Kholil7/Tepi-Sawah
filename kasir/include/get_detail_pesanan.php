@@ -14,11 +14,18 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 $id_pesanan = $_GET['id'];
 
 try {
-    // Get pesanan info
-    $query = "SELECT p.*, m.nomor_meja, pb.status as status_pembayaran, pb.bukti_pembayaran
+    // Get pesanan info + Alasan Pembatalan (LEFT JOIN ke pembatalan_pesanan)
+    $query = "SELECT 
+                p.*, 
+                m.nomor_meja, 
+                pb.status as status_pembayaran, 
+                pb.bukti_pembayaran,
+                pp.alasan AS alasan_pembatalan,  -- <--- TAMBAHAN KOLOM INI
+                pp.dibatalkan_oleh                 -- <--- TAMBAHAN KOLOM INI
               FROM pesanan p
               LEFT JOIN meja m ON p.id_meja = m.id_meja
               LEFT JOIN pembayaran pb ON p.id_pesanan = pb.id_pesanan
+              LEFT JOIN pembatalan_pesanan pp ON p.id_pesanan = pp.id_pesanan -- <--- TAMBAHAN JOIN INI
               WHERE p.id_pesanan = ?";
     
     $stmt = $conn->prepare($query);
@@ -33,7 +40,7 @@ try {
     $pesanan = $result->fetch_assoc();
     $stmt->close();
     
-    // Get items - PERBAIKAN DI SINI
+    // Get items (tidak perlu diubah)
     $query_items = "SELECT dp.*, m.nama_menu
                     FROM detail_pesanan dp
                     LEFT JOIN menu m ON dp.id_menu = m.id_menu

@@ -197,6 +197,48 @@ public function getDetailPesanan($id) {
         }
     }
 }
+function getPesananDibatalkanHariIni($conn) {
+    $query = "
+        SELECT 
+            p.id_pesanan, 
+            p.waktu_pesan, 
+            p.jenis_pesanan, 
+            p.total_harga,
+            p.metode_bayar AS metode_pembayaran, -- Alias untuk konsistensi dengan UI
+            m.nomor_meja,
+            -- Menghitung total item dari detail_pesanan
+            (SELECT SUM(dp.jumlah) FROM detail_pesanan dp WHERE dp.id_pesanan = p.id_pesanan) AS jumlah_item
+        FROM 
+            pesanan p
+        LEFT JOIN 
+            meja m ON p.id_meja = m.id_meja
+        WHERE 
+            p.status_pesanan = 'dibatalkan' 
+            AND DATE(p.waktu_pesan) = CURDATE()
+        ORDER BY 
+            p.waktu_pesan DESC
+    ";
+
+    $result = $conn->query($query);
+    
+    if (!$result) {
+        // Tampilkan error jika query gagal (hanya saat debugging)
+        error_log("Error fetching canceled orders: " . $conn->error);
+        return []; 
+    }
+
+    $pesananDibatalkan = [];
+    while ($row = $result->fetch_assoc()) {
+        $pesananDibatalkan[] = $row;
+    }
+    
+    return $pesananDibatalkan;
+}
+
+// --- PANGGIL FUNGSI INI DI FILE pesanan_aktif.php ---
+
+// Asumsikan koneksi database ($conn) sudah tersedia
+$pesananDibatalkan = getPesananDibatalkanHariIni($conn);
 
 $pesananModel = new Pesanan($conn);
 $pesananAktif = $pesananModel->getAktif();
@@ -253,7 +295,7 @@ function getMetodePembayaran($pesanan) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pesanan Aktif - Kasir | Tepi Sawah</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
 body {
@@ -564,6 +606,146 @@ body {
 
 .btn-gagal:hover {
   background: #dc2626;
+}
+
+.batal-section {
+    margin-top: 30px;
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.batal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.batal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.batal-header h2 i {
+    color: #dc3545;
+}
+
+.toggle-batal {
+    background: #f1f5f9;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #475569;
+    transition: 0.3s;
+}
+
+.toggle-batal:hover {
+    background: #e2e8f0;
+}
+
+.batal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    /* Perlu fungsi JS toggleBatal() untuk mengatur display: block/grid */
+}
+
+.pesanan-card-batal {
+    background: #fef2f2;
+    border-radius: 12px;
+    padding: 15px;
+    border-left: 4px solid #dc3545;
+    transition: 0.3s;
+}
+
+.pesanan-card-batal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+}
+
+.pesanan-header-batal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.pesanan-id-batal {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.pesanan-time-batal {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.pesanan-info-batal {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.info-item-batal {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.total-section-batal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 8px;
+}
+
+.total-label-batal {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.total-value-batal {
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.badge-batal {
+    background: #fcdfe2;
+    color: #9f1a29;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.empty-batal {
+    text-align: center;
+    padding: 40px 20px;
+    color: #dc3545;
+    grid-column: 1 / -1;
+}
+
+.empty-batal i {
+    font-size: 48px;
+    color: #dc3545;
+    margin-bottom: 10px;
 }
 
 .btn-reset {
@@ -1354,11 +1536,11 @@ body {
         <div class="value counter-update" id="countSelesai"><?= $statistik['selesai'] ?? 0 ?></div>
         <small>Pesanan selesai hari ini</small>
     </div>
-    <!-- <div class="stat-card dibatalkan">
+    <div class="stat-card dibatalkan">
         <h4>Dibatalkan</h4>
         <div class="value"><?= $statistik['dibatalkan'] ?? 0 ?></div>
         <small>Pesanan dibatalkan</small>
-    </div> -->
+    </div>
   </div>
 
   <div class="tabs">
@@ -1621,7 +1803,7 @@ body {
   </div>
 
   <!-- SECTION PESANAN SELESAI HARI INI -->
-  <div class="selesai-section">
+<div class="selesai-section">
     <div class="selesai-header">
       <h2><i class="fas fa-check-circle"></i> Pesanan Selesai Hari Ini</h2>
       <button class="toggle-selesai" onclick="toggleSelesai()">
@@ -1677,8 +1859,88 @@ body {
         </div>
       <?php endif; ?>
     </div>
-  </div>
 </div>
+
+<hr>
+
+<div class="batal-section">
+    <div class="batal-header">
+      <h2><i class="fas fa-times-circle"></i> Pesanan Dibatalkan Hari Ini</h2>
+      <button class="toggle-batal" onclick="toggleBatal()">
+        <i class="fas fa-chevron-down"></i> Tampilkan
+      </button>
+    </div>
+    
+    <div class="batal-grid" id="batalGrid" style="display: none;">
+      <?php 
+      // Asumsi variabel $pesananDibatalkan sudah diisi dengan data dari database
+      if (!empty($pesananDibatalkan)): 
+      ?>
+        <?php foreach ($pesananDibatalkan as $pesanan): ?>
+        <div class="pesanan-card-batal" id="batal-<?= $pesanan['id_pesanan'] ?>">
+          <div class="pesanan-header-batal">
+            <div class="pesanan-id-batal">#<?= $pesanan['id_pesanan'] ?></div>
+            <div class="pesanan-time-batal">
+              <?= date('H:i', strtotime($pesanan['waktu_pesan'])) ?>
+            </div>
+          </div>
+          
+          <div class="pesanan-info-batal">
+            <div class="info-item-batal">
+              <i class="fas fa-table"></i> Meja <?= $pesanan['nomor_meja'] ?? '-' ?>
+            </div>
+            <div class="info-item-batal">
+              <i class="fas fa-utensils"></i> <?= ucfirst($pesanan['jenis_pesanan'] ?? '-') ?>
+            </div>
+            <div class="info-item-batal">
+              <i class="fas fa-shopping-bag"></i> <?= $pesanan['jumlah_item'] ?> Item
+            </div>
+          </div>
+          
+          <div class="total-section-batal">
+            <span class="total-label-batal">Total</span>
+            <span class="total-value-batal"><?= rupiah($pesanan['total_harga']) ?></span>
+          </div>
+          
+          <div style="margin-top: 8px; text-align: right;">
+            <span class="badge-batal" style="background-color: #dc3545; color: white;">
+              <i class="fas fa-times"></i> DIBATALKAN
+            </span>
+            <?php if (!empty($pesanan['metode_pembayaran'])): ?>
+            <span style="font-size: 11px; color: #64748b; margin-left: 8px;">
+              <?= strtoupper($pesanan['metode_pembayaran']) ?>
+            </span>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <div class="empty-batal">
+          <i class="fas fa-times-circle"></i>
+          <h3>Belum Ada Pesanan Dibatalkan Hari Ini</h3>
+          <p>Pesanan yang dibatalkan akan muncul di sini</p>
+        </div>
+      <?php endif; ?>
+    </div>
+</div>
+
+<script>
+function toggleBatal() {
+    const grid = document.getElementById('batalGrid');
+    const button = document.querySelector('.toggle-batal');
+    const icon = button.querySelector('i');
+
+    if (grid.style.display === 'none') {
+        grid.style.display = 'grid';
+        icon.className = 'fas fa-chevron-up';
+        button.innerHTML = '<i class="fas fa-chevron-up"></i> Sembunyikan';
+    } else {
+        grid.style.display = 'none';
+        icon.className = 'fas fa-chevron-down';
+        button.innerHTML = '<i class="fas fa-chevron-down"></i> Tampilkan';
+    }
+}
+</script>
 
 <!-- Modal pembatalan
 <div class="modal" id="batalkanModal">
@@ -1784,6 +2046,78 @@ body {
 </div>
 
 <script>
+    document.addEventListener('click', function(e) {
+    if (e.target && e.target.closest('.btn-tolak')) {
+        const btn = e.target.closest('.btn-tolak');
+        const idPesanan = btn.getAttribute('data-id');
+        const idMeja = btn.getAttribute('data-meja');
+        
+        // HENTIKAN PENANGANAN EVENT DI SINI DAN GUNAKAN LOGIKA SWEETALERT
+        // Pastikan tidak ada fungsi tolakPesanan() lain yang dipanggil
+        
+        Swal.fire({
+            title: 'Tolak Pesanan?',
+            text: "Pesanan akan dibatalkan dan meja dikosongkan.",
+            icon: 'warning',
+            input: 'textarea',
+            inputLabel: 'Alasan Penolakan',
+            inputPlaceholder: 'Contoh: Bahan habis, Pelanggan membatalkan...',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Tolak!',
+            cancelButtonText: 'Batal',
+            showLoaderOnConfirm: true, // Tampilkan loading saat request berjalan
+            preConfirm: (alasan) => {
+                if (!alasan) {
+                    Swal.showValidationMessage('Harap isi alasan penolakan!');
+                    return false; // Hentikan proses jika validasi gagal
+                }
+
+                // KIRIM DATA DARI DALAM preConfirm
+                return fetch('../include/tolak_pesanan.php', { // GANTI PATH INI
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_pesanan: idPesanan,
+                        id_meja: idMeja,
+                        alasan: alasan 
+                    })
+                })
+                .then(response => {
+                    // Cek jika response tidak OK (HTTP error)
+                    if (!response.ok) {
+                        throw new Error(response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Cek jika response JSON mengembalikan success: false
+                    if (!data.success) {
+                        throw new Error(data.message || 'Gagal menolak pesanan');
+                    }
+                    return data;
+                })
+                .catch(error => {
+                    // Tampilkan error ke SweetAlert validation message
+                    Swal.showValidationMessage(`Request gagal: ${error.message}`);
+                    return false; // Penting: Mengembalikan false agar SweetAlert tidak menutup
+                });
+            }
+        }).then((result) => {
+            // Ini adalah penanganan hasil AKHIR (setelah fetch sukses)
+            if (result.isConfirmed && result.value) {
+                Swal.fire('Berhasil!', result.value.message, 'success')
+                .then(() => {
+                    location.reload(); 
+                });
+            }
+        });
+    }
+});
+
+// HAPUS FUNGSI tolakPesanan yang terpisah.
+// Sekarang semua logika ada di dalam event listener.
 // Variabel global
 let currentIdPesanan = null;
 let isSelesaiExpanded = false;
@@ -1817,60 +2151,60 @@ function toggleSelesai() {
 }
 
 // UPDATE STATUS PESANAN
-function updateStatus(orderId, status) {
-    console.log('=== UPDATE STATUS CALLED ===');
-    console.log('Order ID:', orderId);
-    console.log('Status:', status);
+// function updateStatus(orderId, status) {
+//     console.log('=== UPDATE STATUS CALLED ===');
+//     console.log('Order ID:', orderId);
+//     console.log('Status:', status);
     
-    if (!orderId || orderId === '' || orderId === 'undefined') {
-        alert('Order ID tidak valid!');
-        return;
-    }
+//     if (!orderId || orderId === '' || orderId === 'undefined') {
+//         alert('Order ID tidak valid!');
+//         return;
+//     }
     
-    if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
-        return;
-    }
+//     if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
+//         return;
+//     }
     
-    const requestData = {
-        id_pesanan: orderId,
-        status: status
-    };
+//     const requestData = {
+//         id_pesanan: orderId,
+//         status: status
+//     };
     
-    console.log('Sending data:', requestData);
+//     console.log('Sending data:', requestData);
     
-    fetch('../include/update_status_pesanan.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-    })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.text();
-    })
-    .then(text => {
-        console.log('Response text:', text);
-        try {
-            const data = JSON.parse(text);
-            console.log('Parsed data:', data);
+//     fetch('../include/update_status_pesanan.php', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json'
+//         },
+//         body: JSON.stringify(requestData)
+//     })
+//     .then(response => {
+//         console.log('Response status:', response.status);
+//         return response.text();
+//     })
+//     .then(text => {
+//         console.log('Response text:', text);
+//         try {
+//             const data = JSON.parse(text);
+//             console.log('Parsed data:', data);
             
-            if (data.success) {
-                alert('Status pesanan berhasil diupdate!');
-                location.reload();
-            } else {
-                alert('Gagal mengupdate status: ' + (data.message || 'Terjadi kesalahan'));
-            }
-        } catch (e) {
-            console.error('JSON parse error:', e);
-            alert('Error: Response tidak valid');
-        }
-    })
-    .catch(error => {
-        console.error('Fetch error:', error);
-        alert('Terjadi kesalahan saat mengupdate status');
-    });
-}
+//             if (data.success) {
+//                 alert('Status pesanan berhasil diupdate!');
+//                 location.reload();
+//             } else {
+//                 alert('Gagal mengupdate status: ' + (data.message || 'Terjadi kesalahan'));
+//             }
+//         } catch (e) {
+//             console.error('JSON parse error:', e);
+//             alert('Error: Response tidak valid');
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Fetch error:', error);
+//         alert('Terjadi kesalahan saat mengupdate status');
+//     });
+// }
 
 // TANDAI SELESAI
 function tandaiSelesai(id) {
@@ -2226,59 +2560,72 @@ function showDetailContent(pesanan) {
     }
     
     // Build content
-    let content = `
-        <div class="detail-section">
-            <h4><i class="fas fa-info-circle"></i> Informasi Pesanan</h4>
-            <div class="detail-info">
-                <div class="info-item">
-                    <span class="info-label">ID Pesanan</span>
-                    <span class="info-value">${pesanan.id_pesanan}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Nomor Meja</span>
-                    <span class="info-value">${pesanan.nomor_meja}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Waktu Pesan</span>
-                    <span class="info-value">${pesanan.waktu_pesan}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Status Pesanan</span>
-                    <span class="info-value">
-                        <span class="status-badge ${statusClass}">${statusText}</span>
-                    </span>
-                </div>
+let content = `
+    <div class="detail-section">
+        <h4><i class="fas fa-info-circle"></i> Informasi Pesanan</h4>
+        <div class="detail-info">
+            <div class="info-item">
+                <span class="info-label">ID Pesanan</span>
+                <span class="info-value">${pesanan.id_pesanan}</span>
             </div>
-            ${pesanan.catatan ? `
-                <div style="margin-top: 15px;">
-                    <span class="info-label">Catatan</span>
-                    <p style="margin: 5px 0 0 0; color: #666;">${pesanan.catatan}</p>
+            <div class="info-item">
+                <span class="info-label">Nomor Meja</span>
+                <span class="info-value">${pesanan.nomor_meja}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Waktu Pesan</span>
+                <span class="info-value">${pesanan.waktu_pesan}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Status Pesanan</span>
+                <span class="info-value">
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </span>
+            </div>
+            
+            ${pesanan.alasan_pembatalan ? `
+                <div class="info-item full-width" style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;">
+                    <span class="info-label" style="font-weight: bold; color: #dc3545;">Alasan Dibatalkan</span>
+                    <span class="info-value" style="color: #dc3545;">${pesanan.alasan_pembatalan}</span>
+                </div>
+                <div class="info-item full-width">
+                    <span class="info-label">Dibatalkan Oleh</span>
+                    <span class="info-value">${pesanan.dibatalkan_oleh || 'Kasir/Admin'}</span>
                 </div>
             ` : ''}
+            
         </div>
-        
-        <div class="detail-section">
-            <h4><i class="fas fa-utensils"></i> Daftar Menu</h4>
-            ${itemsHtml}
-        </div>
-        
-        <div class="detail-section">
-            <h4><i class="fas fa-credit-card"></i> Informasi Pembayaran</h4>
-            <div class="payment-info">
-                <div class="info-row">
-                    <span class="info-label">Metode Pembayaran</span>
-                    <span class="info-value">${pesanan.metode_bayar.toUpperCase()}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status Pembayaran</span>
-                    <span class="info-value">${statusBayarText}</span>
-                </div>
+        ${pesanan.catatan ? `
+            <div style="margin-top: 15px;">
+                <span class="info-label">Catatan</span>
+                <p style="margin: 5px 0 0 0; color: #666;">${pesanan.catatan}</p>
             </div>
-            ${buktiHtml}
-        </div>
-    `;
+        ` : ''}
+    </div>
     
-    document.getElementById('detailContent').innerHTML = content;
+    <div class="detail-section">
+        <h4><i class="fas fa-utensils"></i> Daftar Menu</h4>
+        ${itemsHtml}
+    </div>
+    
+    <div class="detail-section">
+        <h4><i class="fas fa-credit-card"></i> Informasi Pembayaran</h4>
+        <div class="payment-info">
+            <div class="info-row">
+                <span class="info-label">Metode Pembayaran</span>
+                <span class="info-value">${pesanan.metode_bayar.toUpperCase()}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status Pembayaran</span>
+                <span class="info-value">${statusBayarText}</span>
+            </div>
+        </div>
+        ${buktiHtml}
+    </div>
+`; // <-- PASTIKAN TANDA PETIK TERBALIK (BACKTICK) INI ADA
+
+document.getElementById('detailContent').innerHTML = content;
+// } <-- PASTIKAN KURUNG KURAWAL PENUTUP FUNGSI JUGA ADA SETELAH BARIS INI
 }
 
 function closeDetailModal() {
@@ -2445,54 +2792,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Fungsi updateStatus (pastikan ada)
-function updateStatus(orderId, status) {
-    console.log('=== UPDATE STATUS CALLED ===');
-    console.log('Order ID:', orderId);
-    console.log('Status:', status);
-    
-    if (!confirm(`Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`)) {
-        return;
-    }
-    
-    fetch('../include/update_status_pesanan.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            id_pesanan: orderId,
-            status: status
-        })
-    })
-    .then(response => response.text())
-    .then(text => {
-        console.log('Response:', text);
-        try {
-            const data = JSON.parse(text);
-            if (data.success) {
-                alert('Status pesanan berhasil diupdate!');
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-            }
-        } catch (e) {
-            console.error('Parse error:', e);
-            alert('Error: Response tidak valid');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-    });
-}
-
-// Button tolak
-document.querySelectorAll('.btn-tolak').forEach(function(button) {
-    button.addEventListener('click', function() {
-        updateStatus(this.getAttribute('data-id'), this.getAttribute('data-status'));
-    });
-});
-
 
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -2751,39 +3050,78 @@ function tolakPesanan(orderId, mejaId, status) {
     console.log('=== TOLAK PESANAN ===');
     console.log('Order ID:', orderId);
     console.log('Meja ID:', mejaId);
-    
-    if (!confirm('Apakah Anda yakin ingin menolak pesanan ini? Meja akan dikosongkan.')) {
-        return;
-    }
-    
-    fetch('../include/tolak_pesanan.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            id_pesanan: orderId,
-            id_meja: mejaId,
-            status: status
-        })
-    })
-    .then(response => response.text())
-    .then(text => {
-        console.log('Response:', text);
-        try {
-            const data = JSON.parse(text);
-            if (data.success) {
-                alert('Pesanan ditolak! Meja sudah dikosongkan.');
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
+
+    // Menggunakan SweetAlert2 untuk konfirmasi dan input alasan
+    Swal.fire({
+        title: 'Tolak Pesanan?',
+        text: "Pesanan akan dibatalkan, data disimpan ke riwayat pembatalan, dan meja akan dikosongkan.",
+        icon: 'warning',
+        input: 'textarea', // Menambahkan input text area
+        inputLabel: 'Alasan Penolakan',
+        inputPlaceholder: 'Contoh: Bahan habis, Pelanggan membatalkan, dll...',
+        inputAttributes: {
+            'aria-label': 'Tulis alasan penolakan di sini'
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#d33', // Warna merah untuk aksi destruktif
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, Tolak!',
+        cancelButtonText: 'Batal',
+        showLoaderOnConfirm: true, // Menampilkan loading saat request berjalan
+        preConfirm: (alasan) => {
+            // Validasi: Alasan tidak boleh kosong
+            if (!alasan) {
+                Swal.showValidationMessage('Harap isi alasan penolakan!');
+                return false; 
             }
-        } catch (e) {
-            console.error('Parse error:', e);
-            alert('Error: Response tidak valid');
+            
+            // Return promise fetch agar loading spinner berjalan
+            return fetch('../include/tolak_pesanan.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id_pesanan: orderId,
+                    id_meja: mejaId,
+                    status: status, // Dikirim jika backend membutuhkannya
+                    alasan: alasan  // DATA BARU: Alasan penolakan
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(response.statusText);
+                }
+                return response.text(); // Ambil sebagai text dulu untuk debugging
+            })
+            .then(text => {
+                console.log('Raw Response:', text); // Debugging di console
+                try {
+                    const data = JSON.parse(text);
+                    if (!data.success) {
+                        throw new Error(data.message || 'Gagal menolak pesanan');
+                    }
+                    return data;
+                } catch (e) {
+                    throw new Error('Respon server tidak valid: ' + text);
+                }
+            })
+            .catch(error => {
+                Swal.showValidationMessage(
+                    `Request gagal: ${error}`
+                );
+            });
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        // Blok ini berjalan setelah request fetch selesai dan sukses
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Berhasil!',
+                text: 'Pesanan ditolak dan meja telah dikosongkan.',
+                icon: 'success'
+            }).then(() => {
+                location.reload(); // Refresh halaman setelah user klik OK
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
     });
 }
 
@@ -2851,71 +3189,71 @@ document.addEventListener('click', function(e) {
 
 // ========== UPDATE SEMUA FUNGSI ==========
 
-function updateStatus(orderId, status) {
-    showConfirm(
-        `Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`,
-        function() {
-            fetch('../include/update_status_pesanan.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_pesanan: orderId,
-                    status: status
-                })
-            })
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        showSuccess('Status pesanan berhasil diupdate!');
-                    } else {
-                        showError('Gagal: ' + data.message);
-                    }
-                } catch (e) {
-                    showError('Error: Response tidak valid');
-                }
-            })
-            .catch(error => {
-                showError('Terjadi kesalahan');
-            });
-        }
-    );
-}
+// function updateStatus(orderId, status) {
+//     showConfirm(
+//         `Apakah Anda yakin ingin mengubah status pesanan menjadi "${status}"?`,
+//         function() {
+//             fetch('../include/update_status_pesanan.php', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({
+//                     id_pesanan: orderId,
+//                     status: status
+//                 })
+//             })
+//             .then(response => response.text())
+//             .then(text => {
+//                 try {
+//                     const data = JSON.parse(text);
+//                     if (data.success) {
+//                         showSuccess('Status pesanan berhasil diupdate!');
+//                     } else {
+//                         showError('Gagal: ' + data.message);
+//                     }
+//                 } catch (e) {
+//                     showError('Error: Response tidak valid');
+//                 }
+//             })
+//             .catch(error => {
+//                 showError('Terjadi kesalahan');
+//             });
+//         }
+//     );
+// }
 
-function tolakPesanan(orderId, mejaId, status) {
-    showConfirm(
-        'Apakah Anda yakin ingin menolak pesanan ini? Data pesanan akan dihapus dan meja dikosongkan.',
-        function() {
-            fetch('../include/tolak_pesanan.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_pesanan: orderId,
-                    id_meja: mejaId,
-                    status: status
-                })
-            })
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        showSuccess('Pesanan ditolak dan data dihapus. Meja sudah dikosongkan.');
-                    } else {
-                        showError('Gagal: ' + data.message);
-                    }
-                } catch (e) {
-                    showError('Error: Response tidak valid');
-                }
-            })
-            .catch(error => {
-                showError('Terjadi kesalahan');
-            });
-        },
-        'Tolak Pesanan'
-    );
-}
+// function tolakPesanan(orderId, mejaId, status) {
+//     showConfirm(
+//         'Apakah Anda yakin ingin menolak pesanan ini? Data pesanan akan dihapus dan meja dikosongkan.',
+//         function() {
+//             fetch('../include/tolak_pesanan.php', {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify({
+//                     id_pesanan: orderId,
+//                     id_meja: mejaId,
+//                     status: status
+//                 })
+//             })
+//             .then(response => response.text())
+//             .then(text => {
+//                 try {
+//                     const data = JSON.parse(text);
+//                     if (data.success) {
+//                         showSuccess('Pesanan ditolak dan data dihapus. Meja sudah dikosongkan.');
+//                     } else {
+//                         showError('Gagal: ' + data.message);
+//                     }
+//                 } catch (e) {
+//                     showError('Error: Response tidak valid');
+//                 }
+//             })
+//             .catch(error => {
+//                 showError('Terjadi kesalahan');
+//             });
+//         },
+//         'Tolak Pesanan'
+//     );
+// }
 
 function tandaiSelesai(orderId, mejaId) {
     showConfirm(
