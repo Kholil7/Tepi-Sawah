@@ -19,7 +19,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 function blockPage(message) {
   document.body.innerHTML = `
-    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #fef3c7 0%, #fca5a5 100%); font-family: Arial, sans-serif; margin: 0; padding: 20px;">
+    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: Arial, sans-serif; margin: 0; padding: 20px;">
       <div style="background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 40px; max-width: 500px; text-align: center;">
         <div style="background: #fee2e2; border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
           <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2">
