@@ -1,64 +1,488 @@
-body {
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #f9fafb;
+* {
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ff8c42 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    top: -150px;
+    right: -150px;
+    animation: float 6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    bottom: -100px;
+    left: -100px;
+    animation: float 8s ease-in-out infinite reverse;
+    pointer-events: none;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-20px) scale(1.05); }
 }
 
 .container {
-    text-align: center;
-    padding: 40px 20px;
+    width: 100%;
+    max-width: 420px;
+    background: #ffffff;
+    border-radius: 28px;
+    box-shadow: 0 20px 60px rgba(255, 107, 53, 0.25), 0 8px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px 32px;
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .header {
-    margin-bottom: 40px;
+    text-align: center;
+    margin-bottom: 36px;
+}
+
+.logo-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 76px;
+    height: 76px;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    border-radius: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 28px rgba(255, 107, 53, 0.35), 0 4px 10px rgba(247, 147, 30, 0.2);
+    position: relative;
+}
+
+.logo-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    background: linear-gradient(135deg, #ff6b35, #f7931e, #ff8c42);
+    border-radius: 22px;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.logo-wrapper:hover::before {
+    opacity: 0.6;
+    animation: rotate 3s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.logo-icon {
+    color: white;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
 }
 
 .nama-resto {
-    color: #ff6600;
-    margin: 0;
-    font-size: 1.5em;
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+    letter-spacing: -0.6px;
+    line-height: 1.2;
+}
+
+.subtitle {
+    font-size: 15px;
+    color: #64748b;
+    font-weight: 400;
+    letter-spacing: 0.2px;
 }
 
 .card-meja {
-    background: #fff;
-    border-radius: 12px;
-    padding: 50px 0;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.05);
-    margin: 0 auto 30px auto;
-    max-width: 600px;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    border-radius: 20px;
+    padding: 40px 28px;
+    text-align: center;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 40px rgba(255, 107, 53, 0.3), 0 6px 20px rgba(247, 147, 30, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.card-meja::before {
+    content: '';
+    position: absolute;
+    width: 250px;
+    height: 250px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    top: -80px;
+    right: -80px;
+    animation: pulse 4s ease-in-out infinite;
+}
+
+.card-meja::after {
+    content: '';
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    bottom: -60px;
+    left: -60px;
+    animation: pulse 4s ease-in-out infinite 2s;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.15); opacity: 0.9; }
+}
+
+.card-content {
+    position: relative;
+    z-index: 1;
 }
 
 .text-muted {
-    color: #6b7280;
-    font-size: 1.1em;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 12px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 2px;
 }
 
 .nomor-meja {
-    color: #111827;
-    font-size: 4em;
-    font-weight: bold;
-    margin: 10px 0;
+    font-size: 48px;
+    font-weight: 800;
+    color: white;
+    margin-bottom: 16px;
+    text-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    letter-spacing: -1px;
+}
+
+.decorative-line {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.9);
+    margin: 0 auto;
+    border-radius: 3px;
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
+}
+
+.aksi {
+    margin-bottom: 16px;
 }
 
 .btn {
-    display: inline-block;
-    background: #ff6600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
     color: white;
-    padding: 15px 40px;
-    border-radius: 8px;
-    font-size: 1.2em;
     text-decoration: none;
-    transition: background 0.3s;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.35), 0 3px 10px rgba(247, 147, 30, 0.2);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
 }
 
 .btn:hover {
-    background: #e65500;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 32px rgba(255, 107, 53, 0.4), 0 5px 14px rgba(247, 147, 30, 0.25);
+}
+
+.btn:hover::before {
+    opacity: 1;
+}
+
+.btn:active {
+    transform: translateY(-1px);
+}
+
+.btn svg {
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn:hover svg {
+    transform: scale(1.12) rotate(5deg);
 }
 
 .footer {
-    margin-top: 40px;
-    color: #374151;
-    font-size: 1.1em;
-   
-} 
+    margin-top: 0;
+}
+
+.btn-his {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #fff5f0 0%, #ffffff 100%);
+    color: #ff6b35;
+    text-decoration: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 2px solid #ffdbcc;
+    box-shadow: 0 4px 16px rgba(255, 107, 53, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-his::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 0;
+}
+
+.btn-his::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn-his:hover::after {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-his span,
+.btn-his svg {
+    position: relative;
+    z-index: 1;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-his:hover {
+    border-color: #ff6b35;
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 10px 36px rgba(255, 107, 53, 0.3), 0 5px 14px rgba(0, 0, 0, 0.1);
+    color: white;
+}
+
+.btn-his:hover::before {
+    opacity: 1;
+}
+
+.btn-his:active {
+    transform: translateY(-1px) scale(1);
+}
+
+.btn-his svg {
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-his:hover svg {
+    transform: rotate(360deg) scale(1.1);
+}
+
+@media (max-width: 768px) and (min-width: 481px) {
+    .container {
+        max-width: 480px;
+        padding: 44px 36px;
+    }
+    
+    .logo-wrapper {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .nama-resto {
+        font-size: 30px;
+    }
+    
+    .nomor-meja {
+        font-size: 52px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 16px;
+    }
+    
+    .container {
+        padding: 32px 24px;
+        border-radius: 24px;
+        max-width: 380px;
+    }
+    
+    .header {
+        margin-bottom: 28px;
+    }
+    
+    .logo-wrapper {
+        width: 68px;
+        height: 68px;
+        margin-bottom: 16px;
+    }
+    
+    .logo-icon {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .nama-resto {
+        font-size: 24px;
+    }
+    
+    .subtitle {
+        font-size: 14px;
+    }
+    
+    .card-meja {
+        padding: 32px 20px;
+        margin-bottom: 24px;
+    }
+    
+    .nomor-meja {
+        font-size: 42px;
+    }
+    
+    .aksi {
+        margin-bottom: 14px;
+    }
+    
+    .btn {
+        padding: 16px 20px;
+        font-size: 15px;
+        gap: 10px;
+    }
+    
+    .btn-his {
+        padding: 14px 20px;
+        font-size: 14px;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 360px) {
+    .container {
+        padding: 28px 20px;
+        max-width: 340px;
+    }
+    
+    .nama-resto {
+        font-size: 22px;
+    }
+    
+    .nomor-meja {
+        font-size: 38px;
+    }
+    
+    .btn {
+        padding: 14px 18px;
+        font-size: 14px;
+    }
+    
+    .btn-his {
+        padding: 12px 18px;
+        font-size: 13px;
+    }
+}
+
+@media (min-width: 769px) {
+    .container {
+        max-width: 460px;
+        padding: 48px 40px;
+    }
+    
+    .logo-wrapper {
+        width: 88px;
+        height: 88px;
+    }
+    
+    .nama-resto {
+        font-size: 32px;
+    }
+    
+    .nomor-meja {
+        font-size: 56px;
+    }
+    
+    .btn {
+        padding: 20px 28px;
+        font-size: 17px;
+    }
+    
+    .btn-his {
+        padding: 18px 28px;
+        font-size: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
