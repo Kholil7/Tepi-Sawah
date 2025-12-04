@@ -8,11 +8,17 @@ $userId = getUserId();
 
 if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pesanan'])) {
     $id_pesanan = $_GET['id_pesanan'];
+    
+    $query_status = "SELECT status_pesanan FROM pesanan WHERE id_pesanan = '$id_pesanan'";
+    $result_status = mysqli_query($conn, $query_status);
+    $status_row = mysqli_fetch_assoc($result_status);
+    $is_dibatalkan = ($status_row['status_pesanan'] == 'dibatalkan');
+    
     $query = "
-        SELECT d.*, mn.nama_menu, m.nomor_meja, p.metode, p.waktu_pembayaran, p.bayar, p.kembalian
+        SELECT d.*, mn.nama_menu, m.nomor_meja, p.metode, p.waktu_pembayaran, p.bayar, p.kembalian, ps.status_pesanan
         FROM detail_pesanan d
         JOIN menu mn ON mn.id_menu = d.id_menu
-        JOIN pembayaran p ON p.id_pesanan = d.id_pesanan
+        LEFT JOIN pembayaran p ON p.id_pesanan = d.id_pesanan
         JOIN pesanan ps ON ps.id_pesanan = d.id_pesanan
         JOIN meja m ON m.id_meja = ps.id_meja
         WHERE d.id_pesanan = '$id_pesanan'
@@ -22,11 +28,28 @@ if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pes
     $first_row = mysqli_fetch_assoc($result);
     mysqli_data_seek($result, 0);
 
+    if ($is_dibatalkan) {
+        $query_batal = "SELECT alasan, waktu_batal, dibatalkan_oleh FROM pembatalan_pesanan WHERE id_pesanan = '$id_pesanan'";
+        $result_batal = mysqli_query($conn, $query_batal);
+        $data_batal = mysqli_fetch_assoc($result_batal);
+        
+        echo "<div class='alert alert-danger mb-3'>
+                <strong><i class='bi bi-x-circle'></i> PESANAN DIBATALKAN</strong><br>
+                <small>Alasan: {$data_batal['alasan']}<br>
+                Waktu: " . date('d/m/Y H:i', strtotime($data_batal['waktu_batal'])) . "<br>
+                Oleh: " . ucfirst($data_batal['dibatalkan_oleh']) . "</small>
+              </div>";
+    }
+
     echo "<div class='mb-3'>
-            <p><strong>Meja:</strong> {$first_row['nomor_meja']}</p>
-            <p><strong>Metode Pembayaran:</strong> " . strtoupper($first_row['metode']) . "</p>
-            <p><strong>Waktu:</strong> " . date('d/m/Y H:i', strtotime($first_row['waktu_pembayaran'])) . "</p>
-          </div>";
+            <p><strong>Meja:</strong> {$first_row['nomor_meja']}</p>";
+    
+    if (!$is_dibatalkan) {
+        echo "<p><strong>Metode Pembayaran:</strong> " . strtoupper($first_row['metode']) . "</p>
+              <p><strong>Waktu:</strong> " . date('d/m/Y H:i', strtotime($first_row['waktu_pembayaran'])) . "</p>";
+    }
+    
+    echo "</div>";
 
     echo "<table class='table table-bordered'>
             <thead>
@@ -51,8 +74,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'detail' && isset($_GET['id_pes
                 <td><strong>Rp " . number_format($total, 0, ',', '.') . "</strong></td>
             </tr>";
     
-    // Tambahkan baris Bayar dan Kembalian untuk metode cash
-    if ($first_row['metode'] == 'cash') {
+    if (!$is_dibatalkan && $first_row['metode'] == 'cash') {
         echo "<tr>
                 <td colspan='3' class='text-end'><strong>Bayar:</strong></td>
                 <td><strong>Rp " . number_format($first_row['bayar'], 0, ',', '.') . "</strong></td>
@@ -72,14 +94,20 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
     $id_pesanan = $_GET['id_pesanan'];
 
     $transaksi_query = "
-        SELECT p.*, m.nomor_meja
+        SELECT p.*, m.nomor_meja, ps.status_pesanan
         FROM pembayaran p
         JOIN pesanan ps ON p.id_pesanan = ps.id_pesanan
         JOIN meja m ON m.id_meja = ps.id_meja
         WHERE p.id_pesanan = '$id_pesanan'
+          AND ps.status_pesanan != 'dibatalkan'
     ";
     $transaksi_result = mysqli_query($conn, $transaksi_query);
     $transaksi = mysqli_fetch_assoc($transaksi_result);
+
+    if (!$transaksi) {
+        echo "<script>alert('Pesanan ini dibatalkan, tidak dapat dicetak!'); window.close();</script>";
+        exit;
+    }
 
     $items_query = "
         SELECT d.*, mn.nama_menu 
@@ -212,37 +240,54 @@ if (isset($_GET['action']) && $_GET['action'] == 'print' && isset($_GET['id_pesa
 include '../../sidebar/sidebar_kasir.php';
 
 $total_transaksi_query = "
-    SELECT COUNT(*) AS total 
-    FROM pembayaran 
-    WHERE status='sudah_bayar'
+    SELECT COUNT(DISTINCT p.id_pesanan) AS total 
+    FROM pembayaran p
+    JOIN pesanan ps ON ps.id_pesanan = p.id_pesanan
+    WHERE p.status='sudah_bayar'
+      AND ps.status_pesanan != 'dibatalkan'
 ";
 $total_transaksi_result = mysqli_query($conn, $total_transaksi_query);
 $total_transaksi = mysqli_fetch_assoc($total_transaksi_result)['total'];
 
 $total_pendapatan_query = "
-    SELECT SUM(subtotal) AS total
+    SELECT SUM(d.subtotal) AS total
     FROM detail_pesanan d
     JOIN pembayaran p ON p.id_pesanan = d.id_pesanan
+    JOIN pesanan ps ON ps.id_pesanan = d.id_pesanan
     WHERE p.status='sudah_bayar'
+      AND ps.status_pesanan != 'dibatalkan'
 ";
 $total_pendapatan_result = mysqli_query($conn, $total_pendapatan_query);
 $total_pendapatan = mysqli_fetch_assoc($total_pendapatan_result)['total'];
 
 $total_qris_query = "
-    SELECT COUNT(*) AS total 
-    FROM pembayaran 
-    WHERE metode='qris' AND status='sudah_bayar'
+    SELECT COUNT(DISTINCT p.id_pesanan) AS total 
+    FROM pembayaran p
+    JOIN pesanan ps ON ps.id_pesanan = p.id_pesanan
+    WHERE p.metode='qris' 
+      AND p.status='sudah_bayar'
+      AND ps.status_pesanan != 'dibatalkan'
 ";
 $total_qris_result = mysqli_query($conn, $total_qris_query);
 $total_qris = mysqli_fetch_assoc($total_qris_result)['total'];
 
 $total_cash_query = "
-    SELECT COUNT(*) AS total 
-    FROM pembayaran 
-    WHERE metode='cash' AND status='sudah_bayar'
+    SELECT COUNT(DISTINCT p.id_pesanan) AS total 
+    FROM pembayaran p
+    JOIN pesanan ps ON ps.id_pesanan = p.id_pesanan
+    WHERE p.metode='cash' 
+      AND p.status='sudah_bayar'
+      AND ps.status_pesanan != 'dibatalkan'
 ";
 $total_cash_result = mysqli_query($conn, $total_cash_query);
 $total_cash = mysqli_fetch_assoc($total_cash_result)['total'];
+
+$total_dibatalkan_query = "
+    SELECT COUNT(*) AS total 
+    FROM pembatalan_pesanan
+";
+$total_dibatalkan_result = mysqli_query($conn, $total_dibatalkan_query);
+$total_dibatalkan = mysqli_fetch_assoc($total_dibatalkan_result)['total'];
 
 $query = "
     SELECT 
@@ -251,14 +296,30 @@ $query = "
         p.metode,
         p.waktu_pembayaran,
         m.nomor_meja,
+        ps.status_pesanan,
         (SELECT SUM(subtotal) FROM detail_pesanan WHERE id_pesanan = p.id_pesanan) AS total_tagihan
     FROM pembayaran p
     JOIN pesanan ps ON p.id_pesanan = ps.id_pesanan
     JOIN meja m ON m.id_meja = ps.id_meja
     WHERE p.status='sudah_bayar'
+      AND ps.status_pesanan != 'dibatalkan'
     ORDER BY p.waktu_pembayaran DESC
 ";
 $result = mysqli_query($conn, $query);
+
+$query_dibatalkan = "
+    SELECT 
+        pb.id_pesanan,
+        pb.alasan,
+        pb.waktu_batal,
+        m.nomor_meja,
+        (SELECT SUM(subtotal) FROM detail_pesanan WHERE id_pesanan = pb.id_pesanan) AS total_tagihan
+    FROM pembatalan_pesanan pb
+    JOIN pesanan ps ON ps.id_pesanan = pb.id_pesanan
+    JOIN meja m ON m.id_meja = ps.id_meja
+    ORDER BY pb.waktu_batal DESC
+";
+$result_dibatalkan = mysqli_query($conn, $query_dibatalkan);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -292,6 +353,14 @@ body {
 .badge-cash { 
     background-color: #007bff; 
 }
+.nav-tabs .nav-link {
+    color: #495057;
+    font-weight: 600;
+}
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    font-weight: 700;
+}
 </style>
 </head>
 
@@ -303,7 +372,7 @@ body {
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card card-summary p-3 text-center">
-                    <h5>Total Transaksi</h5>
+                    <h5>Total Transaksi Berhasil</h5>
                     <h3><?= $total_transaksi ?></h3>
                 </div>
             </div>
@@ -332,75 +401,144 @@ body {
 
         <div class="card shadow-sm">
             <div class="card-body">
-                <h5 class="mb-3">Riwayat Transaksi</h5>
+                
+                <ul class="nav nav-tabs mb-3" id="transaksiTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="berhasil-tab" data-bs-toggle="tab" data-bs-target="#berhasil" type="button">
+                            <i class="bi bi-check-circle"></i> Transaksi Berhasil (<?= $total_transaksi ?>)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dibatalkan-tab" data-bs-toggle="tab" data-bs-target="#dibatalkan" type="button">
+                            <i class="bi bi-x-circle"></i> Transaksi Dibatalkan (<?= $total_dibatalkan ?>)
+                        </button>
+                    </li>
+                </ul>
 
-                <table class="table table-hover align-middle">
-                    <thead>
-                        <tr class="table-secondary">
-                            <th>Waktu</th>
-                            <th>Meja</th>
-                            <th>Item Pesanan</th>
-                            <th>Metode</th>
-                            <th>Total</th>
-                            <th>Aksi</th>
-                        </tr>
-                    </thead>
+                <div class="tab-content" id="transaksiTabsContent">
+                    
+                    <div class="tab-pane fade show active" id="berhasil" role="tabpanel">
+                        <h5 class="mb-3">Riwayat Transaksi Berhasil</h5>
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr class="table-secondary">
+                                    <th>Waktu</th>
+                                    <th>Meja</th>
+                                    <th>Item Pesanan</th>
+                                    <th>Metode</th>
+                                    <th>Total</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                                <?php
+                                    $first_query = "
+                                        SELECT mn.nama_menu, d.jumlah 
+                                        FROM detail_pesanan d
+                                        JOIN menu mn ON mn.id_menu = d.id_menu
+                                        WHERE d.id_pesanan='{$row['id_pesanan']}' LIMIT 1
+                                    ";
+                                    $first_result = mysqli_query($conn, $first_query);
+                                    $first = mysqli_fetch_assoc($first_result);
 
-                    <tbody>
-                    <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                        <?php
-                            $first_query = "
-                                SELECT mn.nama_menu, d.jumlah 
-                                FROM detail_pesanan d
-                                JOIN menu mn ON mn.id_menu = d.id_menu
-                                WHERE d.id_pesanan='{$row['id_pesanan']}' LIMIT 1
-                            ";
-                            $first_result = mysqli_query($conn, $first_query);
-                            $first = mysqli_fetch_assoc($first_result);
+                                    $jumlah_query = "
+                                        SELECT COUNT(*) AS total 
+                                        FROM detail_pesanan 
+                                        WHERE id_pesanan='{$row['id_pesanan']}'
+                                    ";
+                                    $jumlah_result = mysqli_query($conn, $jumlah_query);
+                                    $jumlah_item = mysqli_fetch_assoc($jumlah_result)['total'];
+                                ?>
+                                <tr>
+                                    <td><?= date('H:i d/m', strtotime($row['waktu_pembayaran'])) ?></td>
+                                    <td><span class="badge bg-warning text-dark"><?= $row['nomor_meja'] ?></span></td>
+                                    <td>
+                                        <?= $first['nama_menu'] ?> x<?= $first['jumlah'] ?>
+                                        <?php if ($jumlah_item > 1): ?>
+                                            <div class="text-muted small">+<?= $jumlah_item - 1 ?> item lainnya</div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                    <?php if ($row['metode'] == 'qris'): ?>
+                                        <span class="badge badge-qris">QRIS</span>
+                                    <?php else: ?>
+                                        <span class="badge badge-cash">Cash</span>
+                                    <?php endif; ?>
+                                    </td>
+                                    <td><strong>Rp <?= number_format($row['total_tagihan'], 0, ',', '.') ?></strong></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" onclick="showDetail('<?= $row['id_pesanan'] ?>')">
+                                            <i class="bi bi-search"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-success" onclick="printStruk('<?= $row['id_pesanan'] ?>')">
+                                            <i class="bi bi-printer"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
 
-                            $jumlah_query = "
-                                SELECT COUNT(*) AS total 
-                                FROM detail_pesanan 
-                                WHERE id_pesanan='{$row['id_pesanan']}'
-                            ";
-                            $jumlah_result = mysqli_query($conn, $jumlah_query);
-                            $jumlah_item = mysqli_fetch_assoc($jumlah_result)['total'];
-                        ?>
+                    <div class="tab-pane fade" id="dibatalkan" role="tabpanel">
+                        <h5 class="mb-3">Riwayat Transaksi Dibatalkan</h5>
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr class="table-danger">
+                                    <th>Waktu Batal</th>
+                                    <th>Meja</th>
+                                    <th>Item Pesanan</th>
+                                    <th>Alasan</th>
+                                    <th>Total</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php while ($row_batal = mysqli_fetch_assoc($result_dibatalkan)): ?>
+                                <?php
+                                    $first_query_batal = "
+                                        SELECT mn.nama_menu, d.jumlah 
+                                        FROM detail_pesanan d
+                                        JOIN menu mn ON mn.id_menu = d.id_menu
+                                        WHERE d.id_pesanan='{$row_batal['id_pesanan']}' LIMIT 1
+                                    ";
+                                    $first_result_batal = mysqli_query($conn, $first_query_batal);
+                                    $first_batal = mysqli_fetch_assoc($first_result_batal);
 
-                        <tr>
-                            <td><?= date('H:i d/m', strtotime($row['waktu_pembayaran'])) ?></td>
-                            <td><span class="badge bg-warning text-dark"><?= $row['nomor_meja'] ?></span></td>
-                            <td>
-                                <?= $first['nama_menu'] ?> x<?= $first['jumlah'] ?>
-                                <?php if ($jumlah_item > 1): ?>
-                                    <div class="text-muted small">+<?= $jumlah_item - 1 ?> item lainnya</div>
-                                <?php endif; ?>
-                            </td>
+                                    $jumlah_query_batal = "
+                                        SELECT COUNT(*) AS total 
+                                        FROM detail_pesanan 
+                                        WHERE id_pesanan='{$row_batal['id_pesanan']}'
+                                    ";
+                                    $jumlah_result_batal = mysqli_query($conn, $jumlah_query_batal);
+                                    $jumlah_item_batal = mysqli_fetch_assoc($jumlah_result_batal)['total'];
+                                ?>
+                                <tr>
+                                    <td><?= date('H:i d/m', strtotime($row_batal['waktu_batal'])) ?></td>
+                                    <td><span class="badge bg-secondary"><?= $row_batal['nomor_meja'] ?></span></td>
+                                    <td>
+                                        <?= $first_batal['nama_menu'] ?> x<?= $first_batal['jumlah'] ?>
+                                        <?php if ($jumlah_item_batal > 1): ?>
+                                            <div class="text-muted small">+<?= $jumlah_item_batal - 1 ?> item lainnya</div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted"><?= htmlspecialchars($row_batal['alasan']) ?></small>
+                                    </td>
+                                    <td><strong class="text-danger">Rp <?= number_format($row_batal['total_tagihan'], 0, ',', '.') ?></strong></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="showDetail('<?= $row_batal['id_pesanan'] ?>')">
+                                            <i class="bi bi-search"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
 
-                            <td>
-                            <?php if ($row['metode'] == 'qris'): ?>
-                                <span class="badge badge-qris">QRIS</span>
-                            <?php else: ?>
-                                <span class="badge badge-cash">Cash</span>
-                            <?php endif; ?>
-                            </td>
-
-                            <td><strong>Rp <?= number_format($row['total_tagihan'], 0, ',', '.') ?></strong></td>
-
-                            <td>
-                                <button class="btn btn-sm btn-primary" onclick="showDetail('<?= $row['id_pesanan'] ?>')">
-                                    <i class="bi bi-search"></i>
-                                </button>
-                                <button class="btn btn-sm btn-success" onclick="printStruk('<?= $row['id_pesanan'] ?>')">
-                                    <i class="bi bi-printer"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                    <?php endwhile; ?>
-                    </tbody>
-                </table>
-
+                </div>
             </div>
         </div>
 
