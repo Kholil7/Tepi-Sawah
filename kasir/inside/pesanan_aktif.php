@@ -1873,7 +1873,6 @@ body {
     
     <div class="batal-grid" id="batalGrid" style="display: none;">
       <?php 
-      // Asumsi variabel $pesananDibatalkan sudah diisi dengan data dari database
       if (!empty($pesananDibatalkan)): 
       ?>
         <?php foreach ($pesananDibatalkan as $pesanan): ?>
