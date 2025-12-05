@@ -60,7 +60,7 @@ $pesanan = getPesananByMeja($meja['id_meja'], $conn);
         }
     </style>
 </head>
-<script>
+<!-- <script>
 function batalkanPesanan(idPesanan) {
     if(confirm('Yakin ingin membatalkan pesanan ini?')) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -88,7 +88,7 @@ function batalkanPesanan(idPesanan) {
         });
     }
 }
-</script>
+</script> -->
 <body>
 
 <header>
@@ -172,11 +172,11 @@ if (empty($pesanan_filtered)) : ?>
                 <p>Catatan: <em><?= htmlspecialchars($pesanan_data['catatan']); ?></em></p>
             <?php endif; ?>
             
-            <?php if ($status === 'menunggu') : ?>
+            <!-- <?php if ($status === 'menunggu') : ?>
                 <button onclick="batalkanPesanan('<?= $pesanan_data['id_pesanan']; ?>')" class="btn-batalkan">
                     Batalkan
                 </button>
-            <?php endif; ?>
+            <?php endif; ?> -->
         </div>
     <?php endforeach; ?>
 </div>
