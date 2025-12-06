@@ -295,7 +295,7 @@ unset($_SESSION['order_data']);
                                 foreach (['makanan', 'minuman', 'cemilan'] as $cat) {
                                     foreach ($menu_by_category[$cat] as $menu) {
                                         $display = $cat === 'makanan' ? 'block' : 'none';
-                                        $image_path = !empty($menu['gambar']) && file_exists('../../uploads/' . $menu['gambar']) ? '../../uploads/' . htmlspecialchars($menu['gambar']) : '';
+                                        $image_path = !empty($menu['gambar']) && file_exists('../../assets/uploads/' . $menu['gambar']) ? '../../assets/uploads/' . htmlspecialchars($menu['gambar']) : '';
                                         $no_image_text = empty($image_path) ? '<span class="no-image-text">No Image</span>' : '';
                                         $nama_menu_html = htmlspecialchars($menu['nama_menu']);
                                         $menu_id_html = htmlspecialchars($menu['id_menu']);
