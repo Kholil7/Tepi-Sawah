@@ -2161,52 +2161,42 @@ function toggleSelesai() {
 
 // UPDATE STATUS PESANAN
 function konfirmasiPembayaran(orderId) {
-    const cardId = `order-card-${orderId}`;
+    console.log('=== KONFIRMASI PEMBAYARAN ===');
+    console.log('Order ID:', orderId);
     
     showConfirm(
         'Apakah Anda yakin pembayaran sudah diterima?',
         function() {
             fetch('../include/konfirmasi_pembayaran.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     id_pesanan: orderId
                 })
             })
             .then(response => response.text())
             .then(text => {
+                console.log('Response:', text);
                 try {
                     const data = JSON.parse(text);
                     if (data.success) {
                         showSuccess('Pembayaran berhasil dikonfirmasi!');
                         
-                        const card = document.getElementById(cardId);
-                        if (card) {
-                            const statusBadge = card.querySelector('.status-badge');
-                            if (statusBadge) {
-                                statusBadge.textContent = 'LUNAS';
-                                statusBadge.className = 'status-badge badge-completed';
-                            }
-                            
-                            const actionContainer = card.querySelector('.order-actions');
-                            if (actionContainer) {
-                                actionContainer.innerHTML = `
-                                    <button class="btn btn-success" disabled>
-                                        <i class="fas fa-check-circle"></i> Pembayaran Lunas
-                                    </button>
-                                `;
-                            }
-                            
-                            card.classList.add('order-paid');
-                        }
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
                     } else {
                         showError('Gagal: ' + data.message);
                     }
                 } catch (e) {
+                    console.error('Parse error:', e);
                     showError('Error: Response tidak valid');
                 }
             })
             .catch(error => {
+                console.error('Error:', error);
                 showError('Terjadi kesalahan');
             });
         },
@@ -2307,55 +2297,6 @@ function tandaiSelesai(id) {
     );
 }
 
-// KONFIRMASI PEMBAYARAN
-function konfirmasiPembayaran(id) {
-    console.log('💰 KONFIRMASI PEMBAYARAN:', id);
-    
-    if(!confirm('Konfirmasi bahwa pembayaran sudah diterima? Status akan berubah menjadi LUNAS dan pesanan akan diterima.')) return;
-    
-    let button = event?.target?.closest?.('button');
-    if (!button) {
-        button = document.querySelector(`[onclick*="konfirmasiPembayaran(${id})"]`);
-    }
-    
-    const originalText = button?.innerHTML || '';
-    
-    if (button) {
-        button.innerHTML = '<div class="loading"></div> Mengkonfirmasi...';
-        button.disabled = true;
-    }
-    
-    const formData = new URLSearchParams();
-    formData.append('id', id);
-    formData.append('aksi', 'konfirmasi_bayar');
-    
-    fetch('aksi_pesanan.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: formData
-    })
-    .then(response => response.json())
-    .then(res => {
-        if(res.success) {
-            showNotification('✅ ' + res.message, 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showNotification('❌ ' + res.message, 'error');
-            if (button) {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }
-        }
-    })
-    .catch(e => {
-        console.error('💥 Payment error:', e);
-        showNotification('❌ Error: Gagal mengkonfirmasi pembayaran', 'error');
-        if (button) {
-            button.innerHTML = originalText;
-            button.disabled = false;
-        }
-    });
-}
 
 // TOLAK PEMBAYARAN
 function tolakPembayaran(id) {
@@ -2874,123 +2815,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Fungsi konfirmasi pembayaran
-function konfirmasiPembayaran(orderId) {
-    console.log('=== KONFIRMASI PEMBAYARAN ===');
-    console.log('Order ID:', orderId);
-    
-    if (!confirm('Apakah Anda yakin ingin mengkonfirmasi pembayaran ini?')) {
-        return;
-    }
-    
-    fetch('../include/konfirmasi_pembayaran.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            id_pesanan: orderId
-        })
-    })
-    .then(response => response.text())
-    .then(text => {
-        console.log('Response:', text);
-        try {
-            const data = JSON.parse(text);
-            if (data.success) {
-                alert('Pembayaran berhasil dikonfirmasi!');
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-            }
-        } catch (e) {
-            console.error('Parse error:', e);
-            alert('Error: Response tidak valid');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-    });
-}
-
-function tolakPembayaran(orderId) {
-    console.log('=== TOLAK PEMBAYARAN ===');
-    console.log('Order ID:', orderId);
-    
-    if (!confirm('Apakah Anda yakin ingin menolak pembayaran ini?')) {
-        return;
-    }
-    
-    fetch('../include/tolak_pembayaran.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            id_pesanan: orderId
-        })
-    })
-    .then(response => response.text())
-    .then(text => {
-        console.log('Response:', text);
-        try {
-            const data = JSON.parse(text);
-            if (data.success) {
-                alert('Pembayaran ditolak!');
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-            }
-        } catch (e) {
-            console.error('Parse error:', e);
-            alert('Error: Response tidak valid');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-    });
-}
-
-function resetPembayaran(orderId) {
-    console.log('=== RESET PEMBAYARAN ===');
-    console.log('Order ID:', orderId);
-    
-    if (!confirm('Apakah Anda yakin ingin mereset status pembayaran?')) {
-        return;
-    }
-    
-    fetch('../include/reset_pembayaran.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            id_pesanan: orderId
-        })
-    })
-    .then(response => response.text())
-    .then(text => {
-        console.log('Response:', text);
-        try {
-            const data = JSON.parse(text);
-            if (data.success) {
-                alert('Status pembayaran berhasil direset!');
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-            }
-        } catch (e) {
-            console.error('Parse error:', e);
-            alert('Error: Response tidak valid');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-    });
-}
 
 document.addEventListener('DOMContentLoaded', function() {
     
@@ -3043,40 +2867,45 @@ function tandaiSelesai(orderId, mejaId) {
     console.log('Order ID:', orderId);
     console.log('Meja ID:', mejaId);
     
-    if (!confirm('Apakah Anda yakin ingin menandai pesanan ini selesai? Status meja akan berubah menjadi kosong.')) {
-        return;
-    }
-    
-    fetch('../include/tandai_selesai.php', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
+    showConfirm(
+        'Apakah Anda yakin pesanan sudah selesai? Meja akan dikosongkan.',
+        function() {
+            fetch('../include/tandai_selesai.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id_pesanan: orderId,
+                    id_meja: mejaId
+                })
+            })
+            .then(response => response.text())
+            .then(text => {
+                console.log('Response:', text);
+                try {
+                    const data = JSON.parse(text);
+                    if (data.success) {
+                        showSuccess('Pesanan selesai! Meja sudah dikosongkan.');
+                        
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        showError('Gagal: ' + data.message);
+                    }
+                } catch (e) {
+                    console.error('Parse error:', e);
+                    showError('Error: Response tidak valid');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Terjadi kesalahan');
+            });
         },
-        body: JSON.stringify({
-            id_pesanan: orderId,
-            id_meja: mejaId
-        })
-    })
-    .then(response => response.text())
-    .then(text => {
-        console.log('Response:', text);
-        try {
-            const data = JSON.parse(text);
-            if (data.success) {
-                alert('Pesanan selesai! Meja sudah dikosongkan.');
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-            }
-        } catch (e) {
-            console.error('Parse error:', e);
-            alert('Error: Response tidak valid');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan');
-    });
+        'Tandai Selesai'
+    );
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -3365,112 +3194,16 @@ function tolakPesanan(orderId, mejaId) {
     );
 }
 
-function tandaiSelesai(orderId, mejaId) {
-    showConfirm(
-        'Apakah Anda yakin pesanan sudah selesai? Meja akan dikosongkan.',
-        function() {
-            fetch('../include/tandai_selesai.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_pesanan: orderId,
-                    id_meja: mejaId
-                })
-            })
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        showSuccess('Pesanan selesai! Meja sudah dikosongkan.');
-                    } else {
-                        showError('Gagal: ' + data.message);
-                    }
-                } catch (e) {
-                    showError('Error: Response tidak valid');
-                }
-            })
-            .catch(error => {
-                showError('Terjadi kesalahan');
-            });
-        },
-        'Tandai Selesai'
-    );
-}
-
-function konfirmasiPembayaran(orderId) {
-    showConfirm(
-        'Apakah Anda yakin pembayaran sudah diterima?',
-        function() {
-            fetch('../include/konfirmasi_pembayaran.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_pesanan: orderId
-                })
-            })
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        showSuccess('Pembayaran berhasil dikonfirmasi!');
-                    } else {
-                        showError('Gagal: ' + data.message);
-                    }
-                } catch (e) {
-                    showError('Error: Response tidak valid');
-                }
-            })
-            .catch(error => {
-                showError('Terjadi kesalahan');
-            });
-        },
-        'Konfirmasi Pembayaran'
-    );
-}
-
-function tolakPembayaran(orderId) {
-    showConfirm(
-        'Apakah Anda yakin ingin menolak pembayaran ini?',
-        function() {
-            fetch('../include/tolak_pembayaran.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id_pesanan: orderId
-                })
-            })
-            .then(response => response.text())
-            .then(text => {
-                try {
-                    const data = JSON.parse(text);
-                    if (data.success) {
-                        showSuccess('Pembayaran ditolak!');
-                    } else {
-                        showError('Gagal: ' + data.message);
-                    }
-                } catch (e) {
-                    showError('Error: Response tidak valid');
-                }
-            })
-            .catch(error => {
-                showError('Terjadi kesalahan');
-            });
-        },
-        'Tolak Pembayaran'
-    );
-}
-
-// function resetPembayaran(orderId) {
+// function tandaiSelesai(orderId, mejaId) {
 //     showConfirm(
-//         'Status pembayaran akan direset. Lanjutkan?',
+//         'Apakah Anda yakin pesanan sudah selesai? Meja akan dikosongkan.',
 //         function() {
-//             fetch('../include/reset_pembayaran.php', {
+//             fetch('../include/tandai_selesai.php', {
 //                 method: 'POST',
 //                 headers: { 'Content-Type': 'application/json' },
 //                 body: JSON.stringify({
-//                     id_pesanan: orderId
+//                     id_pesanan: orderId,
+//                     id_meja: mejaId
 //                 })
 //             })
 //             .then(response => response.text())
@@ -3478,7 +3211,7 @@ function tolakPembayaran(orderId) {
 //                 try {
 //                     const data = JSON.parse(text);
 //                     if (data.success) {
-//                         showSuccess('Status pembayaran berhasil direset!');
+//                         showSuccess('Pesanan selesai! Meja sudah dikosongkan.');
 //                     } else {
 //                         showError('Gagal: ' + data.message);
 //                     }
@@ -3490,9 +3223,10 @@ function tolakPembayaran(orderId) {
 //                 showError('Terjadi kesalahan');
 //             });
 //         },
-//         'Reset Status Pembayaran'
+//         'Tandai Selesai'
 //     );
 // }
+
 </script>
 </body>
 </html>
