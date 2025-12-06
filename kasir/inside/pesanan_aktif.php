@@ -204,14 +204,16 @@ function getPesananDibatalkanHariIni($conn) {
             p.waktu_pesan, 
             p.jenis_pesanan, 
             p.total_harga,
-            p.metode_bayar AS metode_pembayaran, -- Alias untuk konsistensi dengan UI
+            p.metode_bayar AS metode_pembayaran,
             m.nomor_meja,
-            -- Menghitung total item dari detail_pesanan
+            pb.alasan,
             (SELECT SUM(dp.jumlah) FROM detail_pesanan dp WHERE dp.id_pesanan = p.id_pesanan) AS jumlah_item
         FROM 
             pesanan p
         LEFT JOIN 
             meja m ON p.id_meja = m.id_meja
+        LEFT JOIN
+            pembatalan_pesanan pb ON p.id_pesanan = pb.id_pesanan
         WHERE 
             p.status_pesanan = 'dibatalkan' 
             AND DATE(p.waktu_pesan) = CURDATE()
@@ -222,7 +224,6 @@ function getPesananDibatalkanHariIni($conn) {
     $result = $conn->query($query);
     
     if (!$result) {
-        // Tampilkan error jika query gagal (hanya saat debugging)
         error_log("Error fetching canceled orders: " . $conn->error);
         return []; 
     }
@@ -1899,6 +1900,15 @@ body {
           <div class="total-section-batal">
             <span class="total-label-batal">Total</span>
             <span class="total-value-batal"><?= rupiah($pesanan['total_harga']) ?></span>
+          </div>
+          
+          <div style="margin-top: 8px; padding: 8px; background-color: #fff3cd; border-left: 3px solid #ffc107; border-radius: 4px;">
+            <div style="font-size: 11px; color: #856404; font-weight: 600; margin-bottom: 4px;">
+              <i class="fas fa-info-circle"></i> Alasan Pembatalan:
+            </div>
+            <div style="font-size: 12px; color: #856404;">
+              <?= htmlspecialchars($pesanan['alasan'] ?? 'Tidak ada alasan') ?>
+            </div>
           </div>
           
           <div style="margin-top: 8px; text-align: right;">
