@@ -1,4 +1,5 @@
 <?php
+session_start();
 require '../../database/connect.php';
 require '../include/home_f.php';
 
@@ -9,6 +10,27 @@ $meja = getMejaByKode($kode_unik, $conn);
 if (!$meja) {
     echo "<h2>Meja tidak ditemukan!</h2>";
     exit;
+}
+
+$query = "SELECT id_pesanan, aktif, session_id, waktu_expired FROM pesanan WHERE id_meja = ? ORDER BY id_pesanan DESC LIMIT 1";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $meja['id_meja']);
+$stmt->execute();
+$result = $stmt->get_result();
+$pesanan = $result->fetch_assoc();
+
+if ($pesanan && $pesanan['aktif'] == 1) {
+    if (strtotime($pesanan['waktu_expired']) < time()) {
+        $update = $conn->prepare("UPDATE pesanan SET aktif = 0 WHERE id_pesanan = ?");
+        $update->bind_param("s", $pesanan['id_pesanan']);
+        $update->execute();
+        $update->close();
+    } else {
+        if ($pesanan['session_id'] !== session_id()) {
+            echo "<h2>Meja sedang digunakan!</h2>";
+            exit;
+        }
+    }
 }
 ?>
 <!DOCTYPE html>

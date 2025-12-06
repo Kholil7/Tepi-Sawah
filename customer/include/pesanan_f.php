@@ -1,4 +1,5 @@
 <?php
+session_start();
 require '../../database/connect.php';
 header('Content-Type: application/json');
 
@@ -45,16 +46,18 @@ try {
     $jenis_pesanan = 'dine_in';
     $status_pesanan = 'menunggu';
     $waktu_pesan = date('Y-m-d H:i:s');
+    $waktu_expired = date('Y-m-d H:i:s', strtotime('+3 hours'));
     $id_pesanan = generateRandomCode();
+    $session_id = session_id();
 
     $stmt_pesanan = $conn->prepare(
-        "INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, status_pesanan, metode_bayar, total_harga, catatan)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO pesanan (id_pesanan, id_meja, waktu_pesan, jenis_pesanan, status_pesanan, metode_bayar, total_harga, catatan, session_id, aktif, waktu_expired)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)"
     );
     $stmt_pesanan->bind_param(
-        'ssssssds',
+        'ssssssdsss',
         $id_pesanan, $id_meja, $waktu_pesan, $jenis_pesanan, $status_pesanan,
-        $metode_bayar, $total_harga, $catatan
+        $metode_bayar, $total_harga, $catatan, $session_id, $waktu_expired
     );
     $stmt_pesanan->execute();
     $stmt_pesanan->close();
