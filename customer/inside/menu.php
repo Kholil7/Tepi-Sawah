@@ -72,7 +72,51 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Menu - Meja <?php echo htmlspecialchars($nomor_meja); ?></title>
     <link rel="stylesheet" href="../../css/customer/menu.css">
+    <style>
+        .search-container {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .search-input {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 14px;
+            width: 200px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .search-input:focus {
+            border-color: #FF6B00;
+            box-shadow: 0 0 5px rgba(255, 107, 0, 0.2);
+        }
+        .search-btn {
+            background: #FF6B00;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .search-btn:hover {
+            background: #e55f00;
+        }
+        .header {
+            position: relative;
+        }
+        .menu-card.hidden {
+            display: none;
+        }
+    </style>
 </head>
+<script src="../geofence/geofence.js"></script>
 <body>
     <div class="main-wrapper">
         <div class="container">
@@ -81,6 +125,10 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
                 <div class="header-title">
                     <h1>Menu</h1>
                     <p>Meja <?php echo htmlspecialchars($nomor_meja); ?></p>
+                </div>
+                <div class="search-container">
+                    <button class="search-btn" onclick="searchMenu()">🔍</button>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Cari menu..." onkeyup="searchMenu()">
                 </div>
             </header>
 
@@ -98,7 +146,7 @@ $qris_path = $data_qris['nilai_pengaturan'] ?? '../../assets/uploads/payment_qri
             <div class="menu-grid">
                 <?php if (count($menus) > 0): ?>
                     <?php foreach ($menus as $menu): ?>
-                        <div class="menu-card">
+                        <div class="menu-card" data-menu-name="<?php echo strtolower(htmlspecialchars($menu['nama_menu'])); ?>">
                             <div class="menu-image">
                                 <?php if (!empty($menu['gambar'])): ?>
                                     <img src="../../assets/uploads/<?php echo htmlspecialchars($menu['gambar']); ?>" 
@@ -813,6 +861,26 @@ document.getElementById('checkoutModal').addEventListener('click', function(e) {
         closeCheckout();
     }
 });
+
+        function searchMenu() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const menuCards = document.querySelectorAll('.menu-card');
+            
+            menuCards.forEach(card => {
+                const menuName = card.getAttribute('data-menu-name');
+                if (menuName.includes(input)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+            window.onload = function() {
+      checkGeofence(function(granted, distance) {
+        console.log('Akses diberikan! Jarak: ' + distance + 'm');
+      });
+    };
     </script>
 </body>
 </html>
