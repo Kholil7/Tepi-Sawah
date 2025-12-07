@@ -876,11 +876,11 @@ document.getElementById('checkoutModal').addEventListener('click', function(e) {
             });
         }
 
-            window.onload = function() {
-      checkGeofence(function(granted, distance) {
-        console.log('Akses diberikan! Jarak: ' + distance + 'm');
-      });
-    };
+    //         window.onload = function() {
+    //   checkGeofence(function(granted, distance) {
+    //     console.log('Akses diberikan! Jarak: ' + distance + 'm');
+    //   });
+    // };
     </script>
 </body>
 </html>

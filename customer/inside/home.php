@@ -64,11 +64,11 @@ if ($pesanan && $pesanan['aktif'] == 1) {
         </div>
     </div>
 </body>
-  <script>
+  <!-- <script>
     window.onload = function() {
       checkGeofence(function(granted, distance) {
         console.log('Akses diberikan! Jarak: ' + distance + 'm');
       });
     };
-  </script>
+  </script> -->
 </html>

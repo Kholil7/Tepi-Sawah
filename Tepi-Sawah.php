@@ -714,7 +714,7 @@ body {
                     <i class="fas fa-fire"></i> Terlaris
                 </div>
 
-                <img src="uploads/menu/<?= htmlspecialchars($menu['gambar']) ?>" 
+                <img src="assets/uploads/<?= htmlspecialchars($menu['gambar']) ?>" 
                      alt="<?= htmlspecialchars($menu['nama_menu']) ?>">
 
                 <div class="menu-card-content">
