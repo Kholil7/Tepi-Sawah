@@ -206,12 +206,12 @@ body.sidebar-collapsed .main-content {
   </div>
 
   <!-- QUICK ACTIONS -->
-  <div class="quick-actions">
+  <!-- <div class="quick-actions">
     <a href="input_pesanan.php" class="quick-btn success"><i class="fas fa-plus-circle"></i><h3>Input Pesanan</h3></a>
     <a href="pesanan_aktif.php" class="quick-btn"><i class="fas fa-list-check"></i><h3>Pesanan Aktif</h3></a>
     <a href="pembayaran.php" class="quick-btn warning"><i class="fas fa-cash-register"></i><h3>Pembayaran</h3></a>
     <a href="transaksi_harian.php" class="quick-btn danger"><i class="fas fa-receipt"></i><h3>Transaksi</h3></a>
-  </div>
+  </div> -->
 
   <!-- STATS -->
   <div class="stats-container">
